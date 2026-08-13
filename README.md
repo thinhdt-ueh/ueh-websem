@@ -101,6 +101,43 @@ python app.py
 
 Mở trình duyệt tại `http://127.0.0.1:5000`.
 
+## Triển khai lên internet (Render.com)
+
+Repo đã có sẵn `Procfile` + `render.yaml` (chạy bằng `gunicorn`, tắt debug
+mode) — chỉ cần đẩy code lên GitHub rồi trỏ Render vào là xong:
+
+1. **Tạo repo trên GitHub** (repo trống, không cần README/license):
+   `https://github.com/new`
+2. **Đẩy code local lên** (đã có sẵn commit đầu tiên trong repo local):
+   ```bash
+   git remote add origin https://github.com/<username>/<repo-name>.git
+   git branch -M main
+   git push -u origin main
+   ```
+3. **Tạo dịch vụ trên Render**: đăng nhập [render.com](https://render.com) (có
+   thể dùng tài khoản GitHub) → **New +** → **Blueprint** → chọn repo vừa đẩy
+   lên → Render tự đọc `render.yaml` và cấu hình sẵn build/start command →
+   bấm **Apply**.
+   - Nếu muốn cấu hình tay thay vì Blueprint: **New +** → **Web Service** →
+     chọn repo → Build Command: `pip install -r requirements.txt` → Start
+     Command: `gunicorn app:app --bind 0.0.0.0:$PORT --workers 2 --timeout 120`.
+4. Sau khi build xong (vài phút), Render cấp sẵn 1 domain dạng
+   `https://ueh-websem.onrender.com` kèm HTTPS miễn phí.
+
+**Lưu ý khi chạy trên gói Free:**
+- Dịch vụ sẽ "ngủ" sau 15 phút không có traffic; lượt truy cập đầu tiên sau đó
+  chậm lại (~30-50 giây) trong lúc Render khởi động lại container — không phải
+  lỗi, chỉ cần chờ.
+- Đĩa lưu file upload (`uploads/`) là **ephemeral** — mỗi lần restart/deploy
+  lại sẽ xoá sạch. Không ảnh hưởng đến việc sử dụng bình thường (mỗi phiên chỉ
+  cần file tồn tại đến lúc chạy xong phân tích), chỉ cần biết để không kỳ vọng
+  file cũ còn tồn tại sau khi service khởi động lại.
+- `--timeout 120` (giây) cho gunicorn đã tính dư so với trường hợp nặng nhất
+  (bootstrapping 5000 lần lặp ~40 giây) — nếu sau này tăng giới hạn bootstrap
+  cao hơn, cần tăng số này tương ứng trong `Procfile`/`render.yaml`.
+- Muốn dịch vụ luôn sẵn sàng (không bị ngủ): đổi `plan: free` thành
+  `plan: starter` trong `render.yaml` (~$7/tháng).
+
 ## Sử dụng
 
 1. **Bước 1 — Dữ liệu**: kéo-thả file CSV/XLSX (mỗi cột là 1 biến quan sát),
