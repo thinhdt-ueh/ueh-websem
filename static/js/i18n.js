@@ -1,0 +1,426 @@
+/* Frontend VI/EN translation catalog + helpers. Independent from the backend
+ * catalog (i18n.py) — this one translates DOM text in the browser on language
+ * switch; the backend one translates error messages and exported report
+ * labels at request time. Loaded before diagram.js/app.js. */
+
+const LANG_STORAGE_KEY = "plssem_lang";
+
+const I18N = {
+  vi: {
+    // --- header / nav ---
+    nav_step1: "1. Dữ liệu",
+    nav_step2: "2. Mô hình",
+    nav_step3: "3. Kết quả",
+    nav_sample: "Dùng dữ liệu mẫu",
+
+    // --- step 1: upload ---
+    s1_title: "Tải lên dữ liệu khảo sát",
+    s1_hint: "Hỗ trợ CSV hoặc Excel (.xlsx). Mỗi cột là một biến quan sát (item), mỗi dòng là một quan sát. Tối đa 5000 dòng.",
+    s1_dropzone_text: "Kéo thả file vào đây hoặc",
+    s1_browse: "chọn file",
+    s1_preview_title: "Xem trước dữ liệu ({rows} dòng, {cols} cột)",
+    s1_continue: "Tiếp tục: Xây dựng mô hình →",
+    s1_selected_file: "Đã chọn: {name}",
+    msg_upload_failed: "Upload thất bại.",
+    msg_sample_failed: "Không tải được dữ liệu mẫu.",
+
+    // --- step 2: model builder toolbar ---
+    s2_add_construct: "+ Construct",
+    s2_draw_path: "↗ Vẽ đường dẫn (Path)",
+    s2_delete_selected: "🗑 Xoá mục chọn",
+    s2_export_model: "⬇ Xuất mô hình",
+    s2_import_model: "⬆ Nhập mô hình",
+    s2_toolbar_hint_default: 'Nhấp đúp vào canvas hoặc bấm "+ Construct" để thêm biến tiềm ẩn.',
+    s2_toolbar_hint_path_mode: "Nhấp vào construct nguồn rồi construct đích để tạo đường dẫn cấu trúc.",
+
+    // --- step 2: side panel ---
+    s2_method_title: "Phương pháp ước lượng",
+    s2_method_pls: "PLS-SEM (Partial Least Squares)",
+    s2_method_cbsem: "CB-SEM (Maximum Likelihood / Covariance-Based)",
+    s2_method_hint_pls: "Composite-based, phù hợp dữ liệu không chuẩn/cỡ mẫu nhỏ, hỗ trợ construct formative.",
+    s2_method_hint_cbsem: "Covariance-based (Maximum Likelihood): cho các chỉ số fit mô hình (CFI, RMSEA, SRMR...) và kiểm định ý nghĩa thống kê trực tiếp, nhưng chỉ hỗ trợ construct reflective.",
+    s2_construct_props: "Thuộc tính Construct",
+    s2_no_selection: "Chọn một construct trên canvas để chỉnh sửa.",
+    s2_construct_name: "Tên construct",
+    s2_measurement_type: "Loại đo lường",
+    s2_mode_reflective: "Reflective (Mode A)",
+    s2_mode_formative: "Formative (Mode B)",
+    s2_indicators_label: "Biến quan sát (indicators)",
+    s2_model_overview: "Tổng quan mô hình",
+    s2_bootstrapping: "Bootstrapping",
+    s2_bootstrap_enable: "Kiểm định ý nghĩa thống kê (t-values, p-values)",
+    s2_bootstrap_reps_label: "Số lần lặp lại mẫu (resamples)",
+    s2_bootstrap_100: "100 (nhanh)",
+    s2_bootstrap_500: "500 (khuyến nghị)",
+    s2_bootstrap_1000: "1000",
+    s2_bootstrap_2000: "2000",
+    s2_bootstrap_5000: "5000 (chậm, ~30-60s)",
+    s2_bootstrap_hint: "Bootstrapping tạo nhiều mẫu lặp lại (resample) từ dữ liệu gốc để ước lượng độ lệch chuẩn, t-value và p-value cho từng path coefficient — cần thiết để báo cáo mức ý nghĩa thống kê (p < 0.05) trong nghiên cứu.",
+    s2_cbsem_note: "CB-SEM tính sẵn SE/z-value/p-value bằng Maximum Likelihood — không cần bootstrapping.",
+    s2_run_pls: "▶ Chạy PLS Algorithm",
+    s2_run_cbsem: "▶ Chạy CB-SEM (ML)",
+
+    // --- construct summary line ---
+    s2_summary_reflective: "Reflective",
+    s2_summary_formative: "Formative",
+    s2_summary_item_suffix: "item",
+    s2_summary_paths_suffix: "đường dẫn cấu trúc (paths)",
+    s2_summary_toggle_aria: "Hiện/ẩn biến quan sát",
+    s2_path_rejected: "Không thể tạo path này (trùng, ngược chiều, hoặc tạo vòng lặp).",
+
+    // --- add construct modal ---
+    modal_title: "Thêm Construct mới",
+    modal_name_label: "Tên construct",
+    modal_name_placeholder: "VD: Sự hài lòng",
+    modal_mode_label: "Loại đo lường",
+    modal_cancel: "Huỷ",
+    modal_add: "Thêm",
+
+    // --- model import/export ---
+    s2_import_missing_arrays: "File JSON thiếu mảng 'constructs' hoặc 'paths'.",
+    s2_import_missing_fields: "Một construct trong file thiếu id/name/mode/indicators.",
+    s2_import_failed: "Không nhập được mô hình: {msg}",
+
+    // --- step 3: results (shared header) ---
+    s3_path_diagram_title: "Sơ đồ đường dẫn kết quả (Path Diagram)",
+    s3_path_diagram_title_cbsem: "Sơ đồ đường dẫn kết quả (Path Diagram) — CB-SEM",
+    s3_dashed_hint: "Đường nét đứt = path không có ý nghĩa thống kê (p ≥ 0.05) theo kết quả Bootstrapping.",
+    s3_dashed_hint_cbsem: "Hệ số hiển thị là standardized (β); đường nét đứt = không có ý nghĩa thống kê (p ≥ 0.05).",
+    s3_export_excel: "📊 Xuất Excel",
+    s3_export_word: "📄 Xuất Word",
+    s3_back_to_model: "← Quay lại chỉnh sửa mô hình",
+    s3_generating_file: "Đang tạo file…",
+    s3_export_failed: "Xuất báo cáo thất bại.",
+    s3_loading_pls_boot: "Đang ước lượng mô hình và chạy Bootstrapping ({n} lần lặp — có thể mất vài chục giây)…",
+    s3_loading_pls: "Đang ước lượng mô hình…",
+    s3_loading_cbsem: "Đang ước lượng CB-SEM (Maximum Likelihood)…",
+    s3_analyze_failed: "Phân tích thất bại.",
+
+    // --- step 3: PLS result cards ---
+    s3_reliability_title: "Độ tin cậy & giá trị hội tụ (Reflective)",
+    s3_loadings_title: "Hệ số tải ngoài (Outer Loadings)",
+    s3_cross_loadings_title: "Cross Loadings",
+    s3_cross_loadings_hint: "Mỗi indicator nên tải cao nhất lên construct của chính nó.",
+    s3_fl_title: "Giá trị phân biệt — Fornell-Larcker",
+    s3_htmt_title: "Giá trị phân biệt — HTMT",
+    s3_path_title: "Mô hình cấu trúc — Path Coefficients & f²",
+    s3_r2q2_title: "R² & Q² của biến nội sinh (Predictive Relevance)",
+    s3_vif_title: "Đa cộng tuyến (VIF)",
+
+    // --- step 3: CB-SEM result cards ---
+    cbsem_fit_title: "Model Fit",
+    cbsem_reliability_title: "Độ tin cậy & giá trị hội tụ",
+    cbsem_loadings_title: "Factor Loadings",
+    cbsem_path_title: "Mô hình cấu trúc — Path Coefficients",
+    cbsem_r2_title: "R² của biến nội sinh",
+    cbsem_r2_hint: "Đã hiệu chỉnh sai lệch đo lường — thường cao hơn R² của PLS-SEM trên cùng dữ liệu.",
+
+    // --- convergence info ---
+    conv_converged: "Đã hội tụ",
+    conv_not_converged: "CHƯA hội tụ",
+    conv_after_iterations: "sau {n} vòng lặp",
+    conv_n_obs: "n = {n} quan sát hợp lệ.",
+    conv_bootstrap: "Bootstrapping: {valid}/{requested} mẫu hợp lệ.",
+    conv_cbsem_after: "({msg}) sau {n} vòng lặp",
+
+    // --- table headers (shared) ---
+    th_construct: "Construct",
+    th_endogenous_construct: "Construct nội sinh",
+    th_indicator: "Indicator",
+    th_outer_loading: "Outer Loading",
+    th_outer_weight: "Outer Weight",
+    th_stdev: "STDEV",
+    th_t_stat: "T Statistics",
+    th_p_value: "P Values",
+    th_significance: "Ý nghĩa (95%)",
+    th_note: "Ghi chú",
+    th_path: "Đường dẫn",
+    th_path_coefficient: "Path Coefficient (β)",
+    th_f_squared: "f²",
+    th_f2_effect: "Mức ảnh hưởng f²",
+    th_r2: "R²",
+    th_r2_adj: "R² hiệu chỉnh",
+    th_r2_assessment: "Đánh giá R²",
+    th_q2: "Q² (blindfolding, D={d})",
+    th_q2_assessment: "Đánh giá Q²",
+    th_pair: "Cặp",
+    th_vif: "VIF",
+    th_assessment: "Đánh giá",
+    th_cronbachs_alpha: "Cronbach's α",
+    th_rho_a: "rho_A",
+    th_composite_reliability: "Composite Reliability",
+    th_ave: "AVE",
+    th_unstd: "Unstd.",
+    th_std_lambda: "Std. (λ)",
+    th_std_beta: "Std. (β)",
+    th_unstd_b: "Unstd. (B)",
+    th_se: "SE",
+    th_z: "z",
+    th_p: "p",
+    th_fit_index: "Chỉ số",
+    th_value: "Giá trị",
+
+    // --- labels / verdicts ---
+    lbl_dash: "—",
+    lbl_r2_weak: "Yếu",
+    lbl_r2_moderate: "Trung bình",
+    lbl_r2_substantial: "Khá mạnh",
+    lbl_r2_strong: "Mạnh",
+    lbl_f2_none: "Không đáng kể",
+    lbl_f2_small: "Nhỏ",
+    lbl_f2_medium: "Trung bình",
+    lbl_f2_large: "Lớn",
+    lbl_q2_none: "Không có ý nghĩa dự báo",
+    lbl_significant: "p < 0.05",
+    lbl_not_significant: "Không ý nghĩa",
+    lbl_reference_indicator: "Biến tham chiếu",
+    lbl_formative_note: "Formative (Mode B) — không áp dụng chỉ số độ tin cậy nội bộ",
+    lbl_no_vif_pairs: "Không có construct nào có ≥2 tiền tố / biến formative để kiểm tra đa cộng tuyến.",
+    lbl_vif_high: "Cao (>5)",
+    lbl_vif_acceptable: "Chấp nhận được",
+    lbl_fit_good: "Tốt",
+    lbl_fit_acceptable: "Chấp nhận được",
+    lbl_fit_poor: "Chưa đạt",
+    suffix_structural: " (cấu trúc)",
+    suffix_formative_measurement: " (đo lường formative)",
+
+    // --- CB-SEM fit index labels ---
+    fit_chi_square: "Chi-square (χ²)",
+    fit_df: "Degrees of Freedom (df)",
+    fit_chi2_p: "χ² p-value",
+    fit_cfi: "CFI",
+    fit_tli: "TLI",
+    fit_rmsea: "RMSEA",
+    fit_srmr: "SRMR",
+    fit_gfi: "GFI",
+    fit_agfi: "AGFI",
+    fit_nfi: "NFI",
+    fit_aic: "AIC",
+    fit_bic: "BIC",
+
+    // --- diagram.js ---
+    diagram_reflective: "Reflective",
+    diagram_formative: "Formative",
+  },
+
+  en: {
+    nav_step1: "1. Data",
+    nav_step2: "2. Model",
+    nav_step3: "3. Results",
+    nav_sample: "Use sample data",
+
+    s1_title: "Upload survey data",
+    s1_hint: "Supports CSV or Excel (.xlsx). Each column is one indicator (item), each row is one observation. Maximum 5000 rows.",
+    s1_dropzone_text: "Drag and drop a file here or",
+    s1_browse: "choose a file",
+    s1_preview_title: "Data preview ({rows} rows, {cols} columns)",
+    s1_continue: "Continue: Build the model →",
+    s1_selected_file: "Selected: {name}",
+    msg_upload_failed: "Upload failed.",
+    msg_sample_failed: "Could not load sample data.",
+
+    s2_add_construct: "+ Construct",
+    s2_draw_path: "↗ Draw path",
+    s2_delete_selected: "🗑 Delete selection",
+    s2_export_model: "⬇ Export model",
+    s2_import_model: "⬆ Import model",
+    s2_toolbar_hint_default: 'Double-click the canvas or click "+ Construct" to add a latent variable.',
+    s2_toolbar_hint_path_mode: "Click the source construct then the target construct to draw a structural path.",
+
+    s2_method_title: "Estimation method",
+    s2_method_pls: "PLS-SEM (Partial Least Squares)",
+    s2_method_cbsem: "CB-SEM (Maximum Likelihood / Covariance-Based)",
+    s2_method_hint_pls: "Composite-based, suits non-normal data/small samples, supports formative constructs.",
+    s2_method_hint_cbsem: "Covariance-based (Maximum Likelihood): provides model fit indices (CFI, RMSEA, SRMR...) and significance testing directly, but only supports reflective constructs.",
+    s2_construct_props: "Construct Properties",
+    s2_no_selection: "Select a construct on the canvas to edit it.",
+    s2_construct_name: "Construct name",
+    s2_measurement_type: "Measurement type",
+    s2_mode_reflective: "Reflective (Mode A)",
+    s2_mode_formative: "Formative (Mode B)",
+    s2_indicators_label: "Indicators",
+    s2_model_overview: "Model Overview",
+    s2_bootstrapping: "Bootstrapping",
+    s2_bootstrap_enable: "Significance testing (t-values, p-values)",
+    s2_bootstrap_reps_label: "Number of resamples",
+    s2_bootstrap_100: "100 (fast)",
+    s2_bootstrap_500: "500 (recommended)",
+    s2_bootstrap_1000: "1000",
+    s2_bootstrap_2000: "2000",
+    s2_bootstrap_5000: "5000 (slow, ~30-60s)",
+    s2_bootstrap_hint: "Bootstrapping draws many resamples from the original data to estimate the standard deviation, t-value and p-value for each path coefficient — needed to report statistical significance (p < 0.05) in research.",
+    s2_cbsem_note: "CB-SEM already computes SE/z-value/p-value via Maximum Likelihood — bootstrapping is not needed.",
+    s2_run_pls: "▶ Run PLS Algorithm",
+    s2_run_cbsem: "▶ Run CB-SEM (ML)",
+
+    s2_summary_reflective: "Reflective",
+    s2_summary_formative: "Formative",
+    s2_summary_item_suffix: "item(s)",
+    s2_summary_paths_suffix: "structural path(s)",
+    s2_summary_toggle_aria: "Show/hide indicators",
+    s2_path_rejected: "This path can't be created (duplicate, reverse of an existing one, or would create a cycle).",
+
+    modal_title: "Add New Construct",
+    modal_name_label: "Construct name",
+    modal_name_placeholder: "e.g. Satisfaction",
+    modal_mode_label: "Measurement type",
+    modal_cancel: "Cancel",
+    modal_add: "Add",
+
+    s2_import_missing_arrays: "The JSON file is missing the 'constructs' or 'paths' array.",
+    s2_import_missing_fields: "A construct in the file is missing id/name/mode/indicators.",
+    s2_import_failed: "Could not import the model: {msg}",
+
+    s3_path_diagram_title: "Result Path Diagram",
+    s3_path_diagram_title_cbsem: "Result Path Diagram — CB-SEM",
+    s3_dashed_hint: "Dashed line = path not statistically significant (p ≥ 0.05) per the Bootstrapping result.",
+    s3_dashed_hint_cbsem: "Coefficients shown are standardized (β); dashed line = not statistically significant (p ≥ 0.05).",
+    s3_export_excel: "📊 Export Excel",
+    s3_export_word: "📄 Export Word",
+    s3_back_to_model: "← Back to model editing",
+    s3_generating_file: "Generating file…",
+    s3_export_failed: "Failed to export the report.",
+    s3_loading_pls_boot: "Estimating the model and running Bootstrapping ({n} resamples — may take up to a minute)…",
+    s3_loading_pls: "Estimating the model…",
+    s3_loading_cbsem: "Estimating CB-SEM (Maximum Likelihood)…",
+    s3_analyze_failed: "Analysis failed.",
+
+    s3_reliability_title: "Reliability & Convergent Validity (Reflective)",
+    s3_loadings_title: "Outer Loadings",
+    s3_cross_loadings_title: "Cross Loadings",
+    s3_cross_loadings_hint: "Each indicator should load highest on its own construct.",
+    s3_fl_title: "Discriminant Validity — Fornell-Larcker",
+    s3_htmt_title: "Discriminant Validity — HTMT",
+    s3_path_title: "Structural Model — Path Coefficients & f²",
+    s3_r2q2_title: "R² & Q² of Endogenous Constructs (Predictive Relevance)",
+    s3_vif_title: "Collinearity (VIF)",
+
+    cbsem_fit_title: "Model Fit",
+    cbsem_reliability_title: "Reliability & Convergent Validity",
+    cbsem_loadings_title: "Factor Loadings",
+    cbsem_path_title: "Structural Model — Path Coefficients",
+    cbsem_r2_title: "R² of Endogenous Constructs",
+    cbsem_r2_hint: "Corrected for measurement error — typically higher than PLS-SEM's R² on the same data.",
+
+    conv_converged: "Converged",
+    conv_not_converged: "NOT converged",
+    conv_after_iterations: "after {n} iterations",
+    conv_n_obs: "n = {n} valid observations.",
+    conv_bootstrap: "Bootstrapping: {valid}/{requested} valid samples.",
+    conv_cbsem_after: "({msg}) after {n} iterations",
+
+    th_construct: "Construct",
+    th_endogenous_construct: "Endogenous Construct",
+    th_indicator: "Indicator",
+    th_outer_loading: "Outer Loading",
+    th_outer_weight: "Outer Weight",
+    th_stdev: "STDEV",
+    th_t_stat: "T Statistics",
+    th_p_value: "P Values",
+    th_significance: "Significance (95%)",
+    th_note: "Note",
+    th_path: "Path",
+    th_path_coefficient: "Path Coefficient (β)",
+    th_f_squared: "f²",
+    th_f2_effect: "f² Effect Size",
+    th_r2: "R²",
+    th_r2_adj: "Adjusted R²",
+    th_r2_assessment: "R² Assessment",
+    th_q2: "Q² (blindfolding, D={d})",
+    th_q2_assessment: "Q² Assessment",
+    th_pair: "Pair",
+    th_vif: "VIF",
+    th_assessment: "Assessment",
+    th_cronbachs_alpha: "Cronbach's α",
+    th_rho_a: "rho_A",
+    th_composite_reliability: "Composite Reliability",
+    th_ave: "AVE",
+    th_unstd: "Unstd.",
+    th_std_lambda: "Std. (λ)",
+    th_std_beta: "Std. (β)",
+    th_unstd_b: "Unstd. (B)",
+    th_se: "SE",
+    th_z: "z",
+    th_p: "p",
+    th_fit_index: "Index",
+    th_value: "Value",
+
+    lbl_dash: "—",
+    lbl_r2_weak: "Weak",
+    lbl_r2_moderate: "Moderate",
+    lbl_r2_substantial: "Substantial",
+    lbl_r2_strong: "Strong",
+    lbl_f2_none: "Negligible",
+    lbl_f2_small: "Small",
+    lbl_f2_medium: "Medium",
+    lbl_f2_large: "Large",
+    lbl_q2_none: "No predictive relevance",
+    lbl_significant: "p < 0.05",
+    lbl_not_significant: "Not significant",
+    lbl_reference_indicator: "Reference indicator",
+    lbl_formative_note: "Formative (Mode B) — internal reliability metrics not applicable",
+    lbl_no_vif_pairs: "No construct has ≥2 predecessors / formative indicators to check collinearity.",
+    lbl_vif_high: "High (>5)",
+    lbl_vif_acceptable: "Acceptable",
+    lbl_fit_good: "Good",
+    lbl_fit_acceptable: "Acceptable",
+    lbl_fit_poor: "Poor",
+    suffix_structural: " (structural)",
+    suffix_formative_measurement: " (formative measurement)",
+
+    fit_chi_square: "Chi-square (χ²)",
+    fit_df: "Degrees of Freedom (df)",
+    fit_chi2_p: "χ² p-value",
+    fit_cfi: "CFI",
+    fit_tli: "TLI",
+    fit_rmsea: "RMSEA",
+    fit_srmr: "SRMR",
+    fit_gfi: "GFI",
+    fit_agfi: "AGFI",
+    fit_nfi: "NFI",
+    fit_aic: "AIC",
+    fit_bic: "BIC",
+
+    diagram_reflective: "Reflective",
+    diagram_formative: "Formative",
+  },
+};
+
+let currentLang = localStorage.getItem(LANG_STORAGE_KEY) || "en";
+if (!I18N[currentLang]) currentLang = "en";
+
+function t(key, params) {
+  const dict = I18N[currentLang] || I18N.vi;
+  let template = dict[key] !== undefined ? dict[key] : (I18N.vi[key] !== undefined ? I18N.vi[key] : key);
+  if (params) {
+    for (const [k, v] of Object.entries(params)) {
+      template = template.split(`{${k}}`).join(v);
+    }
+  }
+  return template;
+}
+
+function getLang() {
+  return currentLang;
+}
+
+function applyStaticTranslations() {
+  document.documentElement.lang = currentLang === "vi" ? "vi" : "en";
+  document.querySelectorAll("[data-i18n]").forEach((el) => {
+    el.textContent = t(el.getAttribute("data-i18n"));
+  });
+  document.querySelectorAll("[data-i18n-placeholder]").forEach((el) => {
+    el.setAttribute("placeholder", t(el.getAttribute("data-i18n-placeholder")));
+  });
+  document.querySelectorAll("[data-i18n-html]").forEach((el) => {
+    el.innerHTML = t(el.getAttribute("data-i18n-html"));
+  });
+}
+
+function setLang(lang) {
+  if (!I18N[lang]) return;
+  currentLang = lang;
+  localStorage.setItem(LANG_STORAGE_KEY, lang);
+  applyStaticTranslations();
+  document.dispatchEvent(new CustomEvent("langchange", { detail: { lang } }));
+}
