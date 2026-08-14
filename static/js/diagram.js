@@ -146,55 +146,86 @@ class PathDiagram {
   // ---------- events (editable mode) ----------
   _bindEvents() {
     const c = this.canvas;
-    c.addEventListener("dblclick", (e) => {
-      const pt = this._canvasPoint(e);
+    // Touch devices don't reliably synthesize mouse events for drag gestures
+    // on <canvas>, and have no dblclick — so pointer handling is factored
+    // into shared methods that both the mouse and touch listeners drive.
+    c.style.touchAction = "none";
+
+    const handleDoubleTap = (pt) => {
       if (this._nodeAt(pt.x, pt.y)) return;
       this.onChange({ requestAddConstruct: pt });
-    });
+    };
 
-    c.addEventListener("mousedown", (e) => {
-      const pt = this._canvasPoint(e);
-      const node = this._nodeAt(pt.x, pt.y);
-      if (node) {
-        if (this.pathMode) {
-          if (!this.pendingSource) {
-            this.pendingSource = node.id;
-          } else {
-            const ok = this.addPath(this.pendingSource, node.id);
-            if (!ok && this.pendingSource !== node.id) {
-              this.onChange({ pathRejected: true });
-            }
-            this.pendingSource = null;
-          }
-          this.render();
-          return;
-        }
-        this.dragging = node;
-        this.dragMoved = false;
-        this.setSelected({ type: "node", id: node.id });
+    c.addEventListener("dblclick", (e) => handleDoubleTap(this._canvasPoint(e)));
+
+    c.addEventListener("mousedown", (e) => this._pointerDown(this._canvasPoint(e)));
+    window.addEventListener("mousemove", (e) => this._pointerMove(this._canvasPoint(e)));
+    window.addEventListener("mouseup", () => this._pointerUp());
+
+    let lastTapAt = 0;
+    c.addEventListener("touchstart", (e) => {
+      if (e.touches.length !== 1) return;
+      e.preventDefault();
+      const pt = this._canvasPoint(e.touches[0]);
+      const now = Date.now();
+      if (now - lastTapAt < 350) {
+        lastTapAt = 0;
+        handleDoubleTap(pt);
         return;
       }
-      const edge = this._edgeAt(pt.x, pt.y);
-      if (edge) {
-        this.setSelected({ type: "edge", id: edge });
-      } else {
-        this.setSelected(null);
+      lastTapAt = now;
+      this._pointerDown(pt);
+    }, { passive: false });
+
+    window.addEventListener("touchmove", (e) => {
+      if (!this.dragging || e.touches.length !== 1) return;
+      e.preventDefault();
+      this._pointerMove(this._canvasPoint(e.touches[0]));
+    }, { passive: false });
+
+    window.addEventListener("touchend", () => this._pointerUp());
+  }
+
+  _pointerDown(pt) {
+    const node = this._nodeAt(pt.x, pt.y);
+    if (node) {
+      if (this.pathMode) {
+        if (!this.pendingSource) {
+          this.pendingSource = node.id;
+        } else {
+          const ok = this.addPath(this.pendingSource, node.id);
+          if (!ok && this.pendingSource !== node.id) {
+            this.onChange({ pathRejected: true });
+          }
+          this.pendingSource = null;
+        }
+        this.render();
+        return;
       }
-    });
+      this.dragging = node;
+      this.dragMoved = false;
+      this.setSelected({ type: "node", id: node.id });
+      return;
+    }
+    const edge = this._edgeAt(pt.x, pt.y);
+    if (edge) {
+      this.setSelected({ type: "edge", id: edge });
+    } else {
+      this.setSelected(null);
+    }
+  }
 
-    window.addEventListener("mousemove", (e) => {
-      if (!this.dragging) return;
-      const pt = this._canvasPoint(e);
-      this.dragging.x = Math.max(this.RADIUS_X, Math.min(this.canvas.width - this.RADIUS_X, pt.x));
-      this.dragging.y = Math.max(this.RADIUS_Y, Math.min(this.canvas.height - this.RADIUS_Y, pt.y));
-      this.dragMoved = true;
-      this.render();
-    });
+  _pointerMove(pt) {
+    if (!this.dragging) return;
+    this.dragging.x = Math.max(this.RADIUS_X, Math.min(this.canvas.width - this.RADIUS_X, pt.x));
+    this.dragging.y = Math.max(this.RADIUS_Y, Math.min(this.canvas.height - this.RADIUS_Y, pt.y));
+    this.dragMoved = true;
+    this.render();
+  }
 
-    window.addEventListener("mouseup", () => {
-      if (this.dragging && this.dragMoved) this.onChange();
-      this.dragging = null;
-    });
+  _pointerUp() {
+    if (this.dragging && this.dragMoved) this.onChange();
+    this.dragging = null;
   }
 
   deleteSelected() {

@@ -83,6 +83,11 @@ Bước 2 rồi bấm chạy lại.
   1 file đó.
 - Dữ liệu mẫu dựng sẵn (mô hình TAM: Perceived Ease of Use → Perceived
   Usefulness → Attitude → Intention) để dùng thử ngay.
+- **Responsive (desktop & di động)**: header/layout/bảng kết quả tự sắp xếp
+  lại theo kích thước màn hình (điện thoại, tablet, desktop), không bị tràn
+  ngang trang. Canvas xây mô hình hỗ trợ **thao tác chạm thật** trên di động
+  (chạm để chọn, kéo để di chuyển construct, chạm đúp để thêm construct mới)
+  — không chỉ co giãn giao diện mà còn dùng được thực sự trên điện thoại/tablet.
 
 ### Chưa có trong phiên bản này (định hướng phát triển tiếp)
 
@@ -284,3 +289,14 @@ smartpls-web/
   ("Reliability & Convergent Validity") vượt giới hạn này và bị `openpyxl` phát
   cảnh báo; đã rút ngắn bản dịch và thêm hàm cắt phòng vệ (`_sheet_name()`)
   để lỗi tương tự không tái diễn nếu nhãn được sửa sau này.
+- **Responsive**: `.builder-layout` và `.results-grid` là CSS Grid, chuyển
+  sang 1 cột dưới breakpoint tương ứng (900px / 640px). Có một lỗi CSS Grid
+  kinh điển đã gặp và sửa khi test trên điện thoại thật (qua Playwright, không
+  chỉ suy đoán): các ô grid mặc định có `min-width: auto`, nên bảng có cột
+  `white-space: nowrap` bên trong sẽ ép cả ô grid (và toàn trang) rộng ra thay
+  vì cuộn ngang bên trong `.table-scroll` như mong muốn — khắc phục bằng
+  `min-width: 0` trên các ô grid liên quan. Canvas xây mô hình (`diagram.js`)
+  dùng chung một bộ hàm `_pointerDown/_pointerMove/_pointerUp` cho cả sự kiện
+  chuột và chạm (touch), cùng bộ dò chạm-đúp (double-tap) thủ công thay cho
+  `dblclick` (không có trên di động); đã kiểm chứng kéo-thả và chạm-đúp hoạt
+  động thật bằng test giả lập cảm ứng, không chỉ kiểm tra layout.

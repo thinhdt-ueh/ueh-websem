@@ -129,9 +129,10 @@ table { border-collapse: collapse; width: 100%; font-size: 13.5px; }
 table th, table td { border: 1px solid var(--border); padding: 6px 10px; text-align: right; white-space: nowrap; }
 table th { background: var(--accent-bg); text-align: center; }
 table td:first-child, table th:first-child { text-align: left; font-weight: 600; }
-.table-scroll { overflow-x: auto; }
+.table-scroll { overflow-x: auto; min-width: 0; }
 
 .builder-layout { display: grid; grid-template-columns: 1fr 300px; gap: 18px; align-items: start; }
+.builder-layout > * { min-width: 0; }
 .canvas-area { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 14px; }
 .toolbar { display: flex; gap: 8px; align-items: center; margin-bottom: 10px; flex-wrap: wrap; }
 .toolbar-sep { width: 1px; height: 22px; background: var(--border); margin: 0 4px; }
@@ -169,6 +170,7 @@ canvas { width: 100%; border: 1px solid var(--border); border-radius: 10px; back
 #bootstrapOptions { margin-bottom: 4px; }
 
 .results-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); gap: 18px; }
+.results-grid > .panel-card { min-width: 0; }
 .results-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap; }
 .export-buttons { display: flex; gap: 8px; flex-shrink: 0; }
 .loading-box { text-align: center; padding: 60px; color: var(--muted); font-size: 15px; }
@@ -182,8 +184,45 @@ canvas { width: 100%; border: 1px solid var(--border); border-radius: 10px; back
   display: flex; align-items: center; justify-content: center; z-index: 50;
 }
 .modal-box {
-  background: var(--card); border-radius: 12px; padding: 20px; width: 340px;
+  background: var(--card); border-radius: 12px; padding: 20px; width: min(340px, 92vw);
 }
 .modal-box h3 { margin-top: 0; }
 .modal-box input, .modal-box select { width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 7px; margin: 6px 0 12px; }
 .modal-actions { display: flex; justify-content: flex-end; gap: 8px; }
+
+/* ===================== Responsive (tablet / mobile) ===================== */
+
+/* Tablet & below: stack the model builder into one column, drop the side
+   panel's sticky positioning (there's no long canvas above it to stick past
+   once it's no longer beside the canvas). */
+@media (max-width: 900px) {
+  .builder-layout { grid-template-columns: 1fr; }
+  .side-panel { position: static; top: auto; }
+}
+
+/* Phone: header wraps to two rows (brand/lang/sample, then nav steps below,
+   spread evenly since they're the primary way to move between screens),
+   page/card padding shrinks to reclaim width, results/table text tightens
+   up, and result cards go single-column since their 420px minimum would
+   otherwise force horizontal scrolling of the whole page. */
+@media (max-width: 640px) {
+  .topbar { flex-wrap: wrap; gap: 8px 12px; padding: 10px 14px; }
+  .brand-logo { height: 26px; }
+  .brand { font-size: 15px; }
+  .steps { order: 3; flex-basis: 100%; justify-content: space-between; gap: 4px; }
+  .step-btn { flex: 1; padding: 7px 4px; font-size: 12.5px; text-align: center; }
+  #sampleBtn { font-size: 12.5px; padding: 7px 10px; }
+
+  main { padding: 12px; }
+  .panel-card { padding: 16px; border-radius: 12px; }
+  .footer-inner { padding: 14px; }
+
+  .results-grid { grid-template-columns: 1fr; }
+  .toolbar { gap: 6px; }
+  .toolbar-hint { flex-basis: 100%; margin-left: 0; }
+
+  table { font-size: 12px; }
+  table th, table td { padding: 5px 7px; }
+
+  .modal-box { padding: 16px; }
+}
