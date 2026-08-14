@@ -24,6 +24,11 @@ Bước 2 rồi bấm chạy lại.
 - Giá trị phân biệt: Fornell-Larcker criterion, HTMT.
 - Mô hình cấu trúc: path coefficients, R², R² hiệu chỉnh, f² effect size.
 - Đa cộng tuyến: VIF (inner model cho biến nội sinh, outer model cho block formative).
+- **Common Method Bias (CMB) — Full Collinearity Test** (Kock, 2015; kỹ thuật
+  WarpPLS dùng phổ biến nhất để kiểm tra CMB): mỗi construct hồi quy trên TẤT
+  CẢ construct còn lại (không chỉ predictor trực tiếp như inner VIF), nếu mọi
+  VIF ≤ 3.3 thì mô hình được xem là không có dấu hiệu CMB. Có sẵn cho cả
+  PLS-SEM và CB-SEM.
 - **Bootstrapping**: kiểm định ý nghĩa thống kê cho path coefficients và outer
   loadings — Sample Mean, STDEV, T Statistics, P Values, khoảng tin cậy 95%
   (percentile), có căn chỉnh dấu (sign correction) theo từng construct để
@@ -212,6 +217,16 @@ smartpls-web/
   / độ lệch chuẩn bootstrap, p-value tính theo phân phối t với bậc tự do =
   (số mẫu hợp lệ − 1). Vòng lặp này là phần tốn thời gian nhất nên được viết
   thuần NumPy (không dùng pandas trong vòng lặp) để đủ nhanh cho một request web.
+- **Full Collinearity VIF (CMB)**: khác với `inner_vif` (chỉ xét đa cộng tuyến
+  giữa các predictor trực tiếp của một target trong mô hình cấu trúc),
+  `full_collinearity_vif()` hồi quy MỖI construct trên TẤT CẢ construct còn
+  lại bất kể có path cấu trúc hay không — đúng phương pháp "full collinearity
+  test" của Kock (2015) mà phần mềm WarpPLS phổ biến hoá để phát hiện common
+  method bias (một yếu tố phương pháp chung gây phồng phương sai sẽ làm đa
+  cộng tuyến tăng đồng loạt ở mọi construct). Ngưỡng 3.3 đã đối chiếu qua
+  nhiều nguồn độc lập trước khi cài đặt. Dùng chung được cho cả PLS-SEM
+  (LV scores) và CB-SEM (factor scores) vì chỉ cần ma trận điểm số construct,
+  không phụ thuộc thuật toán ước lượng.
 - Blindfolding lần lượt loại bỏ từng 1/D dữ liệu (D=7) của MỖI construct nội
   sinh reflective theo hàng (row-wise, giống thuật toán `dlines=TRUE` của gói
   semPLS/SmartPLS), thay bằng giá trị trung bình của phần dữ liệu còn lại, rồi

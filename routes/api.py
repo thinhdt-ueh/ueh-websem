@@ -11,7 +11,7 @@ from i18n import get_lang, t
 from pls.algorithm import run_pls_algorithm
 from pls.blindfolding import run_blindfolding
 from pls.bootstrap import MAX_BOOTSTRAP_SAMPLES, MIN_BOOTSTRAP_SAMPLES, run_bootstrap
-from pls.metrics import compute_all_metrics
+from pls.metrics import CMB_VIF_THRESHOLD, compute_all_metrics
 from pls.model import Model, ModelError
 from pls.report import build_excel_report, build_word_report
 
@@ -247,6 +247,10 @@ def analyze():
             "omission_distance": blindfolding_summary["omission_distance"],
         },
         "bootstrap": bootstrap_summary,
+        "common_method_bias": {
+            "vif": series_to_dict(metrics["full_collinearity_vif"]),
+            "threshold": CMB_VIF_THRESHOLD,
+        },
     }
     return jsonify(response)
 

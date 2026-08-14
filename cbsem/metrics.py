@@ -10,7 +10,7 @@ for the formulas and references).
 
 from __future__ import annotations
 
-from pls.metrics import ave, composite_reliability, cronbachs_alpha, fornell_larcker, htmt
+from pls.metrics import ave, composite_reliability, cronbachs_alpha, fornell_larcker, full_collinearity_vif, htmt
 
 from .estimator import CBSEMResult
 
@@ -24,6 +24,7 @@ def compute_all_cbsem_metrics(result: CBSEMResult) -> dict:
     ave_s = ave(model, std_loadings)
     fl = fornell_larcker(model, result.factor_scores, ave_s)
     ht = htmt(model, result.scaled_data)
+    fcvif = full_collinearity_vif(result.factor_scores)
 
     return {
         "cronbachs_alpha": alpha,
@@ -31,4 +32,5 @@ def compute_all_cbsem_metrics(result: CBSEMResult) -> dict:
         "ave": ave_s,
         "fornell_larcker": fl,
         "htmt": ht,
+        "full_collinearity_vif": fcvif,
     }

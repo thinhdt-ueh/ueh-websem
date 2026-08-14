@@ -106,6 +106,8 @@ const I18N = {
     s3_path_title: "Mô hình cấu trúc — Path Coefficients & f²",
     s3_r2q2_title: "R² & Q² của biến nội sinh (Predictive Relevance)",
     s3_vif_title: "Đa cộng tuyến (VIF)",
+    s3_cmb_title: "Common Method Bias — Full Collinearity Test",
+    s3_cmb_hint: "Mỗi construct hồi quy trên TẤT CẢ construct còn lại (không chỉ predictor trực tiếp) — kỹ thuật WarpPLS (Kock, 2015). Mọi VIF ≤ {threshold} nghĩa là mô hình không có dấu hiệu CMB.",
 
     // --- step 3: CB-SEM result cards ---
     cbsem_fit_title: "Model Fit",
@@ -178,6 +180,8 @@ const I18N = {
     lbl_no_vif_pairs: "Không có construct nào có ≥2 tiền tố / biến formative để kiểm tra đa cộng tuyến.",
     lbl_vif_high: "Cao (>5)",
     lbl_vif_acceptable: "Chấp nhận được",
+    lbl_cmb_ok: "Không có dấu hiệu CMB",
+    lbl_cmb_warn: "Có khả năng bị CMB",
     lbl_fit_good: "Tốt",
     lbl_fit_acceptable: "Chấp nhận được",
     lbl_fit_poor: "Chưa đạt",
@@ -294,6 +298,8 @@ const I18N = {
     s3_path_title: "Structural Model — Path Coefficients & f²",
     s3_r2q2_title: "R² & Q² of Endogenous Constructs (Predictive Relevance)",
     s3_vif_title: "Collinearity (VIF)",
+    s3_cmb_title: "Common Method Bias — Full Collinearity Test",
+    s3_cmb_hint: "Each construct is regressed on ALL other constructs (not just direct predictors) — the WarpPLS technique (Kock, 2015). Every VIF <= {threshold} means the model shows no sign of CMB.",
 
     cbsem_fit_title: "Model Fit",
     cbsem_reliability_title: "Reliability & Convergent Validity",
@@ -362,6 +368,8 @@ const I18N = {
     lbl_no_vif_pairs: "No construct has ≥2 predecessors / formative indicators to check collinearity.",
     lbl_vif_high: "High (>5)",
     lbl_vif_acceptable: "Acceptable",
+    lbl_cmb_ok: "No CMB concern",
+    lbl_cmb_warn: "Possible CMB concern",
     lbl_fit_good: "Good",
     lbl_fit_acceptable: "Acceptable",
     lbl_fit_poor: "Poor",

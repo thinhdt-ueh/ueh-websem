@@ -614,6 +614,7 @@ function renderResults(data) {
   renderPathTable(data);
   renderR2Table(data, idToName);
   renderVifTable(data, idToName);
+  renderCmbTable(data.common_method_bias, idToName, "cmbHint", "cmbTable");
 }
 
 function renderReliabilityTable(data, idToName) {
@@ -799,6 +800,19 @@ function renderVifTable(data, idToName) {
   document.getElementById("vifTable").innerHTML = html;
 }
 
+function renderCmbTable(cmb, idToName, hintElId, tableElId) {
+  document.getElementById(hintElId).textContent = t("s3_cmb_hint", { threshold: cmb.threshold });
+  let html = `<thead><tr><th>${t("th_construct")}</th><th>${t("th_vif")}</th><th>${t("th_assessment")}</th></tr></thead><tbody>`;
+  for (const [cid, v] of Object.entries(cmb.vif)) {
+    const badge = v > cmb.threshold
+      ? `<span class="badge warn">${t("lbl_cmb_warn")}</span>`
+      : `<span class="badge ok">${t("lbl_cmb_ok")}</span>`;
+    html += `<tr><td>${escapeHtml(idToName[cid] || cid)}</td><td>${fmt(v)}</td><td>${badge}</td></tr>`;
+  }
+  html += "</tbody>";
+  document.getElementById(tableElId).innerHTML = html;
+}
+
 // ---------------- CB-SEM results ----------------
 const CBSEM_FIT_INDEX_KEYS = {
   chi_square: "fit_chi_square",
@@ -860,6 +874,7 @@ function renderCbsemResults(data) {
   renderMatrixTable("cbsemHtmtTable", data.discriminant_validity.htmt, idToName);
   renderCbsemPathTable(data);
   renderCbsemR2Table(data, idToName);
+  renderCmbTable(data.common_method_bias, idToName, "cbsemCmbHint", "cbsemCmbTable");
 }
 
 function renderCbsemFitTable(data) {

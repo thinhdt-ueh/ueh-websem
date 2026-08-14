@@ -80,6 +80,22 @@ def sig_label(significant, lang: str) -> str:
     return t("rpt_significant", lang) if significant else t("rpt_not_significant", lang)
 
 
+def cmb_label(v, threshold: float, lang: str) -> str:
+    if v is None:
+        return "—"
+    return t("lbl_cmb_warn", lang) if v > threshold else t("lbl_cmb_ok", lang)
+
+
+def _cmb_rows(data: dict, id_to_name: dict, lang: str, fmt_fn=lambda v: v) -> tuple[list, float]:
+    cmb = data.get("common_method_bias") or {"vif": {}, "threshold": 3.3}
+    threshold = cmb["threshold"]
+    rows = [
+        [id_to_name[cid], fmt_fn(v), cmb_label(v, threshold, lang)]
+        for cid, v in cmb["vif"].items()
+    ]
+    return rows, threshold
+
+
 def _mode_label(mode: str, lang: str) -> str:
     return t("rpt_reflective", lang) if mode == "A" else t("rpt_formative", lang)
 
@@ -265,7 +281,12 @@ def build_excel_report(data: dict, lang: str = DEFAULT_LANG) -> io.BytesIO:
                 ])
     for ind, v in (m.get("outer_vif") or {}).items():
         vif_rows.append([f"{ind}{t('rpt_formative_measurement_suffix', lang)}", v])
-    _write_table(ws, r, [t("rpt_pair", lang), t("rpt_vif", lang)], vif_rows, title=t("rpt_vif_title", lang))
+    r = _write_table(ws, r, [t("rpt_pair", lang), t("rpt_vif", lang)], vif_rows, title=t("rpt_vif_title", lang))
+
+    cmb_rows, cmb_threshold = _cmb_rows(data, id_to_name, lang)
+    r = _write_table(ws, r, [t("rpt_construct", lang), t("rpt_vif", lang), t("rpt_cmb_assessment", lang)],
+                      cmb_rows, title=t("rpt_cmb_title", lang))
+    ws.cell(row=r, column=1, value=t("rpt_cmb_note", lang, threshold=cmb_threshold))
     _autofit(ws)
 
     buf = io.BytesIO()
@@ -429,6 +450,14 @@ def build_word_report(data: dict, lang: str = DEFAULT_LANG) -> io.BytesIO:
         _add_table(doc, [t("rpt_pair", lang), t("rpt_vif", lang)], vif_rows)
     else:
         doc.add_paragraph(t("rpt_no_vif_pairs", lang))
+
+    _add_heading(doc, t("rpt_cmb_title", lang), level=2)
+    cmb_rows, cmb_threshold = _cmb_rows(data, id_to_name, lang, fmt_fn=_fmt)
+    _add_table(doc, [t("rpt_construct", lang), t("rpt_vif", lang), t("rpt_cmb_assessment", lang)], cmb_rows)
+    cmb_note = doc.add_paragraph()
+    cmb_note_run = cmb_note.add_run(t("rpt_cmb_note", lang, threshold=cmb_threshold))
+    cmb_note_run.font.size = Pt(9)
+    cmb_note_run.font.color.rgb = RGBColor(0x6B, 0x73, 0x85)
 
     if data.get("bootstrap"):
         note = doc.add_paragraph()

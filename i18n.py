@@ -146,6 +146,15 @@ _CATALOG: dict[str, dict[str, str]] = {
         "rpt_vif_title": "Đa cộng tuyến (VIF)",
         "rpt_pair": "Cặp",
         "rpt_vif": "VIF",
+        "rpt_cmb_title": "Common Method Bias — Full Collinearity Test (Kock, 2015)",
+        "rpt_cmb_note": (
+            "Mỗi construct được hồi quy trên TẤT CẢ construct còn lại (không chỉ các predictor "
+            "trực tiếp) để kiểm tra đa cộng tuyến toàn phần — kỹ thuật WarpPLS dùng để phát hiện "
+            "common method bias. Nếu mọi VIF ≤ {threshold}, mô hình được xem là không có dấu hiệu CMB."
+        ),
+        "rpt_cmb_assessment": "Đánh giá CMB",
+        "lbl_cmb_ok": "Không có dấu hiệu CMB",
+        "lbl_cmb_warn": "Có khả năng bị CMB",
         "rpt_structural_suffix": " (cấu trúc)",
         "rpt_formative_measurement_suffix": " (đo lường formative)",
         "lbl_r2_weak": "Yếu",
@@ -337,6 +346,15 @@ _CATALOG: dict[str, dict[str, str]] = {
         "rpt_vif_title": "Collinearity (VIF)",
         "rpt_pair": "Pair",
         "rpt_vif": "VIF",
+        "rpt_cmb_title": "Common Method Bias — Full Collinearity Test (Kock, 2015)",
+        "rpt_cmb_note": (
+            "Each construct is regressed on ALL other constructs (not just its direct predictors) "
+            "to test full collinearity — the technique WarpPLS uses to detect common method bias. "
+            "If every VIF is <= {threshold}, the model is considered free of CMB."
+        ),
+        "rpt_cmb_assessment": "CMB Assessment",
+        "lbl_cmb_ok": "No CMB concern",
+        "lbl_cmb_warn": "Possible CMB concern",
         "rpt_structural_suffix": " (structural)",
         "rpt_formative_measurement_suffix": " (formative measurement)",
         "lbl_r2_weak": "Weak",

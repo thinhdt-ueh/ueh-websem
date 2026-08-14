@@ -9,6 +9,7 @@ from cbsem.estimator import CBSEMError, run_cbsem
 from cbsem.metrics import compute_all_cbsem_metrics
 from cbsem.report import build_excel_report, build_word_report
 from i18n import get_lang, t
+from pls.metrics import CMB_VIF_THRESHOLD
 from pls.model import Model, ModelError
 
 from .api import _clean, _read_dataframe, _round_or_none, _upload_dir, df_to_nested_dict, series_to_dict
@@ -105,6 +106,10 @@ def analyze_cbsem():
         "structural": {
             "paths": paths,
             "r_squared": series_to_dict(result.r_squared),
+        },
+        "common_method_bias": {
+            "vif": series_to_dict(metrics["full_collinearity_vif"]),
+            "threshold": CMB_VIF_THRESHOLD,
         },
     }
     return jsonify(response)

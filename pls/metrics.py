@@ -187,6 +187,27 @@ def outer_vif(model: Model, X: pd.DataFrame) -> pd.Series:
     return pd.Series(out)
 
 
+CMB_VIF_THRESHOLD = 3.3
+
+
+def full_collinearity_vif(scores: pd.DataFrame) -> pd.Series:
+    """Full collinearity test for common method bias (Kock, 2015) — the
+    technique WarpPLS popularized for CMB assessment.
+
+    Unlike `inner_vif` (which only checks collinearity among a target's own
+    structural predecessors), here EVERY construct is regressed on ALL other
+    constructs in the model regardless of the specified structural paths —
+    a full/saturated regression used purely as a collinearity diagnostic. If
+    every resulting VIF is <= 3.3, the model is considered free of common
+    method bias; a single latent "method" factor inflating every construct's
+    variance would otherwise show up as elevated collinearity across the board.
+    Needs >= 3 constructs to be a meaningful multi-predictor collinearity
+    check (with exactly 2, it reduces to a simple pairwise VIF).
+    """
+    cols = list(scores.columns)
+    return pd.Series(_vif_within_set(scores, cols))
+
+
 def compute_all_metrics(result: PLSResult) -> dict:
     model = result.model
     X = result.scaled_data
@@ -199,6 +220,7 @@ def compute_all_metrics(result: PLSResult) -> dict:
     f2 = f_squared(model, result.scores)
     ivif = inner_vif(model, result.scores)
     ovif = outer_vif(model, X)
+    fcvif = full_collinearity_vif(result.scores)
 
     return {
         "cronbachs_alpha": alpha,
@@ -210,4 +232,5 @@ def compute_all_metrics(result: PLSResult) -> dict:
         "f_squared": f2,
         "inner_vif": ivif,
         "outer_vif": ovif,
+        "full_collinearity_vif": fcvif,
     }

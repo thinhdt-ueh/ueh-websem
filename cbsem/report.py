@@ -18,6 +18,7 @@ from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.utils import get_column_letter
 
 from i18n import DEFAULT_LANG, t
+from pls.report import _cmb_rows
 
 HEADER_FILL = PatternFill(start_color="EEF1FD", end_color="EEF1FD", fill_type="solid")
 HEADER_FONT = Font(bold=True)
@@ -195,8 +196,13 @@ def build_excel_report(data: dict, lang: str = DEFAULT_LANG) -> io.BytesIO:
     r = _write_table(ws, 1, headers, rows, title=t("rpt_path_coefficients", lang))
 
     r2_rows = [[id_to_name[cid], r2] for cid, r2 in st["r_squared"].items()]
-    _write_table(ws, r, [t("rpt_endogenous_construct", lang), t("rpt_r2", lang)], r2_rows,
-                 title=t("rpt_r2_only_title", lang))
+    r = _write_table(ws, r, [t("rpt_endogenous_construct", lang), t("rpt_r2", lang)], r2_rows,
+                      title=t("rpt_r2_only_title", lang))
+
+    cmb_rows, cmb_threshold = _cmb_rows(data, id_to_name, lang)
+    r = _write_table(ws, r, [t("rpt_construct", lang), t("rpt_vif", lang), t("rpt_cmb_assessment", lang)],
+                      cmb_rows, title=t("rpt_cmb_title", lang))
+    ws.cell(row=r, column=1, value=t("rpt_cmb_note", lang, threshold=cmb_threshold))
     _autofit(ws)
 
     buf = io.BytesIO()
@@ -322,6 +328,14 @@ def build_word_report(data: dict, lang: str = DEFAULT_LANG) -> io.BytesIO:
     _add_heading(doc, t("rpt_cbsem_section_r2", lang), level=2)
     _add_table(doc, [t("rpt_construct", lang), t("rpt_r2", lang)],
                [[id_to_name[cid], _fmt(r2)] for cid, r2 in st["r_squared"].items()])
+
+    _add_heading(doc, t("rpt_cmb_title", lang), level=2)
+    cmb_rows, cmb_threshold = _cmb_rows(data, id_to_name, lang, fmt_fn=_fmt)
+    _add_table(doc, [t("rpt_construct", lang), t("rpt_vif", lang), t("rpt_cmb_assessment", lang)], cmb_rows)
+    cmb_note = doc.add_paragraph()
+    cmb_note_run = cmb_note.add_run(t("rpt_cmb_note", lang, threshold=cmb_threshold))
+    cmb_note_run.font.size = Pt(9)
+    cmb_note_run.font.color.rgb = RGBColor(0x6B, 0x73, 0x85)
 
     note = doc.add_paragraph()
     run = note.add_run(t("rpt_r2_note", lang))
