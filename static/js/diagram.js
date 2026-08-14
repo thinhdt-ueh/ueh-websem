@@ -27,9 +27,9 @@ class PathDiagram {
   }
 
   // ---------- data API ----------
-  addConstruct(name, mode, x, y) {
+  addConstruct(name, mode, x, y, interactionOf = null) {
     const id = "c" + Math.random().toString(36).slice(2, 9);
-    this.constructs.push({ id, name, mode, indicators: [], x, y });
+    this.constructs.push({ id, name, mode, indicators: [], x, y, interaction_of: interactionOf });
     this.render();
     this.onChange();
     return id;
@@ -48,6 +48,10 @@ class PathDiagram {
 
   addPath(source, target) {
     if (source === target) return false;
+    // an interaction/moderation construct is always exogenous (it's a computed
+    // product of two other constructs' scores) — it can never be a path target
+    const targetConstruct = this.getConstruct(target);
+    if (targetConstruct && targetConstruct.mode === "I") return false;
     if (this.paths.some((p) => p.source === source && p.target === target)) return false;
     // reject reverse duplicate (would immediately create a 2-cycle)
     if (this.paths.some((p) => p.source === target && p.target === source)) return false;
@@ -81,6 +85,7 @@ class PathDiagram {
         name: c.name,
         mode: c.mode,
         indicators: c.indicators,
+        interaction_of: c.interaction_of || null,
       })),
       paths: this.paths.map((p) => ({ source: p.source, target: p.target })),
     };
@@ -309,13 +314,17 @@ class PathDiagram {
     // nodes
     for (const c of this.constructs) {
       const isSel = this.selected && this.selected.type === "node" && this.selected.id === c.id;
+      const isInteraction = c.mode === "I";
+      const strokeColor = isInteraction ? "#c98a1f" : "#3457d5";
       ctx.beginPath();
       ctx.ellipse(c.x, c.y, this.RADIUS_X, this.RADIUS_Y, 0, 0, Math.PI * 2);
-      ctx.fillStyle = isSel ? "#dfe7ff" : "#eef1fd";
+      ctx.fillStyle = isSel ? "#dfe7ff" : (isInteraction ? "#fdf3e0" : "#eef1fd");
       ctx.fill();
       ctx.lineWidth = isSel ? 3 : 2;
-      ctx.strokeStyle = "#3457d5";
+      ctx.strokeStyle = strokeColor;
+      ctx.setLineDash(isInteraction ? [5, 3] : []);
       ctx.stroke();
+      ctx.setLineDash([]);
 
       ctx.fillStyle = "#1c2333";
       ctx.font = "bold 13px sans-serif";
@@ -324,11 +333,17 @@ class PathDiagram {
 
       ctx.font = "11px sans-serif";
       ctx.fillStyle = "#6b7385";
-      let sub = t(c.mode === "A" ? "diagram_reflective" : "diagram_formative");
+      let sub;
+      if (isInteraction) {
+        const [a, b] = (c.interaction_of || []).map((sid) => this.getConstruct(sid));
+        sub = a && b ? `${a.name} × ${b.name}` : t("s2_summary_interaction");
+      } else {
+        sub = t(c.mode === "A" ? "diagram_reflective" : "diagram_formative");
+      }
       if (this.annotate) {
         const r2 = this.annotate.r2 ? this.annotate.r2[c.id] : null;
-        sub = r2 !== null && r2 !== undefined ? `R² = ${r2.toFixed(3)}` : sub;
-      } else {
+        if (r2 !== null && r2 !== undefined) sub = `R² = ${r2.toFixed(3)}`;
+      } else if (!isInteraction) {
         sub += ` · ${c.indicators.length} ${t("s2_summary_item_suffix")}`;
       }
       ctx.fillText(sub, c.x, c.y + this.RADIUS_Y - 10);

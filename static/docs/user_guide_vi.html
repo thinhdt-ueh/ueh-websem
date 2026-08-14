@@ -1,0 +1,326 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>UEH-WebSEM — Hướng dẫn sử dụng</title>
+<style>
+  :root {
+    --bg: #f4f6fb; --card: #ffffff; --border: #e1e6f0; --text: #1c2333; --muted: #6b7385;
+    --primary: #3457d5; --primary-dark: #2a44ab; --danger: #d64545; --success: #1f9d55;
+    --accent-bg: #eef1fd; --warn-bg: #fdf3e0; --warn-text: #a06b10;
+    --mono: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background: var(--bg); color: var(--text); line-height: 1.55; }
+  header.topbar { display: flex; align-items: center; gap: 16px; padding: 14px 24px; background: var(--card); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 20; flex-wrap: wrap; }
+  header.topbar img { height: 30px; }
+  header.topbar .brand { font-weight: 700; font-size: 17px; }
+  header.topbar .brand span { color: var(--primary); }
+  header.topbar nav { margin-left: auto; display: flex; gap: 10px; align-items: center; }
+  header.topbar a.pill { font-size: 13px; padding: 5px 12px; border-radius: 999px; border: 1px solid var(--border); text-decoration: none; color: var(--text); background: var(--card); }
+  header.topbar a.pill.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+  header.topbar a.back { font-size: 13px; color: var(--muted); text-decoration: none; }
+  header.topbar a.back:hover { color: var(--primary); }
+
+  .layout { display: flex; max-width: 1180px; margin: 0 auto; align-items: flex-start; gap: 28px; padding: 28px 20px 80px; }
+  aside.toc { position: sticky; top: 74px; width: 240px; flex-shrink: 0; background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 16px; font-size: 13.5px; max-height: calc(100vh - 100px); overflow-y: auto; }
+  aside.toc h3 { margin: 0 0 10px; font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
+  aside.toc a { display: block; padding: 5px 0; color: var(--text); text-decoration: none; border-radius: 4px; }
+  aside.toc a:hover { color: var(--primary); }
+  aside.toc a.sub { padding-left: 14px; font-size: 12.5px; color: var(--muted); }
+
+  main.doc { flex: 1; min-width: 0; background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 36px 44px; }
+  main.doc h1 { font-size: 27px; margin: 0 0 6px; }
+  main.doc .subtitle { color: var(--muted); font-size: 15px; margin: 0 0 28px; }
+  main.doc h2 { font-size: 20px; margin: 42px 0 14px; padding-top: 14px; border-top: 1px solid var(--border); color: var(--primary-dark); }
+  main.doc h2:first-of-type { border-top: none; padding-top: 0; margin-top: 8px; }
+  main.doc h3 { font-size: 16px; margin: 26px 0 10px; }
+  main.doc h4 { font-size: 14px; margin: 18px 0 8px; color: var(--muted); text-transform: uppercase; letter-spacing: .03em; }
+  main.doc p { margin: 0 0 12px; font-size: 14.5px; }
+  main.doc ul, main.doc ol { margin: 0 0 14px; padding-left: 22px; font-size: 14.5px; }
+  main.doc li { margin-bottom: 5px; }
+  main.doc code { font-family: var(--mono); background: var(--accent-bg); padding: 1px 5px; border-radius: 4px; font-size: 13px; }
+  main.doc a { color: var(--primary); }
+
+  .callout { border-radius: 8px; padding: 12px 16px; margin: 16px 0; font-size: 13.5px; border-left: 4px solid var(--primary); background: var(--accent-bg); }
+  .callout.warn { border-left-color: var(--warn-text); background: var(--warn-bg); }
+  .callout.tip { border-left-color: var(--success); background: #e9f8ee; }
+  .callout strong.label { display: block; font-size: 11.5px; text-transform: uppercase; letter-spacing: .04em; margin-bottom: 4px; color: var(--muted); }
+
+  .table-wrap { overflow-x: auto; margin: 14px 0 20px; border: 1px solid var(--border); border-radius: 8px; }
+  table { border-collapse: collapse; width: 100%; font-size: 13px; min-width: 480px; }
+  th, td { padding: 7px 10px; text-align: left; border-bottom: 1px solid var(--border); white-space: nowrap; }
+  th { background: var(--accent-bg); font-weight: 700; position: sticky; top: 0; }
+  tr:last-child td { border-bottom: none; }
+  td.num, th.num { text-align: right; font-family: var(--mono); }
+
+  .badge { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 11px; font-weight: 700; }
+  .badge.ok { background: #e3f6e9; color: var(--success); }
+  .badge.warn { background: #fdeceb; color: var(--danger); }
+  .badge.mod { background: var(--warn-bg); color: var(--warn-text); }
+
+  .step-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin: 16px 0 22px; }
+  .step-card { border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; background: #fbfcfe; }
+  .step-card .n { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: 50%; background: var(--primary); color: #fff; font-weight: 700; font-size: 12.5px; margin-bottom: 8px; }
+  .step-card h4 { margin: 0 0 6px; color: var(--text); text-transform: none; letter-spacing: 0; font-size: 14px; }
+  .step-card p { margin: 0; font-size: 13px; color: var(--muted); }
+
+  .diagram-box { border: 1px dashed var(--border); border-radius: 10px; padding: 18px; margin: 16px 0; background: #fbfcfe; font-family: var(--mono); font-size: 13px; overflow-x: auto; white-space: pre; color: var(--text); }
+  .diagram-box .arrow { color: var(--primary); font-weight: 700; }
+
+  footer.doc-footer { max-width: 1180px; margin: 0 auto; padding: 0 20px 60px; color: var(--muted); font-size: 12.5px; text-align: center; }
+
+  @media (max-width: 900px) {
+    .layout { flex-direction: column; }
+    aside.toc { position: static; width: 100%; max-height: none; }
+    main.doc { padding: 24px 20px; }
+    .step-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <img src="../img/logo-ueh.png" alt="UEH">
+  <div class="brand"><span>WebSEM</span> Hướng dẫn sử dụng</div>
+  <nav>
+    <a class="back" href="../../">← Về trang ứng dụng</a>
+    <a class="pill active" href="user_guide_vi.html">Tiếng Việt</a>
+    <a class="pill" href="user_guide_en.html">English</a>
+  </nav>
+</header>
+
+<div class="layout">
+  <aside class="toc">
+    <h3>Mục lục</h3>
+    <a href="#intro">1. UEH-WebSEM là gì?</a>
+    <a href="#workflow">2. Quy trình 3 bước</a>
+    <a href="#model">3. Xây dựng mô hình</a>
+    <a class="sub" href="#reflective-formative">Reflective và formative</a>
+    <a href="#mediator">4. Biến trung gian (Mediator)</a>
+    <a class="sub" href="#mediator-example">Ví dụ minh hoạ (dữ liệu thật)</a>
+    <a class="sub" href="#mediator-read">Đọc bảng Total &amp; Indirect Effects</a>
+    <a href="#moderator">5. Biến điều tiết (Moderator)</a>
+    <a class="sub" href="#moderator-create">Tạo biến tương tác trên canvas</a>
+    <a class="sub" href="#moderator-example">Ví dụ minh hoạ (dữ liệu thật)</a>
+    <a class="sub" href="#moderator-f2">Ngưỡng f² cho moderation</a>
+    <a href="#reading">6. Cách đọc từng bảng kết quả</a>
+    <a class="sub" href="#read-measurement">Mô hình đo lường</a>
+    <a class="sub" href="#read-discriminant">Giá trị phân biệt</a>
+    <a class="sub" href="#read-structural">Mô hình cấu trúc</a>
+    <a class="sub" href="#read-cmb">Common Method Bias</a>
+    <a href="#cbsem">7. Các chỉ số fit của CB-SEM</a>
+    <a href="#export">8. Xuất báo cáo</a>
+    <a href="#faq">9. Xử lý sự cố thường gặp</a>
+  </aside>
+
+  <main class="doc">
+    <h1>Hướng dẫn sử dụng UEH-WebSEM</h1>
+    <p class="subtitle">Cách xây dựng mô hình, chạy PLS-SEM / CB-SEM, và đọc hiểu từng bảng kết quả — minh hoạ xuyên suốt bằng bộ dữ liệu mẫu TAM (n = 250) và các con số thật do chính công cụ này tính ra.</p>
+
+    <h2 id="intro">1. UEH-WebSEM là gì?</h2>
+    <p>UEH-WebSEM là công cụ phân tích mô hình cấu trúc (SEM) chạy trên trình duyệt, hỗ trợ hai phương pháp ước lượng trên cùng một sơ đồ mô hình:</p>
+    <ul>
+      <li><strong>PLS-SEM</strong> (Partial Least Squares) — dựa trên composite, phù hợp với dữ liệu không chuẩn hoặc cỡ mẫu nhỏ, hỗ trợ đo lường formative, và là phương pháp dùng cho bootstrapping, Q² (blindfolding) và kiểm định Common Method Bias.</li>
+      <li><strong>CB-SEM</strong> (Covariance-Based, Maximum Likelihood) — cho ra các chỉ số phù hợp mô hình kinh điển (CFI, RMSEA, SRMR...) và sai số chuẩn chính xác, nhưng chỉ hỗ trợ đo lường reflective.</li>
+    </ul>
+    <p>Cả hai phương pháp đều chạy trên đúng cùng một sơ đồ cấu trúc, nên bạn có thể xây dựng một mô hình duy nhất rồi so sánh cách hai phương pháp xử lý nó.</p>
+
+    <h2 id="workflow">2. Quy trình 3 bước</h2>
+    <div class="step-grid">
+      <div class="step-card"><span class="n">1</span><h4>Tải dữ liệu</h4><p>CSV hoặc Excel, mỗi cột là một biến quan sát, mỗi dòng là một người trả lời (tối đa 5.000 dòng). Hoặc bấm <em>“Dùng dữ liệu mẫu”</em> để tải bộ dữ liệu Technology Acceptance Model (TAM) dùng xuyên suốt hướng dẫn này.</p></div>
+      <div class="step-card"><span class="n">2</span><h4>Xây dựng mô hình</h4><p>Nhấp đúp vào canvas (hoặc bấm “+ Construct”) để thêm construct, gán biến quan sát, rồi chuyển sang chế độ vẽ path để nối các construct bằng đường dẫn cấu trúc.</p></div>
+      <div class="step-card"><span class="n">3</span><h4>Chạy &amp; đọc kết quả</h4><p>Chọn PLS-SEM hoặc CB-SEM, bật bootstrapping nếu cần, chạy phân tích, rồi đọc các bảng theo hướng dẫn này — sau đó xuất ra Excel/Word.</p></div>
+    </div>
+
+    <h2 id="model">3. Xây dựng mô hình</h2>
+    <p>Một mô hình gồm các <strong>construct</strong> (biến tiềm ẩn) được nối với nhau bằng <strong>đường dẫn cấu trúc</strong> (path). Mỗi construct được đo bằng một hoặc nhiều <strong>biến quan sát (indicator)</strong> — là các cột số trong dữ liệu bạn tải lên.</p>
+    <h3 id="reflective-formative">Reflective và formative</h3>
+    <ul>
+      <li><strong>Reflective (Mode A)</strong> — các indicator là những biểu hiện có thể thay thế cho nhau của cùng một construct nền (ví dụ ba câu hỏi khảo sát cùng đo “Thái độ”). Cần ≥ 2 indicator. Đây là mode duy nhất CB-SEM hỗ trợ.</li>
+      <li><strong>Formative (Mode B)</strong> — các indicator cùng nhau <em>tạo nên</em> construct (ví dụ tình trạng kinh tế-xã hội được tạo bởi thu nhập + học vấn + nghề nghiệp). Chỉ PLS-SEM hỗ trợ.</li>
+    </ul>
+    <p>Bộ dữ liệu mẫu TAM đi kèm bốn construct reflective và năm đường dẫn cấu trúc:</p>
+    <div class="diagram-box">Nhận thức dễ sử dụng (PEOU) <span class="arrow">──▶</span> Nhận thức hữu ích (PU)
+Nhận thức dễ sử dụng (PEOU) <span class="arrow">──▶</span> Thái độ (ATT)
+Nhận thức hữu ích (PU)       <span class="arrow">──▶</span> Thái độ (ATT)
+Nhận thức hữu ích (PU)       <span class="arrow">──▶</span> Ý định hành vi (INT)
+Thái độ (ATT)                 <span class="arrow">──▶</span> Ý định hành vi (INT)</div>
+    <p>Chú ý PEOU <em>không có đường dẫn trực tiếp</em> đến Ý định — ảnh hưởng của nó chỉ đến được Ý định <em>thông qua</em> PU và Thái độ. Điều này khiến mô hình mẫu trở thành ví dụ minh hoạ mediation có sẵn, được dùng cho các con số thật bên dưới.</p>
+
+    <h2 id="mediator">4. Biến trung gian (Mediator)</h2>
+    <p><strong>Mediator (biến trung gian)</strong> là một construct nội sinh (endogenous) nằm <em>giữa</em> một biến dự báo và một biến kết quả, truyền tải một phần hoặc toàn bộ tác động của biến dự báo. Trong mô hình TAM, cả <strong>Nhận thức hữu ích (PU)</strong> và <strong>Thái độ (ATT)</strong> đều đóng vai trò trung gian giữa PEOU và Ý định hành vi.</p>
+    <p>Bạn không cần tạo riêng một loại construct "mediator" — bất kỳ construct nào vừa là đích của một path vừa là nguồn của một path khác đều tự động là biến trung gian. UEH-WebSEM tự phát hiện mọi đường đi gián tiếp như vậy và báo cáo trong bảng <strong>Total &amp; Indirect Effects</strong>, được tính như sau:</p>
+    <div class="callout">
+      <strong class="label">Công thức</strong>
+      Hiệu ứng gián tiếp (X → Y) = Tổng, trên mọi đường đi gián tiếp từ X đến Y, của tích các path coefficient dọc theo đường đi đó.<br>
+      Hiệu ứng tổng (X → Y) = Hiệu ứng trực tiếp + Hiệu ứng gián tiếp.
+    </div>
+
+    <h3 id="mediator-example">Ví dụ minh hoạ, với con số thật từ dữ liệu mẫu TAM</h3>
+    <p>Chạy PLS-SEM có bootstrapping (2.000 lần lặp lại mẫu) trên dữ liệu mẫu cho ra các hệ số path trực tiếp sau:</p>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Đường dẫn</th><th class="num">β</th><th class="num">t</th><th class="num">p</th><th>Có ý nghĩa (95%)</th></tr></thead>
+      <tbody>
+        <tr><td>PEOU → PU</td><td class="num">0.462</td><td class="num">10.29</td><td class="num">&lt; .001</td><td><span class="badge ok">có</span></td></tr>
+        <tr><td>PEOU → Thái độ</td><td class="num">0.206</td><td class="num">3.33</td><td class="num">.001</td><td><span class="badge ok">có</span></td></tr>
+        <tr><td>PU → Thái độ</td><td class="num">0.331</td><td class="num">5.37</td><td class="num">&lt; .001</td><td><span class="badge ok">có</span></td></tr>
+        <tr><td>PU → Ý định</td><td class="num">0.354</td><td class="num">7.08</td><td class="num">&lt; .001</td><td><span class="badge ok">có</span></td></tr>
+        <tr><td>Thái độ → Ý định</td><td class="num">0.359</td><td class="num">6.88</td><td class="num">&lt; .001</td><td><span class="badge ok">có</span></td></tr>
+      </tbody>
+    </table></div>
+    <p>Từ các hệ số này, bảng <strong>Total &amp; Indirect Effects</strong> của ứng dụng suy ra:</p>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Đường dẫn</th><th class="num">Trực tiếp</th><th class="num">Gián tiếp</th><th class="num">Tổng</th><th>Diễn giải</th></tr></thead>
+      <tbody>
+        <tr><td>PEOU → Ý định</td><td class="num">0.000</td><td class="num">0.293</td><td class="num">0.293</td><td><strong>Mediation toàn phần (full mediation)</strong> — PEOU không có path trực tiếp đến Ý định, nên toàn bộ ảnh hưởng của nó được truyền qua PU và Thái độ.</td></tr>
+        <tr><td>PU → Ý định</td><td class="num">0.354</td><td class="num">0.119</td><td class="num">0.473</td><td><strong>Mediation một phần bổ trợ (complementary/partial mediation)</strong> — PU tác động đến Ý định cả trực tiếp lẫn gián tiếp (qua Thái độ), và cả hai phần đều cùng chiều.</td></tr>
+        <tr><td>PEOU → Thái độ</td><td class="num">0.206</td><td class="num">0.153</td><td class="num">0.359</td><td>Mediation một phần qua PU.</td></tr>
+      </tbody>
+    </table></div>
+    <p><strong>Cách ra con số 0.293:</strong> PEOU đến được Ý định qua hai đường đi — PEOU→PU→Ý định (0.462 × 0.354 = 0.164) và PEOU→Thái độ→Ý định (0.206 × 0.359 = 0.074) — cộng thêm đường đi 3 bước PEOU→PU→Thái độ→Ý định (0.462 × 0.331 × 0.359 = 0.055). Cộng cả ba lại được 0.164 + 0.074 + 0.055 ≈ 0.293, đúng như bảng báo cáo. Công cụ tự động thực hiện phép tính này cho mọi cặp construct trong mô hình.</p>
+
+    <h3 id="mediator-read">Cách đọc bảng Total &amp; Indirect Effects trong thực tế</h3>
+    <ul>
+      <li><strong>Gián tiếp = 0</strong> nghĩa là hai construct chỉ được nối bằng path trực tiếp (không có mediator ở giữa) — Tổng đơn giản bằng Trực tiếp.</li>
+      <li><strong>Trực tiếp = 0, Gián tiếp ≠ 0</strong> (như PEOU → Ý định ở trên) cho thấy <em>mediation toàn phần</em>: nếu không có (các) biến trung gian, biến dự báo sẽ trông như không liên quan gì đến biến kết quả.</li>
+      <li><strong>Cả hai khác 0 và cùng dấu</strong> (như PU → Ý định) cho thấy <em>mediation bổ trợ</em>: biến trung gian củng cố thêm cho hiệu ứng trực tiếp.</li>
+      <li><strong>Cả hai khác 0 nhưng trái dấu</strong> sẽ cho thấy <em>mediation cạnh tranh</em> (hiệu ứng suppression/ức chế) — không có path nào trong mô hình mẫu rơi vào trường hợp này, nhưng cần chú ý khi phân tích mô hình của riêng bạn.</li>
+    </ul>
+    <div class="callout warn">
+      <strong class="label">Giới hạn hiện tại</strong>
+      Bảng Total &amp; Indirect Effects chỉ báo cáo giá trị ước lượng điểm (point estimate). Kiểm định ý nghĩa thống kê chính thức cho một hiệu ứng gián tiếp <em>cụ thể</em> (khoảng tin cậy bootstrap cho chính tích a × b) chưa được tự động hoá. Trong lúc chờ tính năng này, cách kiểm tra thực tế có sẵn ngay hôm nay là nguyên tắc causal-steps kinh điển: nếu mọi đoạn path riêng lẻ trong chuỗi (mỗi path “a” và “b”) đều có ý nghĩa trong kết quả bootstrap — như cả năm path trong ví dụ này — thì đường đi gián tiếp là bằng chứng tốt cho mediation.
+    </div>
+
+    <h2 id="moderator">5. Biến điều tiết (Moderator / biến tương tác)</h2>
+    <p><strong>Moderator (biến điều tiết)</strong> làm thay đổi <em>độ mạnh</em> của mối quan hệ giữa hai construct khác, thay vì nằm trên một chuỗi nhân quả như mediator. UEH-WebSEM kiểm định moderation bằng phương pháp chuẩn <strong>Two-Stage Approach</strong> (Henseler &amp; Chin, 2010; Henseler &amp; Fassott, 2010):</p>
+    <ol>
+      <li><strong>Giai đoạn 1</strong> — ước lượng mô hình gốc (chưa có biến tương tác) để lấy điểm số construct đã chuẩn hoá.</li>
+      <li><strong>Giai đoạn 2</strong> — tạo biến tương tác bằng tích chuẩn hoá của điểm số hai construct điều tiết ở Giai đoạn 1, rồi ước lượng lại mô hình cấu trúc với biến tương tác này như một biến dự báo.</li>
+    </ol>
+    <p>Logic hai giai đoạn này được áp dụng như nhau cho cả PLS-SEM (điểm số composite) và CB-SEM (điểm số factor), nên bạn có thể kiểm định moderation với cả hai phương pháp ước lượng.</p>
+
+    <h3 id="moderator-create">Tạo biến tương tác trên canvas</h3>
+    <ol>
+      <li>Thêm ít nhất hai construct thông thường trước (biến tương tác luôn là tích của hai construct <em>đã tồn tại</em>, không phải biến tương tác khác).</li>
+      <li>Bấm <strong>“+ Construct”</strong>, đặt tên, và chọn <strong>Loại đo lường</strong> là <em>“Biến tương tác / điều tiết (Interaction, A × B)”</em>.</li>
+      <li>Chọn hai construct nguồn (ví dụ “Nhận thức hữu ích” và “Thái độ”).</li>
+      <li>Vẽ một path đi <em>từ</em> node biến tương tác mới <em>đến</em> construct bị điều tiết (ví dụ → Ý định hành vi).</li>
+    </ol>
+    <div class="callout warn">
+      <strong class="label">Quy tắc xác thực (validation)</strong>
+      Cả hai construct nguồn phải đã có sẵn path <em>trực tiếp</em> của riêng mình đến construct mà biến tương tác dự báo. Điều này khớp với thông lệ kiểm định moderation chuẩn: nếu thiếu một trong hai path hiệu ứng chính (main effect), biến tương tác có thể âm thầm "hút" phần phương sai vốn thuộc về hiệu ứng chính đó. Nếu một nguồn thiếu path trực tiếp, ứng dụng sẽ từ chối mô hình kèm thông báo rõ ràng nêu tên path còn thiếu — hãy thêm path đó rồi chạy lại.
+    </div>
+    <p>Biến tương tác luôn là biến ngoại sinh (exogenous) — không thể là đích của một path khác — và không có indicator riêng; trên canvas nó được vẽ với viền nét đứt màu hổ phách để phân biệt với construct thông thường.</p>
+
+    <h3 id="moderator-example">Ví dụ minh hoạ, với con số thật từ dữ liệu mẫu TAM</h3>
+    <p>Thêm <code>PU × Thái độ → Ý định hành vi</code> vào mô hình mẫu (cả PU và Thái độ đều đã có path trực tiếp đến Ý định, nên mô hình hợp lệ) cho kết quả:</p>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Phương pháp</th><th class="num">β / B</th><th class="num">t hoặc z</th><th class="num">p</th><th>Có ý nghĩa (95%)</th></tr></thead>
+      <tbody>
+        <tr><td>PLS-SEM (bootstrap, n = 2.000)</td><td class="num">−0.090</td><td class="num">2.05</td><td class="num">.041</td><td><span class="badge ok">có</span></td></tr>
+        <tr><td>CB-SEM (Maximum Likelihood)</td><td class="num">−0.052</td><td class="num">−1.52</td><td class="num">.129</td><td><span class="badge warn">không</span></td></tr>
+      </tbody>
+    </table></div>
+    <p>Dấu âm cho thấy ảnh hưởng phối hợp của Nhận thức hữu ích và Thái độ lên Ý định <em>yếu đi một chút</em> khi cả hai đều cao — một hiệu ứng "trần" (ceiling effect) nhẹ. Lưu ý hai phương pháp không thống nhất về mức ý nghĩa ở đây: cách tiếp cận điểm số composite của PLS-SEM và điểm số factor của CB-SEM xử lý biến tương tác khác nhau và có thể cho kết quả khác biệt, đặc biệt với hiệu ứng nhỏ — đây là lý do chính đáng để báo cáo cả hai khi có thể, và không nên coi p-value của một phương pháp đơn lẻ là kết luận cuối cùng.</p>
+
+    <h3 id="moderator-f2">f² cho moderation dùng ngưỡng khác</h3>
+    <p>Path tương tác ở trên có f² = 0.013 trong lần chạy PLS-SEM. Nhãn mức ảnh hưởng cho path cấu trúc thông thường dùng ngưỡng Cohen (nhỏ ≥ 0.02, trung bình ≥ 0.15, lớn ≥ 0.35) — theo thang này, 0.013 sẽ trông như không đáng kể. Nhưng hiệu ứng tương tác vốn khó phát hiện hơn hiệu ứng chính, nên tài liệu học thuật (Kenny, 2018; Aguinis, Beaty, Boik &amp; Pierce, 2005) khuyến nghị một thang nhỏ hơn nhiều dành riêng cho moderation:</p>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Khoảng f²</th><th>Nhãn moderation</th><th>Nhãn hiệu ứng chính (để so sánh)</th></tr></thead>
+      <tbody>
+        <tr><td>&lt; 0.005</td><td>Không đáng kể</td><td>Không đáng kể</td></tr>
+        <tr><td>0.005 – 0.01</td><td>Nhỏ</td><td>Không đáng kể</td></tr>
+        <tr><td>0.01 – 0.025</td><td>Trung bình</td><td>Không đáng kể / Nhỏ</td></tr>
+        <tr><td>≥ 0.025</td><td>Lớn</td><td>Nhỏ</td></tr>
+      </tbody>
+    </table></div>
+    <p>UEH-WebSEM tự động áp dụng thang moderation cho bất kỳ path nào có nguồn là biến tương tác (đánh dấu bằng nhãn <span class="badge mod">Điều tiết</span> trong bảng path và bản xuất), nên f² = 0.013 của PU × Thái độ → Ý định được gắn nhãn đúng là <strong>"Trung bình"</strong>, chứ không phải "Không đáng kể".</p>
+    <div class="callout">
+      <strong class="label">Vì sao Q² bị bỏ qua với mô hình có biến điều tiết</strong>
+      Blindfolding (dùng để tính Q²) lược bỏ và dự đoán lại giá trị indicator gốc một cách có hệ thống, nhưng biến tương tác không có indicator riêng — nó là tích số được suy ra từ điểm số của hai construct khác. Vì vậy, Q² sẽ tự động bị bỏ qua (kèm ghi chú giải thích) với bất kỳ mô hình nào chứa biến tương tác; mọi kết quả khác (path coefficient, R², f², bootstrapping) không bị ảnh hưởng.
+    </div>
+
+    <h2 id="reading">6. Cách đọc từng bảng kết quả</h2>
+    <p>Các con số trong phần này lấy từ đúng lần chạy PLS-SEM ở trên (dữ liệu mẫu TAM, n = 250, có kèm biến tương tác PU × Thái độ).</p>
+
+    <h3 id="read-measurement">Mô hình đo lường</h3>
+    <p><strong>Outer loadings/weights</strong> cho biết mỗi indicator đại diện cho construct của nó mạnh đến đâu (loading reflective nên ≥ 0.70). <strong>Độ tin cậy &amp; giá trị hội tụ:</strong></p>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Construct</th><th class="num">Cronbach's α</th><th class="num">ρ_A</th><th class="num">Composite Reliability</th><th class="num">AVE</th></tr></thead>
+      <tbody>
+        <tr><td>Nhận thức dễ sử dụng</td><td class="num">0.822</td><td class="num">0.843</td><td class="num">0.893</td><td class="num">0.737</td></tr>
+        <tr><td>Nhận thức hữu ích</td><td class="num">0.850</td><td class="num">0.863</td><td class="num">0.908</td><td class="num">0.768</td></tr>
+        <tr><td>Thái độ</td><td class="num">0.841</td><td class="num">0.849</td><td class="num">0.904</td><td class="num">0.758</td></tr>
+        <tr><td>Ý định hành vi</td><td class="num">0.833</td><td class="num">0.836</td><td class="num">0.900</td><td class="num">0.750</td></tr>
+      </tbody>
+    </table></div>
+    <p>Quy tắc chung: α và Composite Reliability ≥ 0.70 (đáng tin cậy), AVE ≥ 0.50 (construct giải thích hơn một nửa phương sai của chính các indicator của nó). Cả bốn construct đều vượt qua cả hai ngưỡng một cách rõ ràng.</p>
+
+    <h3 id="read-discriminant">Giá trị phân biệt (Discriminant Validity)</h3>
+    <p><strong>Tiêu chí Fornell-Larcker:</strong> √AVE của mỗi construct (trên đường chéo) phải lớn hơn tương quan của nó với mọi construct khác. Ở đây √AVE dao động 0.858–0.876, trong khi tương quan liên-construct lớn nhất chỉ là 0.515 (PU–Ý định) — thoả mãn rõ ràng.</p>
+    <p><strong>HTMT (Heterotrait-Monotrait ratio):</strong> nên nhỏ hơn 0.85 (chặt) hoặc 0.90 (nới lỏng). Giá trị cao nhất trong lần chạy này là 0.606 (PU–Ý định), thấp hơn nhiều so với cả hai ngưỡng — bốn construct phân biệt rõ ràng về mặt thực nghiệm.</p>
+
+    <h3 id="read-structural">Mô hình cấu trúc</h3>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Construct</th><th class="num">R²</th><th>Đánh giá</th></tr></thead>
+      <tbody>
+        <tr><td>Nhận thức hữu ích</td><td class="num">0.214</td><td>Trung bình (Moderate)</td></tr>
+        <tr><td>Thái độ</td><td class="num">0.215</td><td>Trung bình (Moderate)</td></tr>
+        <tr><td>Ý định hành vi</td><td class="num">0.378</td><td>Đáng kể (Substantial)</td></tr>
+      </tbody>
+    </table></div>
+    <p>Ngưỡng đánh giá R²: &lt; 0.19 yếu, 0.19–0.33 trung bình, 0.33–0.67 đáng kể, ≥ 0.67 mạnh (Chin, 1998; Hock &amp; Ringle). f² (mức ảnh hưởng theo từng path, ngưỡng hiệu ứng chính) được hiển thị kèm mỗi path trong bảng Path Coefficients — ví dụ PEOU → PU có f² = 0.272 (trung bình), động lực đơn lẻ mạnh nhất trong mô hình này.</p>
+
+    <h3 id="read-cmb">Common Method Bias — Full Collinearity Test</h3>
+    <p>Mỗi construct (kể cả biến tương tác nếu có) được hồi quy trên <em>tất cả</em> construct còn lại, bất kể các path cấu trúc đã vẽ, và VIF thu được được so với ngưỡng 3.3 (Kock, 2015) — kỹ thuật full-collinearity của WarpPLS để phát hiện một nhân tố "phương pháp" (method factor) tiềm ẩn duy nhất làm phóng đại toàn bộ phương sai cùng lúc.</p>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Construct</th><th class="num">Full collinearity VIF</th><th>Đánh giá</th></tr></thead>
+      <tbody>
+        <tr><td>Nhận thức dễ sử dụng</td><td class="num">1.328</td><td><span class="badge ok">Đạt</span></td></tr>
+        <tr><td>Nhận thức hữu ích</td><td class="num">1.629</td><td><span class="badge ok">Đạt</span></td></tr>
+        <tr><td>Thái độ</td><td class="num">1.484</td><td><span class="badge ok">Đạt</span></td></tr>
+        <tr><td>Ý định hành vi</td><td class="num">1.608</td><td><span class="badge ok">Đạt</span></td></tr>
+        <tr><td>PU × Thái độ (biến tương tác)</td><td class="num">1.022</td><td><span class="badge ok">Đạt</span></td></tr>
+      </tbody>
+    </table></div>
+    <p>Mọi giá trị đều thấp hơn nhiều so với 3.3, nên bộ dữ liệu này không cho thấy dấu hiệu của common method bias.</p>
+
+    <h2 id="cbsem">7. Các chỉ số fit của CB-SEM</h2>
+    <p>Chạy đúng mô hình đó (kèm biến tương tác) bằng CB-SEM (Maximum Likelihood) cho ra các chỉ số phù hợp mô hình toàn cục kinh điển mà PLS-SEM không báo cáo:</p>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Chỉ số</th><th class="num">Giá trị</th><th>Ngưỡng fit tốt</th><th>Đánh giá</th></tr></thead>
+      <tbody>
+        <tr><td>χ² (df = 49)</td><td class="num">66.73</td><td>—</td><td>—</td></tr>
+        <tr><td>χ² p-value</td><td class="num">.047</td><td>&gt; .05 lý tưởng, nhưng χ² nhạy với cỡ mẫu</td><td>Ranh giới</td></tr>
+        <tr><td>CFI</td><td class="num">0.988</td><td>≥ 0.95</td><td><span class="badge ok">Tốt</span></td></tr>
+        <tr><td>TLI</td><td class="num">0.983</td><td>≥ 0.95</td><td><span class="badge ok">Tốt</span></td></tr>
+        <tr><td>RMSEA</td><td class="num">0.038</td><td>≤ 0.06</td><td><span class="badge ok">Tốt</span></td></tr>
+        <tr><td>SRMR</td><td class="num">0.037</td><td>≤ 0.05</td><td><span class="badge ok">Tốt</span></td></tr>
+        <tr><td>GFI</td><td class="num">0.955</td><td>≥ 0.95</td><td><span class="badge ok">Tốt</span></td></tr>
+        <tr><td>AGFI</td><td class="num">0.940</td><td>≥ 0.90</td><td><span class="badge ok">Tốt</span></td></tr>
+        <tr><td>NFI</td><td class="num">0.955</td><td>≥ 0.95</td><td><span class="badge ok">Tốt</span></td></tr>
+        <tr><td>AIC / BIC</td><td class="num">57.5 / 159.6</td><td>càng thấp càng tốt (khi so sánh các mô hình)</td><td>—</td></tr>
+      </tbody>
+    </table></div>
+    <p>Mọi chỉ số fit thực dụng (CFI, TLI, RMSEA, SRMR, GFI, AGFI, NFI) đều vượt ngưỡng fit tốt; chỉ riêng kiểm định χ² là ở mức ranh giới, điều này bình thường và dễ hiểu — χ² gần như luôn bác bỏ với mẫu lớn hoặc không chuẩn ngay cả khi mô hình fit tốt, đó chính là lý do các chỉ số khác tồn tại.</p>
+
+    <h2 id="export">8. Xuất báo cáo</h2>
+    <p>Cả bản xuất Excel (.xlsx) và Word (.docx) đều dựng lại toàn bộ bảng hiển thị trên màn hình — bao gồm Total &amp; Indirect Effects và, khi có, các dòng biến tương tác cùng nhãn f² dành riêng cho moderation — trực tiếp từ lần phân tích bạn vừa chạy (không ước lượng lại, nên xuất file diễn ra ngay lập tức). Ngôn ngữ của báo cáo luôn theo ngôn ngữ (VI/EN) đang chọn trên giao diện <em>tại thời điểm xuất file</em>, không phụ thuộc vào ngôn ngữ lúc bạn chạy phân tích ban đầu.</p>
+
+    <h2 id="faq">9. Xử lý sự cố thường gặp</h2>
+    <ul>
+      <li><strong>"Biến tương tác 'X' dự báo 'Y', nên 'Z' cũng cần có đường dẫn hiệu ứng chính trực tiếp đến 'Y'."</strong> — Vẽ thêm path trực tiếp còn thiếu từ construct nguồn được nêu tên đến construct bị điều tiết, rồi chạy lại. Cả hai thành phần nhân của biến tương tác đều phải có hiệu ứng chính riêng lên biến kết quả.</li>
+      <li><strong>"Cần ít nhất 2 construct khác đã tồn tại để tạo biến tương tác."</strong> — Thêm và cấu hình ít nhất hai construct thông thường (không phải biến tương tác) trước khi chuyển loại đo lường của một construct thành "Biến tương tác / điều tiết".</li>
+      <li><strong>Q² hiển thị thông báo bỏ qua thay vì một giá trị</strong> — đây là điều bình thường bất cứ khi nào mô hình chứa biến tương tác (xem mục 5); không phải là lỗi.</li>
+      <li><strong>CB-SEM từ chối một construct formative</strong> — CB-SEM (Maximum Likelihood) chỉ hỗ trợ đo lường reflective (Mode A); hãy chuyển sang PLS-SEM, hoặc đổi loại đo lường của construct đó nếu phù hợp về mặt học thuật.</li>
+      <li><strong>File tải lên bị từ chối vì quá nhiều dòng</strong> — công cụ giới hạn tối đa 5.000 dòng mỗi lần tải lên; hãy tổng hợp hoặc lấy mẫu bớt dữ liệu trước.</li>
+    </ul>
+  </main>
+</div>
+
+<footer class="doc-footer">© 2026 UEH-WebSEM — Trường Đại học Kinh tế TP. Hồ Chí Minh (UEH). Toàn bộ số liệu ví dụ trên trang này là kết quả thật, xuất ra từ bộ dữ liệu mẫu TAM có sẵn trong ứng dụng.</footer>
+
+</body>
+</html>

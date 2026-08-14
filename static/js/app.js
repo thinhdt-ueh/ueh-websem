@@ -19,6 +19,12 @@ let cbsemResultDiagram = null;
 // ---------------- Language switch ----------------
 applyStaticTranslations();
 document.querySelectorAll(".lang-btn").forEach((b) => b.classList.toggle("active", b.dataset.lang === getLang()));
+updateGuideLink();
+
+function updateGuideLink() {
+  const link = document.getElementById("guideLink");
+  if (link) link.href = `/static/docs/user_guide_${getLang()}.html`;
+}
 document.getElementById("runAnalysisBtn").textContent = t("s2_run_pls");
 document.getElementById("toolbarHint").textContent = t("s2_toolbar_hint_default");
 document.getElementById("methodHint").textContent = t("s2_method_hint_pls");
@@ -36,6 +42,7 @@ document.addEventListener("langchange", refreshUIForLanguage);
 function refreshUIForLanguage() {
   // Text that depends on more than just the static markup (current selection /
   // toggle state) needs to be recomputed rather than just re-applied from data-i18n.
+  updateGuideLink();
   const method = document.getElementById("estimationMethod").value;
   document.getElementById("methodHint").textContent =
     t(method === "cbsem" ? "s2_method_hint_cbsem" : "s2_method_hint_pls");
@@ -231,8 +238,13 @@ document.addEventListener("keydown", (e) => {
   }
 });
 
+function eligibleInteractionSources(excludeId = null) {
+  return editor.constructs.filter((c) => c.mode !== "I" && c.id !== excludeId);
+}
+
 function openAddConstructModal(pos) {
   const root = document.getElementById("modalRoot");
+  const canInteract = eligibleInteractionSources().length >= 2;
   root.innerHTML = `
     <div class="modal-backdrop">
       <div class="modal-box">
@@ -243,18 +255,55 @@ function openAddConstructModal(pos) {
         <select id="modalCMode">
           <option value="A">${t("s2_mode_reflective")}</option>
           <option value="B">${t("s2_mode_formative")}</option>
+          <option value="I" ${canInteract ? "" : "disabled"}>${t("s2_mode_interaction")}</option>
         </select>
+        ${canInteract ? "" : `<p class="hint">${t("s2_interaction_not_enough")}</p>`}
+        <div id="modalInteractionSources" class="hidden">
+          <label>${t("s2_interaction_source_a")}</label>
+          <select id="modalSourceA"></select>
+          <label>${t("s2_interaction_source_b")}</label>
+          <select id="modalSourceB"></select>
+          <div id="modalInteractionError" class="error-box hidden"></div>
+        </div>
         <div class="modal-actions">
           <button class="btn" id="modalCancel">${t("modal_cancel")}</button>
           <button class="btn primary" id="modalOk">${t("modal_add")}</button>
         </div>
       </div>
     </div>`;
+
+  const fillSourceSelect = (sel, preferIndex) => {
+    const options = eligibleInteractionSources();
+    sel.innerHTML = options.map((c) => `<option value="${escapeAttr(c.id)}">${escapeHtml(c.name)}</option>`).join("");
+    if (options[preferIndex]) sel.value = options[preferIndex].id;
+  };
+
+  document.getElementById("modalCMode").addEventListener("change", (e) => {
+    const isInteraction = e.target.value === "I";
+    document.getElementById("modalInteractionSources").classList.toggle("hidden", !isInteraction);
+    if (isInteraction) {
+      fillSourceSelect(document.getElementById("modalSourceA"), 0);
+      fillSourceSelect(document.getElementById("modalSourceB"), 1);
+    }
+  });
+
   document.getElementById("modalCancel").onclick = () => (root.innerHTML = "");
   document.getElementById("modalOk").onclick = () => {
     const name = document.getElementById("modalCName").value.trim() || "Construct";
     const mode = document.getElementById("modalCMode").value;
-    const id = editor.addConstruct(name, mode, pos.x, pos.y);
+    let interactionOf = null;
+    if (mode === "I") {
+      const a = document.getElementById("modalSourceA").value;
+      const b = document.getElementById("modalSourceB").value;
+      if (!a || !b || a === b) {
+        const errBox = document.getElementById("modalInteractionError");
+        errBox.textContent = t("s2_interaction_same_source");
+        errBox.classList.remove("hidden");
+        return;
+      }
+      interactionOf = [a, b];
+    }
+    const id = editor.addConstruct(name, mode, pos.x, pos.y, interactionOf);
     root.innerHTML = "";
     editor.setSelected({ type: "node", id });
     renderModelSummary();
@@ -275,7 +324,46 @@ function onConstructSelected(sel) {
   const c = sel.construct;
   document.getElementById("cName").value = c.name;
   document.getElementById("cMode").value = c.mode;
-  renderIndicatorPicker(c);
+  if (c.mode === "I") {
+    document.getElementById("indicatorPickerSection").classList.add("hidden");
+    document.getElementById("interactionSourcesSection").classList.remove("hidden");
+    renderInteractionSourcePicker(c);
+  } else {
+    document.getElementById("indicatorPickerSection").classList.remove("hidden");
+    document.getElementById("interactionSourcesSection").classList.add("hidden");
+    renderIndicatorPicker(c);
+  }
+}
+
+function renderInteractionSourcePicker(construct) {
+  const options = eligibleInteractionSources(construct.id);
+  const errBox = document.getElementById("interactionSourceError");
+  errBox.classList.add("hidden");
+  const optHtml = options.map((c) => `<option value="${escapeAttr(c.id)}">${escapeHtml(c.name)}</option>`).join("");
+  const selA = document.getElementById("cSourceA");
+  const selB = document.getElementById("cSourceB");
+  selA.innerHTML = optHtml;
+  selB.innerHTML = optHtml;
+  const [curA, curB] = construct.interaction_of || [];
+  if (curA && options.some((o) => o.id === curA)) selA.value = curA;
+  else if (options[0]) selA.value = options[0].id;
+  if (curB && options.some((o) => o.id === curB)) selB.value = curB;
+  else if (options[1]) selB.value = options[1].id;
+  construct.interaction_of = [selA.value, selB.value];
+
+  const onSourceChange = () => {
+    if (selA.value === selB.value) {
+      errBox.textContent = t("s2_interaction_same_source");
+      errBox.classList.remove("hidden");
+      return;
+    }
+    errBox.classList.add("hidden");
+    construct.interaction_of = [selA.value, selB.value];
+    editor.render();
+    renderModelSummary();
+  };
+  selA.onchange = onSourceChange;
+  selB.onchange = onSourceChange;
 }
 
 document.getElementById("cName").addEventListener("input", (e) => {
@@ -287,8 +375,24 @@ document.getElementById("cName").addEventListener("input", (e) => {
 
 document.getElementById("cMode").addEventListener("change", (e) => {
   if (!editor.selected || editor.selected.type !== "node") return;
-  editor.getConstruct(editor.selected.id).mode = e.target.value;
+  const c = editor.getConstruct(editor.selected.id);
+  const newMode = e.target.value;
+  if (newMode === "I" && eligibleInteractionSources(c.id).length < 2) {
+    e.target.value = c.mode; // not enough other constructs to form an interaction — revert
+    showModelMessage(t("s2_interaction_not_enough"));
+    return;
+  }
+  c.mode = newMode;
+  if (newMode === "I") {
+    c.indicators = [];
+    // any structural path pointing INTO this construct is now invalid, since an
+    // interaction term is always exogenous
+    editor.paths = editor.paths.filter((p) => p.target !== c.id);
+  } else {
+    c.interaction_of = null;
+  }
   editor.render();
+  onConstructSelected({ type: "node", construct: c });
   renderModelSummary();
 });
 
@@ -323,12 +427,23 @@ function renderIndicatorPicker(construct) {
 
 let expandedConstructs = new Set();
 
+function interactionOfLabel(c) {
+  const [a, b] = (c.interaction_of || []).map((sid) => editor.getConstruct(sid));
+  return a && b ? `${a.name} × ${b.name}` : t("lbl_dash");
+}
+
 function renderModelSummary() {
   const ul = document.getElementById("modelSummary");
   const parts = editor.constructs.map((c) => {
-    const modeLabel = t(c.mode === "A" ? "s2_summary_reflective" : "s2_summary_formative");
+    const isInteraction = c.mode === "I";
+    const modeLabel = t(
+      c.mode === "A" ? "s2_summary_reflective" : isInteraction ? "s2_summary_interaction" : "s2_summary_formative"
+    );
+    const detail = isInteraction
+      ? `${modeLabel}: ${interactionOfLabel(c)}`
+      : `${modeLabel}, ${c.indicators.length} ${t("s2_summary_item_suffix")}`;
     const isOpen = expandedConstructs.has(c.id);
-    const indicatorList = isOpen
+    const indicatorList = isOpen && !isInteraction
       ? `<ul class="summary-indicators">${
           c.indicators.length
             ? c.indicators.map((i) => `<li>${escapeHtml(i)}</li>`).join("")
@@ -337,8 +452,8 @@ function renderModelSummary() {
       : "";
     return `<li>
       <div class="summary-row">
-        <button class="summary-toggle" data-construct-id="${c.id}" type="button" aria-label="${t("s2_summary_toggle_aria")}">${isOpen ? "−" : "+"}</button>
-        <span><strong>${escapeHtml(c.name)}</strong> — ${modeLabel}, ${c.indicators.length} ${t("s2_summary_item_suffix")}</span>
+        <button class="summary-toggle" data-construct-id="${c.id}" type="button" aria-label="${t("s2_summary_toggle_aria")}" ${isInteraction ? "disabled style=\"visibility:hidden\"" : ""}>${isOpen ? "−" : "+"}</button>
+        <span><strong>${escapeHtml(c.name)}</strong> — ${detail}</span>
       </div>
       ${indicatorList}
     </li>`;
@@ -612,6 +727,7 @@ function renderResults(data) {
   renderMatrixTable("flTable", data.discriminant_validity.fornell_larcker, idToName);
   renderMatrixTable("htmtTable", data.discriminant_validity.htmt, idToName);
   renderPathTable(data);
+  renderTotalEffectsTable(data, "totalEffectsTable");
   renderR2Table(data, idToName);
   renderVifTable(data, idToName);
   renderCmbTable(data.common_method_bias, idToName, "cmbHint", "cmbTable");
@@ -672,8 +788,11 @@ function sigBadge(significant) {
 
 function renderCrossLoadingsTable(data, idToName) {
   // cross_loadings is serialized from a pandas DataFrame via .to_dict(): {construct_id: {indicator: value}}.
+  // Interaction/moderation constructs have no indicators of their own, so they never
+  // appear as a column here — derive the column set from `cl` itself, not from the
+  // full construct list (mirrors the same fix in pls/report.py's Excel export).
   const cl = data.measurement.cross_loadings;
-  const constructIds = data.constructs.map((c) => c.id);
+  const constructIds = Object.keys(cl);
   let html = `<thead><tr><th>${t("th_indicator")}</th>` +
     constructIds.map((id) => `<th>${escapeHtml(idToName[id])}</th>`).join("") + "</tr></thead><tbody>";
   for (const c of data.constructs) {
@@ -706,21 +825,42 @@ function renderMatrixTable(elId, matrix, idToName) {
   document.getElementById(elId).innerHTML = html;
 }
 
+function pathLabel(p) {
+  const name = `${escapeHtml(p.source_name)} → ${escapeHtml(p.target_name)}`;
+  return p.is_interaction ? `${name} <span class="badge moderation" title="${t("s2_mode_interaction")}">${t("lbl_moderation_badge")}</span>` : name;
+}
+
 function renderPathTable(data) {
   const hasBoot = data.structural.paths.some((p) => p.t_stat !== undefined);
   let html = `<thead><tr><th>${t("th_path")}</th><th>${t("th_path_coefficient")}</th>`;
   if (hasBoot) html += `<th>${t("th_stdev")}</th><th>${t("th_t_stat")}</th><th>${t("th_p_value")}</th><th>${t("th_significance")}</th>`;
   html += `<th>${t("th_f_squared")}</th><th>${t("th_f2_effect")}</th></tr></thead><tbody>`;
   for (const p of data.structural.paths) {
-    html += `<tr><td>${escapeHtml(p.source_name)} → ${escapeHtml(p.target_name)}</td>` +
+    html += `<tr><td>${pathLabel(p)}</td>` +
       `<td>${fmt(p.coefficient)}</td>`;
     if (hasBoot) {
       html += `<td>${fmt(p.bootstrap_std)}</td><td>${fmt(p.t_stat)}</td><td>${fmt(p.p_value)}</td><td>${sigBadge(p.significant)}</td>`;
     }
-    html += `<td>${fmt(p.f_squared)}</td><td>${f2Label(p.f_squared)}</td></tr>`;
+    const labelFn = p.is_interaction ? f2ModerationLabel : f2Label;
+    html += `<td>${fmt(p.f_squared)}</td><td>${labelFn(p.f_squared)}</td></tr>`;
   }
   html += "</tbody>";
   document.getElementById("pathTable").innerHTML = html;
+}
+
+function renderTotalEffectsTable(data, elId) {
+  const rows = data.structural.total_effects || [];
+  let html = `<thead><tr><th>${t("th_path")}</th><th>${t("th_direct_effect")}</th>` +
+    `<th>${t("th_indirect_effect")}</th><th>${t("th_total_effect")}</th></tr></thead><tbody>`;
+  if (rows.length === 0) {
+    html += `<tr><td colspan="4" style="text-align:center;color:#6b7385">${t("lbl_dash")}</td></tr>`;
+  }
+  for (const e of rows) {
+    html += `<tr><td>${escapeHtml(e.source_name)} → ${escapeHtml(e.target_name)}</td>` +
+      `<td>${fmt(e.direct)}</td><td>${fmt(e.indirect)}</td><td>${fmt(e.total)}</td></tr>`;
+  }
+  html += "</tbody>";
+  document.getElementById(elId).innerHTML = html;
 }
 
 function f2Label(v) {
@@ -728,6 +868,17 @@ function f2Label(v) {
   if (v < 0.02) return t("lbl_f2_none");
   if (v < 0.15) return t("lbl_f2_small");
   if (v < 0.35) return t("lbl_f2_medium");
+  return t("lbl_f2_large");
+}
+
+// Moderation (interaction-term) f² uses much smaller thresholds than main-effect
+// f² (Kenny 2018; Aguinis et al. 2005) — see pls/report.py's f2_moderation_label
+// for the same rationale on the export side.
+function f2ModerationLabel(v) {
+  if (v === null || v === undefined) return t("lbl_dash");
+  if (v < 0.005) return t("lbl_f2_none");
+  if (v < 0.01) return t("lbl_f2_small");
+  if (v < 0.025) return t("lbl_f2_medium");
   return t("lbl_f2_large");
 }
 
@@ -873,6 +1024,7 @@ function renderCbsemResults(data) {
   renderMatrixTable("cbsemFlTable", data.discriminant_validity.fornell_larcker, idToName);
   renderMatrixTable("cbsemHtmtTable", data.discriminant_validity.htmt, idToName);
   renderCbsemPathTable(data);
+  renderTotalEffectsTable(data, "cbsemTotalEffectsTable");
   renderCbsemR2Table(data, idToName);
   renderCmbTable(data.common_method_bias, idToName, "cbsemCmbHint", "cbsemCmbTable");
 }
@@ -918,7 +1070,7 @@ function renderCbsemPathTable(data) {
   let html = `<thead><tr><th>${t("th_path")}</th><th>${t("th_unstd_b")}</th><th>${t("th_std_beta")}</th>` +
     `<th>${t("th_se")}</th><th>${t("th_z")}</th><th>${t("th_p")}</th><th>${t("th_significance")}</th></tr></thead><tbody>`;
   for (const p of data.structural.paths) {
-    html += `<tr><td>${escapeHtml(p.source_name)} → ${escapeHtml(p.target_name)}</td>` +
+    html += `<tr><td>${pathLabel(p)}</td>` +
       `<td>${fmt(p.unstd)}</td><td>${fmt(p.std)}</td><td>${fmt(p.se)}</td><td>${fmt(p.z, 2)}</td>` +
       `<td>${fmt(p.p, 4)}</td><td>${sigBadge(p.significant)}</td></tr>`;
   }

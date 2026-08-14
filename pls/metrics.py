@@ -85,7 +85,10 @@ def fornell_larcker(model: Model, scores: pd.DataFrame, ave_series: pd.Series) -
 
 
 def htmt(model: Model, X: pd.DataFrame) -> pd.DataFrame:
-    ids = list(model.constructs.keys())
+    # Interaction/moderation constructs (mode "I") have no real indicators of their
+    # own — they're a computed product of two other constructs' scores — so they
+    # don't participate in discriminant-validity checks the way measured blocks do.
+    ids = [cid for cid, c in model.constructs.items() if c.mode != "I"]
     result = pd.DataFrame(index=ids, columns=ids, dtype=float)
     R = X.corr().abs()
 

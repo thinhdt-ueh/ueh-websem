@@ -7,8 +7,10 @@ from flask import Blueprint, jsonify, request, send_file
 
 from cbsem.estimator import CBSEMError, run_cbsem
 from cbsem.metrics import compute_all_cbsem_metrics
+from cbsem.moderation import run_cbsem_with_moderation
 from cbsem.report import build_excel_report, build_word_report
 from i18n import get_lang, t
+from pls.effects import total_effects
 from pls.metrics import CMB_VIF_THRESHOLD
 from pls.model import Model, ModelError
 
@@ -39,7 +41,10 @@ def analyze_cbsem():
 
     try:
         df = _read_dataframe(saved_path)
-        result = run_cbsem(model, df, lang=lang)
+        if model.has_interactions():
+            result = run_cbsem_with_moderation(model, df, lang=lang)
+        else:
+            result = run_cbsem(model, df, lang=lang)
     except CBSEMError as exc:
         return jsonify(error=str(exc)), 400
     except Exception as exc:  # noqa: BLE001
@@ -74,7 +79,20 @@ def analyze_cbsem():
             "z": _round_or_none(row["z"]),
             "p": _round_or_none(p_value, 6),
             "significant": bool(pd.notna(p_value) and p_value < 0.05),
+            "is_interaction": model.constructs[row["source"]].mode == "I",
         })
+
+    coef: dict[str, dict[str, float]] = {}
+    for _, row in result.structural.iterrows():
+        coef.setdefault(row["source"], {})[row["target"]] = float(row["std"])
+    total_effects_list = [
+        {
+            "source": e.source, "target": e.target,
+            "source_name": model.constructs[e.source].name, "target_name": model.constructs[e.target].name,
+            "direct": round(e.direct, 6), "indirect": round(e.indirect, 6), "total": round(e.total, 6),
+        }
+        for e in total_effects(model, coef)
+    ]
 
     response = {
         "method": "cbsem",
@@ -89,9 +107,11 @@ def analyze_cbsem():
                 "mode": c.mode,
                 "indicators": c.indicators,
                 "is_endogenous": c.id in model.endogenous_ids(),
+                "interaction_of": c.interaction_of,
             }
             for c in model.constructs.values()
         ],
+        "has_moderation": model.has_interactions(),
         "fit_indices": _clean(result.fit_indices),
         "measurement": {
             "loadings": loadings,
@@ -105,6 +125,7 @@ def analyze_cbsem():
         },
         "structural": {
             "paths": paths,
+            "total_effects": total_effects_list,
             "r_squared": series_to_dict(result.r_squared),
         },
         "common_method_bias": {

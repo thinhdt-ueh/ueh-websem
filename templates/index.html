@@ -19,6 +19,7 @@
     <button class="lang-btn" data-lang="vi">VI</button>
     <button class="lang-btn active" data-lang="en">EN</button>
   </div>
+  <a id="guideLink" class="btn ghost" target="_blank" rel="noopener" data-i18n="nav_guide">Hướng dẫn sử dụng</a>
   <button id="sampleBtn" class="btn ghost" data-i18n="nav_sample">Dùng dữ liệu mẫu</button>
 </header>
 
@@ -76,9 +77,20 @@
           <select id="cMode">
             <option value="A" data-i18n="s2_mode_reflective">Reflective (Mode A)</option>
             <option value="B" data-i18n="s2_mode_formative">Formative (Mode B)</option>
+            <option value="I" data-i18n="s2_mode_interaction">Biến tương tác / điều tiết (Interaction, A × B)</option>
           </select>
-          <label data-i18n="s2_indicators_label">Biến quan sát (indicators)</label>
-          <div class="indicator-picker" id="indicatorPicker"></div>
+          <div id="indicatorPickerSection">
+            <label data-i18n="s2_indicators_label">Biến quan sát (indicators)</label>
+            <div class="indicator-picker" id="indicatorPicker"></div>
+          </div>
+          <div id="interactionSourcesSection" class="hidden">
+            <p class="hint" data-i18n="s2_interaction_sources_label">Nguồn của biến tương tác (chọn 2 construct)</p>
+            <label data-i18n="s2_interaction_source_a">Construct A</label>
+            <select id="cSourceA"></select>
+            <label data-i18n="s2_interaction_source_b">Construct B</label>
+            <select id="cSourceB"></select>
+            <div id="interactionSourceError" class="error-box hidden"></div>
+          </div>
         </div>
         <hr>
         <h3 data-i18n="s2_model_overview">Tổng quan mô hình</h3>
@@ -158,6 +170,11 @@
           <div class="table-scroll"><table id="pathTable"></table></div>
         </div>
         <div class="panel-card">
+          <h2 data-i18n="s3_total_effects_title">Total &amp; Indirect Effects (Kiểm định Mediation)</h2>
+          <p class="hint" data-i18n="s3_total_effects_hint">Hiệu ứng gián tiếp = tổng tích các hệ số path dọc theo mọi đường đi qua biến trung gian (mediator); hiệu ứng tổng = trực tiếp + gián tiếp.</p>
+          <div class="table-scroll"><table id="totalEffectsTable"></table></div>
+        </div>
+        <div class="panel-card">
           <h2 data-i18n="s3_r2q2_title">R² &amp; Q² của biến nội sinh (Predictive Relevance)</h2>
           <div class="table-scroll"><table id="r2Table"></table></div>
         </div>
@@ -216,6 +233,11 @@
         <div class="panel-card">
           <h2 data-i18n="cbsem_path_title">Mô hình cấu trúc — Path Coefficients</h2>
           <div class="table-scroll"><table id="cbsemPathTable"></table></div>
+        </div>
+        <div class="panel-card">
+          <h2 data-i18n="s3_total_effects_title">Total &amp; Indirect Effects (Kiểm định Mediation)</h2>
+          <p class="hint" data-i18n="s3_total_effects_hint">Hiệu ứng gián tiếp = tổng tích các hệ số path dọc theo mọi đường đi qua biến trung gian (mediator); hiệu ứng tổng = trực tiếp + gián tiếp.</p>
+          <div class="table-scroll"><table id="cbsemTotalEffectsTable"></table></div>
         </div>
         <div class="panel-card">
           <h2 data-i18n="cbsem_r2_title">R² của biến nội sinh</h2>

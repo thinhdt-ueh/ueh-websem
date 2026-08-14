@@ -145,6 +145,40 @@ def _fit(X: np.ndarray, topo: _Topology, max_iterations: int, tolerance: float):
     return w, Y, n_iter, converged
 
 
+def structural_regression(
+    model: Model, scores: pd.DataFrame, construct_ids: list[str] | None = None,
+) -> tuple[pd.DataFrame, pd.Series, pd.Series]:
+    """OLS regression of every endogenous construct on its direct predecessors,
+    given already-computed (standardized) construct scores. Pulled out of
+    `run_pls_algorithm` so the exact same structural-model math can be reused
+    for two-stage moderation analysis (pls/moderation.py), where `scores`
+    includes interaction-term columns alongside the ordinary construct scores.
+    """
+    if construct_ids is None:
+        construct_ids = list(model.constructs.keys())
+    path_coefficients = pd.DataFrame(0.0, index=construct_ids, columns=construct_ids)
+    r_squared: dict[str, float] = {}
+    r_squared_adj: dict[str, float] = {}
+    for cid in construct_ids:
+        preds = model.predecessors(cid)
+        if not preds:
+            continue
+        A = scores[preds].values
+        y = scores[cid].values
+        beta = _ols_beta(A, y)
+        for i, p in enumerate(preds):
+            path_coefficients.loc[p, cid] = beta[i]
+        yhat = np.column_stack([A, np.ones(len(A))]) @ beta
+        ss_res = float(np.sum((y - yhat) ** 2))
+        ss_tot = float(np.sum((y - y.mean()) ** 2))
+        r2 = 1 - ss_res / ss_tot if ss_tot > 0 else 0.0
+        n_obs, kk = len(y), len(preds)
+        r2_adj = 1 - (1 - r2) * (n_obs - 1) / (n_obs - kk - 1) if n_obs - kk - 1 > 0 else float("nan")
+        r_squared[cid] = r2
+        r_squared_adj[cid] = r2_adj
+    return path_coefficients, pd.Series(r_squared), pd.Series(r_squared_adj)
+
+
 @dataclass
 class PLSResult:
     model: Model
@@ -202,28 +236,7 @@ def run_pls_algorithm(
     flat_weights = pd.Series(w, index=indicators)
     Y_df = pd.DataFrame(Y, index=data.index, columns=construct_ids)
 
-    # --- structural model: OLS regression of each endogenous construct on its predecessors ---
-    predecessors = {cid: model.predecessors(cid) for cid in construct_ids}
-    path_coefficients = pd.DataFrame(0.0, index=construct_ids, columns=construct_ids)
-    r_squared = {}
-    r_squared_adj = {}
-    for cid in construct_ids:
-        preds = predecessors[cid]
-        if not preds:
-            continue
-        A = Y_df[preds].values
-        y = Y_df[cid].values
-        beta = _ols_beta(A, y)
-        for i, p in enumerate(preds):
-            path_coefficients.loc[p, cid] = beta[i]
-        yhat = np.column_stack([A, np.ones(len(A))]) @ beta
-        ss_res = float(np.sum((y - yhat) ** 2))
-        ss_tot = float(np.sum((y - y.mean()) ** 2))
-        r2 = 1 - ss_res / ss_tot if ss_tot > 0 else 0.0
-        n_obs, kk = len(y), len(preds)
-        r2_adj = 1 - (1 - r2) * (n_obs - 1) / (n_obs - kk - 1) if n_obs - kk - 1 > 0 else float("nan")
-        r_squared[cid] = r2
-        r_squared_adj[cid] = r2_adj
+    path_coefficients, r_squared, r_squared_adj = structural_regression(model, Y_df, construct_ids)
 
     return PLSResult(
         model=model,
@@ -234,8 +247,8 @@ def run_pls_algorithm(
         cross_loadings=cross_loadings,
         scores=Y_df,
         path_coefficients=path_coefficients,
-        r_squared=pd.Series(r_squared),
-        r_squared_adj=pd.Series(r_squared_adj),
+        r_squared=r_squared,
+        r_squared_adj=r_squared_adj,
         iterations=n_iter,
         converged=converged,
     )

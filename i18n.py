@@ -48,6 +48,21 @@ _CATALOG: dict[str, dict[str, str]] = {
         "err_path_self_loop": "Không thể tạo path từ một construct đến chính nó.",
         "err_model_min_paths": "Mô hình cấu trúc cần ít nhất 1 đường dẫn (path) giữa các construct.",
         "err_model_cycle": "Mô hình cấu trúc chứa vòng lặp (cycle) — cần mô hình đệ quy (không vòng lặp).",
+        "err_interaction_invalid_sources": (
+            "Biến tương tác '{name}' cần đúng 2 construct nguồn hợp lệ, khác nhau, và không phải "
+            "là biến tương tác khác."
+        ),
+        "err_interaction_of_interaction": "Biến tương tác '{name}' không thể lấy một biến tương tác khác làm nguồn.",
+        "err_interaction_has_predecessor": "Biến tương tác '{name}' không thể có đường dẫn đi vào (luôn là biến ngoại sinh).",
+        "err_interaction_no_target": "Biến tương tác '{name}' cần ít nhất 1 đường dẫn đến biến bị điều tiết.",
+        "err_interaction_missing_main_effect": (
+            "Biến tương tác '{name}' dự báo '{target}', nên '{src}' cũng cần có đường dẫn hiệu ứng "
+            "chính (main effect) trực tiếp đến '{target}'."
+        ),
+        "lbl_blindfolding_skipped_moderation": (
+            "Bỏ qua Q² (blindfolding): mô hình có biến điều tiết (moderation) nên không tương thích "
+            "với phương pháp lược bỏ dữ liệu theo hàng dùng để tính Q²."
+        ),
 
         # --- pls/algorithm.py & cbsem/estimator.py estimation errors ---
         "err_zero_variance_indicators": "Biến quan sát không có phương sai (giá trị không đổi): {cols}",
@@ -129,11 +144,23 @@ _CATALOG: dict[str, dict[str, str]] = {
         "rpt_ave": "AVE",
         "rpt_note": "Ghi chú",
         "rpt_formative_no_reliability": "Formative (Mode B) — không áp dụng chỉ số độ tin cậy nội bộ",
+        "rpt_interaction_term": "Biến tương tác (Moderation)",
+        "rpt_moderation_no_reliability": "Biến tương tác — không áp dụng chỉ số độ tin cậy nội bộ",
+        "rpt_moderation_of": "Biến tương tác của",
         "rpt_fornell_larcker": "Fornell-Larcker Criterion",
         "rpt_htmt": "HTMT",
         "rpt_path_coefficients": "Path Coefficients",
         "rpt_path": "Đường dẫn",
         "rpt_path_coefficient": "Path Coefficient (β)",
+        "rpt_total_effects_title": "Total & Indirect Effects (Kiểm định Mediation)",
+        "rpt_direct_effect": "Hiệu ứng trực tiếp",
+        "rpt_indirect_effect": "Hiệu ứng gián tiếp",
+        "rpt_total_effect": "Hiệu ứng tổng",
+        "rpt_total_effects_note": (
+            "Hiệu ứng gián tiếp = tổng tích các path coefficient dọc theo mọi đường đi gián tiếp "
+            "(qua các biến trung gian/mediator) từ nguồn đến đích; hiệu ứng tổng = trực tiếp + gián tiếp. "
+            "Chỉ những cặp construct có ít nhất một đường đi (trực tiếp hoặc gián tiếp) mới xuất hiện ở đây."
+        ),
         "rpt_f_squared": "f²",
         "rpt_f2_effect": "Mức ảnh hưởng f²",
         "rpt_r2_q2_title": "R² & Q² (Predictive Relevance)",
@@ -250,6 +277,21 @@ _CATALOG: dict[str, dict[str, str]] = {
         "err_path_self_loop": "A construct cannot have a path to itself.",
         "err_model_min_paths": "The structural model needs at least 1 path between constructs.",
         "err_model_cycle": "The structural model contains a cycle — a recursive (acyclic) model is required.",
+        "err_interaction_invalid_sources": (
+            "Interaction term '{name}' needs exactly 2 valid, distinct source constructs, neither "
+            "of which may itself be an interaction term."
+        ),
+        "err_interaction_of_interaction": "Interaction term '{name}' cannot use another interaction term as a source.",
+        "err_interaction_has_predecessor": "Interaction term '{name}' cannot have an incoming path (it is always exogenous).",
+        "err_interaction_no_target": "Interaction term '{name}' needs at least 1 path to the moderated construct.",
+        "err_interaction_missing_main_effect": (
+            "Interaction term '{name}' predicts '{target}', so '{src}' also needs a direct main-effect "
+            "path to '{target}'."
+        ),
+        "lbl_blindfolding_skipped_moderation": (
+            "Q² (blindfolding) skipped: the model contains a moderation (interaction) term, which is "
+            "not compatible with the row-wise data-omission procedure Q² relies on."
+        ),
 
         "err_zero_variance_indicators": "Indicator(s) with zero variance (constant value): {cols}",
         "err_missing_indicator_columns": "Data column(s) not found for indicator(s): {cols}",
@@ -329,11 +371,23 @@ _CATALOG: dict[str, dict[str, str]] = {
         "rpt_ave": "AVE",
         "rpt_note": "Note",
         "rpt_formative_no_reliability": "Formative (Mode B) — internal reliability metrics not applicable",
+        "rpt_interaction_term": "Interaction term (Moderation)",
+        "rpt_moderation_no_reliability": "Interaction term — internal reliability metrics not applicable",
+        "rpt_moderation_of": "Interaction of",
         "rpt_fornell_larcker": "Fornell-Larcker Criterion",
         "rpt_htmt": "HTMT",
         "rpt_path_coefficients": "Path Coefficients",
         "rpt_path": "Path",
         "rpt_path_coefficient": "Path Coefficient (β)",
+        "rpt_total_effects_title": "Total & Indirect Effects (Mediation Testing)",
+        "rpt_direct_effect": "Direct Effect",
+        "rpt_indirect_effect": "Indirect Effect",
+        "rpt_total_effect": "Total Effect",
+        "rpt_total_effects_note": (
+            "Indirect effect = sum of the products of path coefficients along every indirect route "
+            "(through mediator constructs) from source to target; total effect = direct + indirect. "
+            "Only construct pairs with at least one route (direct or indirect) appear here."
+        ),
         "rpt_f_squared": "f²",
         "rpt_f2_effect": "f² Effect Size",
         "rpt_r2_q2_title": "R² & Q² (Predictive Relevance)",

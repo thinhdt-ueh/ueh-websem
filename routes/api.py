@@ -10,9 +10,16 @@ from flask import Blueprint, current_app, jsonify, request, send_file
 from i18n import get_lang, t
 from pls.algorithm import run_pls_algorithm
 from pls.blindfolding import run_blindfolding
-from pls.bootstrap import MAX_BOOTSTRAP_SAMPLES, MIN_BOOTSTRAP_SAMPLES, run_bootstrap
+from pls.bootstrap import (
+    MAX_BOOTSTRAP_SAMPLES,
+    MIN_BOOTSTRAP_SAMPLES,
+    run_bootstrap,
+    run_bootstrap_with_moderation,
+)
+from pls.effects import total_effects
 from pls.metrics import CMB_VIF_THRESHOLD, compute_all_metrics
 from pls.model import Model, ModelError
+from pls.moderation import run_pls_with_moderation
 from pls.report import build_excel_report, build_word_report
 
 api = Blueprint("api", __name__, url_prefix="/api")
@@ -137,7 +144,10 @@ def analyze():
 
     try:
         df = _read_dataframe(saved_path)
-        result = run_pls_algorithm(model, df, lang=lang)
+        if model.has_interactions():
+            result = run_pls_with_moderation(model, df, lang=lang)
+        else:
+            result = run_pls_algorithm(model, df, lang=lang)
     except ValueError as exc:
         return jsonify(error=str(exc)), 400
     except Exception as exc:  # noqa: BLE001
@@ -157,7 +167,10 @@ def analyze():
         except (TypeError, ValueError):
             n_boot = 500
         try:
-            boot = run_bootstrap(model, result, n_boot=n_boot)
+            if model.has_interactions():
+                boot = run_bootstrap_with_moderation(model, result, n_boot=n_boot)
+            else:
+                boot = run_bootstrap(model, result, n_boot=n_boot)
         except Exception as exc:  # noqa: BLE001
             return jsonify(error=t("err_bootstrap_run_error", lang, exc=exc)), 500
 
@@ -171,15 +184,27 @@ def analyze():
         bootstrap_loadings = [_clean_bootstrap_row(row, "indicator") for row in boot.loading_stats]
         bootstrap_weights = [_clean_bootstrap_row(row, "indicator") for row in boot.weight_stats]
 
-    try:
-        bf = run_blindfolding(model, result.data)
+    if model.has_interactions():
+        # run_blindfolding internally re-runs plain run_pls_algorithm per omission
+        # round, which does not know how to rebuild interaction-term scores — so
+        # for moderation models it is skipped outright rather than silently
+        # mishandling the interaction construct's empty indicator block.
+        reason = t("lbl_blindfolding_skipped_moderation", lang)
         blindfolding_summary = {
-            "omission_distance": bf.omission_distance,
-            "q_squared": {cid: _round_or_none(v) for cid, v in bf.q_squared.items()},
-            "skipped": bf.skipped,
+            "omission_distance": None,
+            "q_squared": {},
+            "skipped": {cid: reason for cid in model.endogenous_ids() if model.constructs[cid].mode == "A"},
         }
-    except Exception as exc:  # noqa: BLE001
-        blindfolding_summary = {"omission_distance": None, "q_squared": {}, "skipped": {}, "error": str(exc)}
+    else:
+        try:
+            bf = run_blindfolding(model, result.data)
+            blindfolding_summary = {
+                "omission_distance": bf.omission_distance,
+                "q_squared": {cid: _round_or_none(v) for cid, v in bf.q_squared.items()},
+                "skipped": bf.skipped,
+            }
+        except Exception as exc:  # noqa: BLE001
+            blindfolding_summary = {"omission_distance": None, "q_squared": {}, "skipped": {}, "error": str(exc)}
 
     path_list = []
     for p in model.paths:
@@ -193,6 +218,7 @@ def analyze():
             "target_name": model.constructs[p.target].name,
             "coefficient": round(coeff, 6),
             "f_squared": f2,
+            "is_interaction": model.constructs[p.source].mode == "I",
         }
         boot_row = bootstrap_path_lookup.get((p.source, p.target))
         if boot_row:
@@ -207,6 +233,19 @@ def analyze():
             )
         path_list.append(entry)
 
+    coef = {
+        s: {t: float(result.path_coefficients.loc[s, t]) for t in result.path_coefficients.columns}
+        for s in result.path_coefficients.index
+    }
+    total_effects_list = [
+        {
+            "source": e.source, "target": e.target,
+            "source_name": model.constructs[e.source].name, "target_name": model.constructs[e.target].name,
+            "direct": round(e.direct, 6), "indirect": round(e.indirect, 6), "total": round(e.total, 6),
+        }
+        for e in total_effects(model, coef)
+    ]
+
     response = {
         "converged": result.converged,
         "iterations": result.iterations,
@@ -218,9 +257,11 @@ def analyze():
                 "mode": c.mode,
                 "indicators": c.indicators,
                 "is_endogenous": c.id in model.endogenous_ids(),
+                "interaction_of": c.interaction_of,
             }
             for c in model.constructs.values()
         ],
+        "has_moderation": model.has_interactions(),
         "measurement": {
             "outer_weights": series_to_dict(result.outer_weights),
             "outer_loadings": series_to_dict(result.outer_loadings),
@@ -239,6 +280,7 @@ def analyze():
         },
         "structural": {
             "paths": path_list,
+            "total_effects": total_effects_list,
             "r_squared": series_to_dict(result.r_squared),
             "r_squared_adj": series_to_dict(result.r_squared_adj),
             "inner_vif": df_to_nested_dict(metrics["inner_vif"]),

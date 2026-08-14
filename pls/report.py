@@ -60,6 +60,22 @@ def f2_label(v, lang: str) -> str:
     return t("lbl_f2_large", lang)
 
 
+# Moderation (interaction-term) f² uses much smaller thresholds than main-effect
+# f² (Kenny 2018; Aguinis, Beaty, Boik & Pierce 2005) — interaction effects are
+# inherently harder to detect, so the same 0.02/0.15/0.35 bar would mislabel
+# virtually every real moderation effect as negligible.
+def f2_moderation_label(v, lang: str) -> str:
+    if v is None:
+        return "—"
+    if v < 0.005:
+        return t("lbl_f2_none", lang)
+    if v < 0.01:
+        return t("lbl_f2_small", lang)
+    if v < 0.025:
+        return t("lbl_f2_medium", lang)
+    return t("lbl_f2_large", lang)
+
+
 def q2_label(v, lang: str) -> str:
     if v is None:
         return "—"
@@ -86,6 +102,13 @@ def cmb_label(v, threshold: float, lang: str) -> str:
     return t("lbl_cmb_warn", lang) if v > threshold else t("lbl_cmb_ok", lang)
 
 
+def _total_effects_rows(data: dict, fmt_fn=lambda v: v) -> list:
+    return [
+        [f'{e["source_name"]} → {e["target_name"]}', fmt_fn(e["direct"]), fmt_fn(e["indirect"]), fmt_fn(e["total"])]
+        for e in (data.get("structural", {}).get("total_effects") or [])
+    ]
+
+
 def _cmb_rows(data: dict, id_to_name: dict, lang: str, fmt_fn=lambda v: v) -> tuple[list, float]:
     cmb = data.get("common_method_bias") or {"vif": {}, "threshold": 3.3}
     threshold = cmb["threshold"]
@@ -97,7 +120,16 @@ def _cmb_rows(data: dict, id_to_name: dict, lang: str, fmt_fn=lambda v: v) -> tu
 
 
 def _mode_label(mode: str, lang: str) -> str:
+    if mode == "I":
+        return t("rpt_interaction_term", lang)
     return t("rpt_reflective", lang) if mode == "A" else t("rpt_formative", lang)
+
+
+def _interaction_of_label(c: dict, id_to_name: dict) -> str:
+    sources = c.get("interaction_of")
+    if not sources:
+        return "—"
+    return " × ".join(id_to_name.get(sid, sid) for sid in sources)
 
 
 def _yn(v, lang: str) -> str:
@@ -163,11 +195,12 @@ def build_excel_report(data: dict, lang: str = DEFAULT_LANG) -> io.BytesIO:
                       title=t("rpt_title_pls", lang))
 
     construct_rows = [
-        [c["name"], _mode_label(c["mode"], lang), ", ".join(c["indicators"]), _yn(c["is_endogenous"], lang)]
+        [c["name"], _mode_label(c["mode"], lang), ", ".join(c["indicators"]), _yn(c["is_endogenous"], lang),
+         _interaction_of_label(c, id_to_name)]
         for c in data["constructs"]
     ]
     r = _write_table(ws, r, [t("rpt_construct", lang), t("rpt_measurement_type", lang),
-                              t("rpt_indicators", lang), t("rpt_endogenous", lang)],
+                              t("rpt_indicators", lang), t("rpt_endogenous", lang), t("rpt_moderation_of", lang)],
                       construct_rows, title=t("rpt_construct_list", lang))
     _autofit(ws)
 
@@ -193,13 +226,17 @@ def build_excel_report(data: dict, lang: str = DEFAULT_LANG) -> io.BytesIO:
 
     # --- Cross loadings ---
     ws = wb.create_sheet(_sheet_name(t("rpt_sheet_cross_loadings", lang)))
-    construct_ids = [c["id"] for c in data["constructs"]]
     cl = m["cross_loadings"]
+    # Interaction/moderation constructs have no indicators of their own, so they
+    # never appear as a column in the cross-loadings matrix (see htmt()'s docstring
+    # for the same reasoning) — derive the column set from `cl` itself rather than
+    # from the full construct list, which would include them.
+    cl_ids = list(cl.keys())
     rows = []
     for c in data["constructs"]:
         for ind in c["indicators"]:
-            rows.append([ind, c["name"]] + [cl[cid][ind] for cid in construct_ids])
-    _write_table(ws, 1, [t("rpt_indicator", lang), t("rpt_construct", lang)] + [id_to_name[cid] for cid in construct_ids],
+            rows.append([ind, c["name"]] + [cl[cid][ind] for cid in cl_ids])
+    _write_table(ws, 1, [t("rpt_indicator", lang), t("rpt_construct", lang)] + [id_to_name[cid] for cid in cl_ids],
                  rows, title=t("rpt_sheet_cross_loadings", lang))
     _autofit(ws)
 
@@ -207,6 +244,9 @@ def build_excel_report(data: dict, lang: str = DEFAULT_LANG) -> io.BytesIO:
     ws = wb.create_sheet(_sheet_name(t("rpt_sheet_reliability", lang)))
     rows = []
     for c in data["constructs"]:
+        if c["mode"] == "I":
+            rows.append([c["name"], "—", "—", "—", "—", t("rpt_moderation_no_reliability", lang)])
+            continue
         if c["mode"] != "A":
             rows.append([c["name"], "—", "—", "—", "—", t("rpt_formative_no_reliability", lang)])
             continue
@@ -248,12 +288,23 @@ def build_excel_report(data: dict, lang: str = DEFAULT_LANG) -> io.BytesIO:
     headers += [t("rpt_f_squared", lang), t("rpt_f2_effect", lang)]
     rows = []
     for p in st["paths"]:
+        label_fn = f2_moderation_label if p.get("is_interaction") else f2_label
         row = [f'{p["source_name"]} → {p["target_name"]}', p["coefficient"]]
         if has_boot_path:
             row += [p.get("bootstrap_std"), p.get("t_stat"), p.get("p_value"), sig_label(p.get("significant"), lang)]
-        row += [p["f_squared"], f2_label(p["f_squared"], lang)]
+        row += [p["f_squared"], label_fn(p["f_squared"], lang)]
         rows.append(row)
     r = _write_table(ws, 1, headers, rows, title=t("rpt_path_coefficients", lang))
+
+    te_rows = _total_effects_rows(data)
+    if te_rows:
+        r = _write_table(
+            ws, r, [t("rpt_path", lang), t("rpt_direct_effect", lang), t("rpt_indirect_effect", lang),
+                    t("rpt_total_effect", lang)],
+            te_rows, title=t("rpt_total_effects_title", lang),
+        )
+        ws.cell(row=r, column=1, value=t("rpt_total_effects_note", lang))
+        r += 2
 
     r2_rows = []
     for cid, r2 in st["r_squared"].items():
@@ -325,7 +376,6 @@ def _add_table(doc: Document, headers: list[str], rows: list[list], col_widths=N
 
 def build_word_report(data: dict, lang: str = DEFAULT_LANG) -> io.BytesIO:
     id_to_name = _id_to_name(data)
-    construct_ids = [c["id"] for c in data["constructs"]]
     m = data["measurement"]
     dv = data["discriminant_validity"]
     st = data["structural"]
@@ -348,8 +398,9 @@ def build_word_report(data: dict, lang: str = DEFAULT_LANG) -> io.BytesIO:
     _add_heading(doc, t("rpt_section_overview", lang), level=1)
     _add_table(
         doc, [t("rpt_construct", lang), t("rpt_measurement_type", lang), t("rpt_indicators", lang),
-              t("rpt_endogenous", lang)],
-        [[c["name"], _mode_label(c["mode"], lang), len(c["indicators"]), _yn(c["is_endogenous"], lang)]
+              t("rpt_endogenous", lang), t("rpt_moderation_of", lang)],
+        [[c["name"], _mode_label(c["mode"], lang), len(c["indicators"]), _yn(c["is_endogenous"], lang),
+          _interaction_of_label(c, id_to_name)]
          for c in data["constructs"]],
     )
 
@@ -415,13 +466,24 @@ def build_word_report(data: dict, lang: str = DEFAULT_LANG) -> io.BytesIO:
     headers += [t("rpt_f_squared", lang), t("rpt_f2_effect", lang)]
     rows = []
     for p in st["paths"]:
+        label_fn = f2_moderation_label if p.get("is_interaction") else f2_label
         row = [f'{p["source_name"]} → {p["target_name"]}', _fmt(p["coefficient"])]
         if has_boot_path:
             row += [_fmt(p.get("bootstrap_std")), _fmt(p.get("t_stat"), 2), _fmt(p.get("p_value"), 4),
                     sig_label(p.get("significant"), lang)]
-        row += [_fmt(p["f_squared"]), f2_label(p["f_squared"], lang)]
+        row += [_fmt(p["f_squared"]), label_fn(p["f_squared"], lang)]
         rows.append(row)
     _add_table(doc, headers, rows)
+
+    te_rows = _total_effects_rows(data, fmt_fn=_fmt)
+    if te_rows:
+        _add_heading(doc, t("rpt_total_effects_title", lang), level=2)
+        _add_table(doc, [t("rpt_path", lang), t("rpt_direct_effect", lang), t("rpt_indirect_effect", lang),
+                          t("rpt_total_effect", lang)], te_rows)
+        te_note = doc.add_paragraph()
+        te_note_run = te_note.add_run(t("rpt_total_effects_note", lang))
+        te_note_run.font.size = Pt(9)
+        te_note_run.font.color.rgb = RGBColor(0x6B, 0x73, 0x85)
 
     _add_heading(doc, t("rpt_section_r2q2", lang), level=2)
     r2_rows = []

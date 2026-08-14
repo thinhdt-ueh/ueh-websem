@@ -1,0 +1,326 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>UEH-WebSEM — User Guide</title>
+<style>
+  :root {
+    --bg: #f4f6fb; --card: #ffffff; --border: #e1e6f0; --text: #1c2333; --muted: #6b7385;
+    --primary: #3457d5; --primary-dark: #2a44ab; --danger: #d64545; --success: #1f9d55;
+    --accent-bg: #eef1fd; --warn-bg: #fdf3e0; --warn-text: #a06b10;
+    --mono: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background: var(--bg); color: var(--text); line-height: 1.55; }
+  header.topbar { display: flex; align-items: center; gap: 16px; padding: 14px 24px; background: var(--card); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 20; flex-wrap: wrap; }
+  header.topbar img { height: 30px; }
+  header.topbar .brand { font-weight: 700; font-size: 17px; }
+  header.topbar .brand span { color: var(--primary); }
+  header.topbar nav { margin-left: auto; display: flex; gap: 10px; align-items: center; }
+  header.topbar a.pill { font-size: 13px; padding: 5px 12px; border-radius: 999px; border: 1px solid var(--border); text-decoration: none; color: var(--text); background: var(--card); }
+  header.topbar a.pill.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+  header.topbar a.back { font-size: 13px; color: var(--muted); text-decoration: none; }
+  header.topbar a.back:hover { color: var(--primary); }
+
+  .layout { display: flex; max-width: 1180px; margin: 0 auto; align-items: flex-start; gap: 28px; padding: 28px 20px 80px; }
+  aside.toc { position: sticky; top: 74px; width: 240px; flex-shrink: 0; background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 16px; font-size: 13.5px; max-height: calc(100vh - 100px); overflow-y: auto; }
+  aside.toc h3 { margin: 0 0 10px; font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
+  aside.toc a { display: block; padding: 5px 0; color: var(--text); text-decoration: none; border-radius: 4px; }
+  aside.toc a:hover { color: var(--primary); }
+  aside.toc a.sub { padding-left: 14px; font-size: 12.5px; color: var(--muted); }
+
+  main.doc { flex: 1; min-width: 0; background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 36px 44px; }
+  main.doc h1 { font-size: 27px; margin: 0 0 6px; }
+  main.doc .subtitle { color: var(--muted); font-size: 15px; margin: 0 0 28px; }
+  main.doc h2 { font-size: 20px; margin: 42px 0 14px; padding-top: 14px; border-top: 1px solid var(--border); color: var(--primary-dark); }
+  main.doc h2:first-of-type { border-top: none; padding-top: 0; margin-top: 8px; }
+  main.doc h3 { font-size: 16px; margin: 26px 0 10px; }
+  main.doc h4 { font-size: 14px; margin: 18px 0 8px; color: var(--muted); text-transform: uppercase; letter-spacing: .03em; }
+  main.doc p { margin: 0 0 12px; font-size: 14.5px; }
+  main.doc ul, main.doc ol { margin: 0 0 14px; padding-left: 22px; font-size: 14.5px; }
+  main.doc li { margin-bottom: 5px; }
+  main.doc code { font-family: var(--mono); background: var(--accent-bg); padding: 1px 5px; border-radius: 4px; font-size: 13px; }
+  main.doc a { color: var(--primary); }
+
+  .callout { border-radius: 8px; padding: 12px 16px; margin: 16px 0; font-size: 13.5px; border-left: 4px solid var(--primary); background: var(--accent-bg); }
+  .callout.warn { border-left-color: var(--warn-text); background: var(--warn-bg); }
+  .callout.tip { border-left-color: var(--success); background: #e9f8ee; }
+  .callout strong.label { display: block; font-size: 11.5px; text-transform: uppercase; letter-spacing: .04em; margin-bottom: 4px; color: var(--muted); }
+
+  .table-wrap { overflow-x: auto; margin: 14px 0 20px; border: 1px solid var(--border); border-radius: 8px; }
+  table { border-collapse: collapse; width: 100%; font-size: 13px; min-width: 480px; }
+  th, td { padding: 7px 10px; text-align: left; border-bottom: 1px solid var(--border); white-space: nowrap; }
+  th { background: var(--accent-bg); font-weight: 700; position: sticky; top: 0; }
+  tr:last-child td { border-bottom: none; }
+  td.num, th.num { text-align: right; font-family: var(--mono); }
+
+  .badge { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 11px; font-weight: 700; }
+  .badge.ok { background: #e3f6e9; color: var(--success); }
+  .badge.warn { background: #fdeceb; color: var(--danger); }
+  .badge.mod { background: var(--warn-bg); color: var(--warn-text); }
+
+  .step-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin: 16px 0 22px; }
+  .step-card { border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; background: #fbfcfe; }
+  .step-card .n { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: 50%; background: var(--primary); color: #fff; font-weight: 700; font-size: 12.5px; margin-bottom: 8px; }
+  .step-card h4 { margin: 0 0 6px; color: var(--text); text-transform: none; letter-spacing: 0; font-size: 14px; }
+  .step-card p { margin: 0; font-size: 13px; color: var(--muted); }
+
+  .diagram-box { border: 1px dashed var(--border); border-radius: 10px; padding: 18px; margin: 16px 0; background: #fbfcfe; font-family: var(--mono); font-size: 13px; overflow-x: auto; white-space: pre; color: var(--text); }
+  .diagram-box .arrow { color: var(--primary); font-weight: 700; }
+
+  footer.doc-footer { max-width: 1180px; margin: 0 auto; padding: 0 20px 60px; color: var(--muted); font-size: 12.5px; text-align: center; }
+
+  @media (max-width: 900px) {
+    .layout { flex-direction: column; }
+    aside.toc { position: static; width: 100%; max-height: none; }
+    main.doc { padding: 24px 20px; }
+    .step-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <img src="../img/logo-ueh.png" alt="UEH">
+  <div class="brand"><span>WebSEM</span> User Guide</div>
+  <nav>
+    <a class="back" href="../../">← Back to app</a>
+    <a class="pill" href="user_guide_vi.html">Tiếng Việt</a>
+    <a class="pill active" href="user_guide_en.html">English</a>
+  </nav>
+</header>
+
+<div class="layout">
+  <aside class="toc">
+    <h3>Contents</h3>
+    <a href="#intro">1. What is UEH-WebSEM?</a>
+    <a href="#workflow">2. Three-step workflow</a>
+    <a href="#model">3. Building a model</a>
+    <a class="sub" href="#reflective-formative">Reflective vs. formative</a>
+    <a href="#mediator">4. Mediator constructs</a>
+    <a class="sub" href="#mediator-example">Worked example (real data)</a>
+    <a class="sub" href="#mediator-read">Reading Total &amp; Indirect Effects</a>
+    <a href="#moderator">5. Moderator constructs</a>
+    <a class="sub" href="#moderator-create">Creating an interaction term</a>
+    <a class="sub" href="#moderator-example">Worked example (real data)</a>
+    <a class="sub" href="#moderator-f2">Moderation f² thresholds</a>
+    <a href="#reading">6. Reading every output table</a>
+    <a class="sub" href="#read-measurement">Measurement model</a>
+    <a class="sub" href="#read-discriminant">Discriminant validity</a>
+    <a class="sub" href="#read-structural">Structural model</a>
+    <a class="sub" href="#read-cmb">Common Method Bias</a>
+    <a href="#cbsem">7. CB-SEM fit indices</a>
+    <a href="#export">8. Exporting reports</a>
+    <a href="#faq">9. Troubleshooting</a>
+  </aside>
+
+  <main class="doc">
+    <h1>UEH-WebSEM User Guide</h1>
+    <p class="subtitle">How to build a model, run PLS-SEM / CB-SEM, and read every result table — illustrated throughout with the built-in TAM sample dataset (n = 250) and real numbers produced by this tool.</p>
+
+    <h2 id="intro">1. What is UEH-WebSEM?</h2>
+    <p>UEH-WebSEM is a browser-based structural equation modeling (SEM) tool supporting two estimation approaches on the same visual model:</p>
+    <ul>
+      <li><strong>PLS-SEM</strong> (Partial Least Squares) — composite-based, robust with non-normal data and smaller samples, supports formative measurement, and is the estimator used for bootstrapping, Q² (blindfolding), and Common Method Bias testing.</li>
+      <li><strong>CB-SEM</strong> (Covariance-Based, Maximum Likelihood) — produces classic model-fit indices (CFI, RMSEA, SRMR, …) and exact standard errors, but only supports reflective measurement.</li>
+    </ul>
+    <p>Both estimators run on the exact same structural diagram, so you can build one model and compare how the two methods treat it.</p>
+
+    <h2 id="workflow">2. Three-step workflow</h2>
+    <div class="step-grid">
+      <div class="step-card"><span class="n">1</span><h4>Upload data</h4><p>CSV or Excel, one column per indicator, one row per respondent (max 5,000 rows). Or click <em>“Use sample data”</em> to load the built-in Technology Acceptance Model (TAM) dataset used throughout this guide.</p></div>
+      <div class="step-card"><span class="n">2</span><h4>Build the model</h4><p>Double-click the canvas (or “+ Construct”) to add a construct, assign indicators, then switch to path mode to draw structural arrows between constructs.</p></div>
+      <div class="step-card"><span class="n">3</span><h4>Run &amp; read results</h4><p>Choose PLS-SEM or CB-SEM, optionally enable bootstrapping, run the analysis, and read the tables described in this guide — then export to Excel/Word.</p></div>
+    </div>
+
+    <h2 id="model">3. Building a model</h2>
+    <p>A model is a set of <strong>constructs</strong> (latent variables) connected by <strong>structural paths</strong> (arrows). Each construct is measured by one or more <strong>indicators</strong> — numeric columns from your uploaded data.</p>
+    <h3 id="reflective-formative">Reflective vs. formative measurement</h3>
+    <ul>
+      <li><strong>Reflective (Mode A)</strong> — indicators are interchangeable manifestations of the same underlying construct (e.g. three survey items all measuring “Attitude”). Needs ≥ 2 indicators. This is the only mode CB-SEM supports.</li>
+      <li><strong>Formative (Mode B)</strong> — indicators jointly <em>define</em> the construct (e.g. socio-economic status formed by income + education + occupation). PLS-SEM only.</li>
+    </ul>
+    <p>The sample TAM dataset ships with four reflective constructs and five structural paths:</p>
+    <div class="diagram-box">Perceived Ease of Use (PEOU) <span class="arrow">──▶</span> Perceived Usefulness (PU)
+Perceived Ease of Use (PEOU) <span class="arrow">──▶</span> Attitude (ATT)
+Perceived Usefulness (PU)    <span class="arrow">──▶</span> Attitude (ATT)
+Perceived Usefulness (PU)    <span class="arrow">──▶</span> Behavioral Intention (INT)
+Attitude (ATT)                <span class="arrow">──▶</span> Behavioral Intention (INT)</div>
+    <p>Notice PEOU has <em>no direct arrow</em> to Intention — its influence only reaches Intention <em>through</em> PU and Attitude. That makes this sample model a ready-made illustration of mediation, which we use for real numbers below.</p>
+
+    <h2 id="mediator">4. Mediator constructs</h2>
+    <p>A <strong>mediator</strong> is an endogenous (dependent) construct that sits <em>between</em> a predictor and an outcome, transmitting part or all of the predictor's effect. In the TAM model, <strong>Perceived Usefulness</strong> and <strong>Attitude</strong> both act as mediators between PEOU and Behavioral Intention.</p>
+    <p>You don't need a separate "mediator" construct type — any construct that is simultaneously a target of one path and the source of another is automatically a mediator. UEH-WebSEM detects every such indirect route on its own and reports it in the <strong>Total &amp; Indirect Effects</strong> table, computed as:</p>
+    <div class="callout">
+      <strong class="label">Formula</strong>
+      Indirect effect (X → Y) = Σ, over every indirect route from X to Y, of the product of the path coefficients along that route.<br>
+      Total effect (X → Y) = Direct effect + Indirect effect.
+    </div>
+
+    <h3 id="mediator-example">Worked example, with real numbers from the TAM sample</h3>
+    <p>Running PLS-SEM with bootstrapping (2,000 resamples) on the sample data produces these direct path coefficients:</p>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Path</th><th class="num">β</th><th class="num">t</th><th class="num">p</th><th>Significant (95%)</th></tr></thead>
+      <tbody>
+        <tr><td>PEOU → PU</td><td class="num">0.462</td><td class="num">10.29</td><td class="num">&lt; .001</td><td><span class="badge ok">yes</span></td></tr>
+        <tr><td>PEOU → Attitude</td><td class="num">0.206</td><td class="num">3.33</td><td class="num">.001</td><td><span class="badge ok">yes</span></td></tr>
+        <tr><td>PU → Attitude</td><td class="num">0.331</td><td class="num">5.37</td><td class="num">&lt; .001</td><td><span class="badge ok">yes</span></td></tr>
+        <tr><td>PU → Intention</td><td class="num">0.354</td><td class="num">7.08</td><td class="num">&lt; .001</td><td><span class="badge ok">yes</span></td></tr>
+        <tr><td>Attitude → Intention</td><td class="num">0.359</td><td class="num">6.88</td><td class="num">&lt; .001</td><td><span class="badge ok">yes</span></td></tr>
+      </tbody>
+    </table></div>
+    <p>From these, the app's <strong>Total &amp; Indirect Effects</strong> table derives:</p>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Path</th><th class="num">Direct</th><th class="num">Indirect</th><th class="num">Total</th><th>Interpretation</th></tr></thead>
+      <tbody>
+        <tr><td>PEOU → Intention</td><td class="num">0.000</td><td class="num">0.293</td><td class="num">0.293</td><td><strong>Full mediation</strong> — PEOU has no drawn direct path to Intention, so its entire effect is transmitted through PU and Attitude.</td></tr>
+        <tr><td>PU → Intention</td><td class="num">0.354</td><td class="num">0.119</td><td class="num">0.473</td><td><strong>Complementary (partial) mediation</strong> — PU affects Intention both directly and indirectly (via Attitude), and both parts point the same direction.</td></tr>
+        <tr><td>PEOU → Attitude</td><td class="num">0.206</td><td class="num">0.153</td><td class="num">0.359</td><td>Partial mediation via PU.</td></tr>
+      </tbody>
+    </table></div>
+    <p><strong>How 0.293 was obtained:</strong> PEOU reaches Intention along two routes — PEOU→PU→Intention (0.462 × 0.354 = 0.164) and PEOU→Attitude→Intention (0.206 × 0.359 = 0.074) — plus the three-step route PEOU→PU→Attitude→Intention (0.462 × 0.331 × 0.359 = 0.055). Summing all three gives 0.164 + 0.074 + 0.055 ≈ 0.293, exactly what the table reports. The tool does this arithmetic for you across every construct pair automatically.</p>
+
+    <h3 id="mediator-read">Reading the Total &amp; Indirect Effects table in practice</h3>
+    <ul>
+      <li><strong>Indirect = 0</strong> means the two constructs are connected only by a direct path (no mediator in between) — Total simply equals Direct.</li>
+      <li><strong>Direct = 0, Indirect ≠ 0</strong> (like PEOU → Intention above) signals <em>full mediation</em>: without the mediator(s), the predictor would appear unrelated to the outcome.</li>
+      <li><strong>Both non-zero and the same sign</strong> (like PU → Intention) signals <em>complementary mediation</em>: the mediator reinforces the direct effect.</li>
+      <li><strong>Both non-zero with opposite signs</strong> would signal <em>competitive mediation</em> (a suppression effect) — none of the sample paths show this, but watch for it in your own models.</li>
+    </ul>
+    <div class="callout warn">
+      <strong class="label">Current limitation</strong>
+      The Total &amp; Indirect Effects table reports point estimates only. Formal significance testing of a <em>specific</em> indirect effect (a bootstrapped confidence interval on the a × b product itself) is not yet automated. In the meantime, the practical check available today is the classic causal-steps heuristic: if every individual segment of the chain (each “a” and “b” path) is significant in the bootstrap results — as all five paths are in this example — the indirect route is good evidence of mediation.
+    </div>
+
+    <h2 id="moderator">5. Moderator constructs (interaction terms)</h2>
+    <p>A <strong>moderator</strong> changes the <em>strength</em> of a relationship between two other constructs, rather than sitting on a causal chain like a mediator. UEH-WebSEM tests moderation with the standard <strong>two-stage approach</strong> (Henseler &amp; Chin, 2010; Henseler &amp; Fassott, 2010):</p>
+    <ol>
+      <li><strong>Stage 1</strong> — the base model (without the interaction) is estimated to obtain standardized construct scores.</li>
+      <li><strong>Stage 2</strong> — an interaction term is formed as the standardized product of the two moderating constructs' Stage-1 scores, then the structural model is re-estimated with this term included as a predictor.</li>
+    </ol>
+    <p>The same two-stage logic is applied for both PLS-SEM (composite scores) and CB-SEM (factor scores), so you can test moderation with either estimator.</p>
+
+    <h3 id="moderator-create">Creating an interaction term in the builder</h3>
+    <ol>
+      <li>Add at least two ordinary constructs first (an interaction always multiplies two <em>existing</em>, non-interaction constructs).</li>
+      <li>Click <strong>“+ Construct”</strong>, enter a name, and set <strong>Measurement type</strong> to <em>“Interaction / moderation term (A × B)”</em>.</li>
+      <li>Pick the two source constructs (e.g. “Perceived Usefulness” and “Attitude”).</li>
+      <li>Draw a structural path <em>from</em> the new interaction node <em>to</em> the construct being moderated (e.g. → Behavioral Intention).</li>
+    </ol>
+    <div class="callout warn">
+      <strong class="label">Validation rule</strong>
+      Both source constructs must already have their own <em>direct</em> path to whatever the interaction term predicts. This mirrors standard moderation practice: without both main-effect paths present, the interaction term could silently absorb variance that actually belongs to a main effect. If a source is missing its direct path, the app rejects the model with a clear message naming the missing path — add it and re-run.
+    </div>
+    <p>An interaction term is always exogenous (it cannot itself be the target of another path) and has no indicators of its own — on the canvas it is drawn with a dashed amber border to distinguish it from ordinary constructs.</p>
+
+    <h3 id="moderator-example">Worked example, with real numbers from the TAM sample</h3>
+    <p>Adding <code>PU × Attitude → Behavioral Intention</code> to the sample model (both PU and Attitude already have direct paths to Intention, so the model validates) gives:</p>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Method</th><th class="num">β / B</th><th class="num">t or z</th><th class="num">p</th><th>Significant (95%)</th></tr></thead>
+      <tbody>
+        <tr><td>PLS-SEM (bootstrap, n = 2,000)</td><td class="num">−0.090</td><td class="num">2.05</td><td class="num">.041</td><td><span class="badge ok">yes</span></td></tr>
+        <tr><td>CB-SEM (Maximum Likelihood)</td><td class="num">−0.052</td><td class="num">−1.52</td><td class="num">.129</td><td><span class="badge warn">no</span></td></tr>
+      </tbody>
+    </table></div>
+    <p>The negative sign means the joint influence of Perceived Usefulness and Attitude on Intention is slightly <em>weaker</em> when both are high — a mild ceiling effect. Note the two estimators disagree on significance here: PLS-SEM's composite-score approach and CB-SEM's factor-score approach handle interaction terms differently and can diverge, especially for small effects — a legitimate reason to report both when they're available, and not to treat either estimator's p-value as automatically definitive.</p>
+
+    <h3 id="moderator-f2">Moderation f² uses different thresholds</h3>
+    <p>The interaction path above has f² = 0.013 in the PLS-SEM run. Effect-size labels for structural paths normally use Cohen's thresholds (small ≥ 0.02, medium ≥ 0.15, large ≥ 0.35) — by that scale, 0.013 would look negligible. But interaction effects are inherently harder to detect than main effects, so the literature (Kenny, 2018; Aguinis, Beaty, Boik &amp; Pierce, 2005) recommends a much smaller scale specifically for moderation:</p>
+    <div class="table-wrap"><table>
+      <thead><tr><th>f² range</th><th>Moderation label</th><th>Main-effect label (for comparison)</th></tr></thead>
+      <tbody>
+        <tr><td>&lt; 0.005</td><td>Negligible</td><td>Negligible</td></tr>
+        <tr><td>0.005 – 0.01</td><td>Small</td><td>Negligible</td></tr>
+        <tr><td>0.01 – 0.025</td><td>Medium</td><td>Negligible / Small</td></tr>
+        <tr><td>≥ 0.025</td><td>Large</td><td>Small</td></tr>
+      </tbody>
+    </table></div>
+    <p>UEH-WebSEM applies the moderation scale automatically to any path whose source is an interaction term (marked with a <span class="badge mod">Moderation</span> badge in the path table and export), so the reported f² = 0.013 for PU × Attitude → Intention is correctly labeled <strong>“Medium”</strong>, not “Negligible”.</p>
+    <div class="callout">
+      <strong class="label">Why Q² is skipped for models with a moderator</strong>
+      Blindfolding (used to compute Q²) systematically omits and re-predicts raw indicator values, but an interaction term has no indicators of its own — it is a derived product of two other constructs' scores. Because of this, Q² is automatically skipped (with an explanatory note) for any model containing an interaction term; every other output (path coefficients, R², f², bootstrapping) is unaffected.
+    </div>
+
+    <h2 id="reading">6. Reading every output table</h2>
+    <p>The numbers in this section come from the same PLS-SEM run used above (TAM sample, n = 250, with the PU × Attitude interaction included).</p>
+
+    <h3 id="read-measurement">Measurement model</h3>
+    <p><strong>Outer loadings/weights</strong> show how strongly each indicator represents its construct (reflective loadings should be ≥ 0.70). <strong>Reliability &amp; convergent validity:</strong></p>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Construct</th><th class="num">Cronbach's α</th><th class="num">ρ_A</th><th class="num">Composite Reliability</th><th class="num">AVE</th></tr></thead>
+      <tbody>
+        <tr><td>Perceived Ease of Use</td><td class="num">0.822</td><td class="num">0.843</td><td class="num">0.893</td><td class="num">0.737</td></tr>
+        <tr><td>Perceived Usefulness</td><td class="num">0.850</td><td class="num">0.863</td><td class="num">0.908</td><td class="num">0.768</td></tr>
+        <tr><td>Attitude</td><td class="num">0.841</td><td class="num">0.849</td><td class="num">0.904</td><td class="num">0.758</td></tr>
+        <tr><td>Behavioral Intention</td><td class="num">0.833</td><td class="num">0.836</td><td class="num">0.900</td><td class="num">0.750</td></tr>
+      </tbody>
+    </table></div>
+    <p>Rule of thumb: α and Composite Reliability ≥ 0.70 (reliable), AVE ≥ 0.50 (the construct explains more than half the variance of its own indicators). All four constructs clear both bars comfortably.</p>
+
+    <h3 id="read-discriminant">Discriminant validity</h3>
+    <p><strong>Fornell-Larcker criterion:</strong> each construct's √AVE (diagonal) must exceed its correlation with every other construct. Here √AVE ranges 0.858–0.876, while the largest inter-construct correlation is 0.515 (PU–Intention) — comfortably satisfied.</p>
+    <p><strong>HTMT (Heterotrait-Monotrait ratio):</strong> should stay below 0.85 (strict) or 0.90 (lenient). The highest value in this run is 0.606 (PU–Intention), well under both cutoffs — the four constructs are empirically distinct.</p>
+
+    <h3 id="read-structural">Structural model</h3>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Construct</th><th class="num">R²</th><th>Assessment</th></tr></thead>
+      <tbody>
+        <tr><td>Perceived Usefulness</td><td class="num">0.214</td><td>Moderate</td></tr>
+        <tr><td>Attitude</td><td class="num">0.215</td><td>Moderate</td></tr>
+        <tr><td>Behavioral Intention</td><td class="num">0.378</td><td>Substantial</td></tr>
+      </tbody>
+    </table></div>
+    <p>R² assessment bands: &lt; 0.19 weak, 0.19–0.33 moderate, 0.33–0.67 substantial, ≥ 0.67 strong (Chin, 1998; Hock &amp; Ringle). f² (per-path effect size, main-effect thresholds) is shown alongside every path in the Path Coefficients table — e.g. PEOU → PU has f² = 0.272 (medium), the strongest single driver in this model.</p>
+
+    <h3 id="read-cmb">Common Method Bias — full collinearity test</h3>
+    <p>Every construct (including any interaction term) is regressed on <em>every other</em> construct, regardless of the drawn structural paths, and the resulting VIF is checked against 3.3 (Kock, 2015) — the WarpPLS full-collinearity technique for detecting a single latent “method” factor inflating all variances at once.</p>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Construct</th><th class="num">Full collinearity VIF</th><th>Assessment</th></tr></thead>
+      <tbody>
+        <tr><td>Perceived Ease of Use</td><td class="num">1.328</td><td><span class="badge ok">OK</span></td></tr>
+        <tr><td>Perceived Usefulness</td><td class="num">1.629</td><td><span class="badge ok">OK</span></td></tr>
+        <tr><td>Attitude</td><td class="num">1.484</td><td><span class="badge ok">OK</span></td></tr>
+        <tr><td>Behavioral Intention</td><td class="num">1.608</td><td><span class="badge ok">OK</span></td></tr>
+        <tr><td>PU × Attitude (interaction term)</td><td class="num">1.022</td><td><span class="badge ok">OK</span></td></tr>
+      </tbody>
+    </table></div>
+    <p>All values sit far below 3.3, so this dataset shows no evidence of common method bias.</p>
+
+    <h2 id="cbsem">7. CB-SEM fit indices</h2>
+    <p>Running the same model (with the interaction) under CB-SEM (Maximum Likelihood) produces classic global fit statistics that PLS-SEM does not report:</p>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Index</th><th class="num">Value</th><th>Good-fit cutoff</th><th>Assessment</th></tr></thead>
+      <tbody>
+        <tr><td>χ² (df = 49)</td><td class="num">66.73</td><td>—</td><td>—</td></tr>
+        <tr><td>χ² p-value</td><td class="num">.047</td><td>&gt; .05 ideal, but χ² is sample-size sensitive</td><td>Borderline</td></tr>
+        <tr><td>CFI</td><td class="num">0.988</td><td>≥ 0.95</td><td><span class="badge ok">Good</span></td></tr>
+        <tr><td>TLI</td><td class="num">0.983</td><td>≥ 0.95</td><td><span class="badge ok">Good</span></td></tr>
+        <tr><td>RMSEA</td><td class="num">0.038</td><td>≤ 0.06</td><td><span class="badge ok">Good</span></td></tr>
+        <tr><td>SRMR</td><td class="num">0.037</td><td>≤ 0.05</td><td><span class="badge ok">Good</span></td></tr>
+        <tr><td>GFI</td><td class="num">0.955</td><td>≥ 0.95</td><td><span class="badge ok">Good</span></td></tr>
+        <tr><td>AGFI</td><td class="num">0.940</td><td>≥ 0.90</td><td><span class="badge ok">Good</span></td></tr>
+        <tr><td>NFI</td><td class="num">0.955</td><td>≥ 0.95</td><td><span class="badge ok">Good</span></td></tr>
+        <tr><td>AIC / BIC</td><td class="num">57.5 / 159.6</td><td>lower = better (for comparing models)</td><td>—</td></tr>
+      </tbody>
+    </table></div>
+    <p>Every practical fit index (CFI, TLI, RMSEA, SRMR, GFI, AGFI, NFI) clears its good-fit cutoff; only the χ² test itself is marginal, which is normal and expected — χ² almost always rejects large or non-normal samples even for a well-fitting model, which is exactly why the other indices exist.</p>
+
+    <h2 id="export">8. Exporting reports</h2>
+    <p>Both the Excel (.xlsx) and Word (.docx) exports rebuild every table shown on screen — including Total &amp; Indirect Effects and, when present, interaction-term rows and moderation-specific f² labels — directly from the analysis you just ran (no re-estimation, so exporting is instant). The report's language always follows whichever language (VI/EN) is selected in the interface <em>at export time</em>, independent of the language used when you originally ran the analysis.</p>
+
+    <h2 id="faq">9. Troubleshooting</h2>
+    <ul>
+      <li><strong>“Interaction term ‘X’ predicts ‘Y’, so ‘Z’ also needs a direct main-effect path to ‘Y’.”</strong> — Draw the missing direct path from the named source construct to the moderated target, then re-run. Both multiplicands of an interaction must carry their own main effect on the outcome.</li>
+      <li><strong>“Need at least 2 other constructs to create an interaction term.”</strong> — Add and configure at least two ordinary (non-interaction) constructs before switching a construct's type to “Interaction / moderation term”.</li>
+      <li><strong>Q² shows a skip message instead of a value</strong> — this is expected whenever the model contains an interaction term (see §5); it does not indicate an error.</li>
+      <li><strong>CB-SEM rejects a formative construct</strong> — CB-SEM (Maximum Likelihood) only supports reflective (Mode A) measurement; switch the construct to PLS-SEM, or change its measurement type if that's substantively appropriate.</li>
+      <li><strong>File upload rejected for too many rows</strong> — the tool caps uploads at 5,000 rows; aggregate or sample your dataset down first.</li>
+    </ul>
+  </main>
+</div>
+
+<footer class="doc-footer">© 2026 UEH-WebSEM — University of Economics Ho Chi Minh City (UEH). All example numbers on this page are real output from the built-in TAM sample dataset.</footer>
+
+</body>
+</html>
