@@ -1,0 +1,9 @@
+.venv
+__pycache__
+*.pyc
+.git
+.gitignore
+uploads/*
+!uploads/.gitkeep
+node_modules
+*.md

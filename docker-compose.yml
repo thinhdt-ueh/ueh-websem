@@ -1,0 +1,14 @@
+services:
+  web:
+    build: .
+    image: ueh-websem:latest
+    ports:
+      - "5000:5000"
+    environment:
+      - FLASK_DEBUG=0
+    volumes:
+      - uploads:/app/uploads
+    restart: unless-stopped
+
+volumes:
+  uploads:
