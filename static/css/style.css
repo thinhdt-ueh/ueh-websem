@@ -68,6 +68,8 @@ body {
   cursor: pointer;
   font-size: 14px;
   font-weight: 600;
+  text-decoration: none;
+  display: inline-block;
 }
 .btn:hover { border-color: var(--primary); color: var(--primary); }
 .btn.primary { background: var(--primary); border-color: var(--primary); color: #fff; }
