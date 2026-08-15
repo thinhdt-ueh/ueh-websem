@@ -3,3 +3,9 @@ __pycache__/
 *.pyc
 uploads/*
 !uploads/.gitkeep
+
+# PyInstaller build output (see build_exe.bat) — the .exe is ~80MB and
+# regenerated from source, so it doesn't belong in version control.
+build/
+dist/
+*.spec

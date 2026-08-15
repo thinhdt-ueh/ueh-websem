@@ -12,7 +12,10 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 def create_app() -> Flask:
     app = Flask(__name__)
-    app.config["UPLOAD_DIR"] = os.path.join(BASE_DIR, "uploads")
+    # Overridable via env var for the packaged desktop .exe: PyInstaller's
+    # onefile mode extracts the app to a temp directory that's wiped on exit,
+    # so uploads must live somewhere persistent instead (see desktop_launcher.py).
+    app.config["UPLOAD_DIR"] = os.environ.get("WEBSEM_UPLOAD_DIR") or os.path.join(BASE_DIR, "uploads")
     app.config["SAMPLE_DIR"] = os.path.join(BASE_DIR, "sample_data")
     app.config["MAX_CONTENT_LENGTH"] = 20 * 1024 * 1024  # 20 MB
     app.register_blueprint(api)
