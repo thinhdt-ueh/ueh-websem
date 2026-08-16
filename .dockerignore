@@ -7,3 +7,11 @@ uploads/*
 !uploads/.gitkeep
 node_modules
 *.md
+
+# Windows-only desktop launcher build (see build_exe.bat) — irrelevant and
+# wasteful to ship inside a Linux container image.
+*.exe
+*.spec
+build/
+dist/
+*.zip
