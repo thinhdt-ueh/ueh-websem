@@ -75,8 +75,33 @@ def _upload_dir() -> str:
 def _read_dataframe(path: str) -> pd.DataFrame:
     ext = os.path.splitext(path)[1].lower()
     if ext == ".csv":
-        return pd.read_csv(path)
+        return _read_csv_flexible(path)
     return pd.read_excel(path)
+
+
+def _read_csv_flexible(path: str) -> pd.DataFrame:
+    """Auto-detects ',' vs ';' as the field delimiter: many VI/EU-locale
+    spreadsheet exports use ';' (since ',' is the decimal separator there),
+    so a hardcoded pd.read_csv(path) would otherwise parse the whole file as
+    a single column. Picks whichever delimiter appears more often on the
+    header line — simpler and more predictable than pandas' sep=None sniffer,
+    which can raise on short/ambiguous files.
+    """
+    with open(path, "r", encoding="utf-8-sig", errors="replace") as f:
+        header_line = f.readline()
+    sep = ";" if header_line.count(";") > header_line.count(",") else ","
+    if sep != ";":
+        return pd.read_csv(path, sep=sep)
+
+    # ';'-delimited files often pair with ',' as the decimal separator too
+    # (the same VI/EU locale convention) — try that first, but fall back to
+    # '.' decimals if it doesn't actually yield more numeric columns, so a
+    # ';'-delimited file that still uses '.' decimals parses correctly too.
+    df_comma_decimal = pd.read_csv(path, sep=sep, decimal=",")
+    df_dot_decimal = pd.read_csv(path, sep=sep)
+    n_numeric_comma = sum(pd.api.types.is_numeric_dtype(df_comma_decimal[c]) for c in df_comma_decimal.columns)
+    n_numeric_dot = sum(pd.api.types.is_numeric_dtype(df_dot_decimal[c]) for c in df_dot_decimal.columns)
+    return df_comma_decimal if n_numeric_comma >= n_numeric_dot else df_dot_decimal
 
 
 @api.post("/upload")

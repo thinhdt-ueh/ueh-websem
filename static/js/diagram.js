@@ -97,6 +97,106 @@ class PathDiagram {
     this.render();
   }
 
+  // Renders the full SmartPLS-style diagram (construct ellipses *and* their
+  // measurement-model indicator boxes with loading/weight labels) — used for
+  // the read-only results diagrams and for the exported report image, not
+  // for the editable model builder (which stays uncluttered on purpose).
+  // `loadingsOrWeights` maps indicator name -> the value to print on its arrow
+  // (outer loading for Mode A blocks, outer weight for Mode B).
+  renderWithMeasurement(loadingsOrWeights) {
+    this._loadings = loadingsOrWeights || {};
+    const boxes = this._layoutIndicators();
+    this._indicatorBoxes = boxes;
+
+    const PAD = 40;
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    const ctx = this.ctx;
+    for (const c of this.constructs) {
+      ctx.font = "11px sans-serif";
+      const subWidth = ctx.measureText(this._subLabel(c)).width;
+      const halfWidth = Math.max(this.RADIUS_X, subWidth / 2 + 4);
+      minX = Math.min(minX, c.x - halfWidth);
+      maxX = Math.max(maxX, c.x + halfWidth);
+      minY = Math.min(minY, c.y - this.RADIUS_Y);
+      maxY = Math.max(maxY, c.y + this.RADIUS_Y);
+    }
+    for (const b of boxes) {
+      minX = Math.min(minX, b.x - b.w / 2);
+      maxX = Math.max(maxX, b.x + b.w / 2);
+      minY = Math.min(minY, b.y - b.h / 2);
+      maxY = Math.max(maxY, b.y + b.h / 2);
+    }
+    if (!isFinite(minX)) return this.render();
+
+    const offX = PAD - minX, offY = PAD - minY;
+    for (const c of this.constructs) { c.x += offX; c.y += offY; }
+    for (const b of boxes) { b.x += offX; b.y += offY; }
+
+    this.canvas.width = Math.ceil(maxX - minX + PAD * 2);
+    this.canvas.height = Math.ceil(maxY - minY + PAD * 2);
+    this.render();
+  }
+
+  // Places each construct's indicator boxes in a column/row on whichever
+  // side of the construct points away from the diagram's centroid (e.g. a
+  // construct on the far left gets its indicators further left, one near
+  // the top gets them above) — mirrors SmartPLS's default layout.
+  _layoutIndicators() {
+    const BOX_W = 92, BOX_H = 24, BOX_GAP = 8, STEM = 46;
+    if (this.constructs.length === 0) return [];
+    const cx = this.constructs.reduce((s, c) => s + c.x, 0) / this.constructs.length;
+    const cy = this.constructs.reduce((s, c) => s + c.y, 0) / this.constructs.length;
+    const boxes = [];
+    for (const c of this.constructs) {
+      const inds = c.indicators || [];
+      if (inds.length === 0 || c.mode === "I") continue;
+      const dx = c.x - cx, dy = c.y - cy;
+      const horizontal = Math.abs(dx) >= Math.abs(dy);
+      const dir = horizontal ? (dx >= 0 ? "right" : "left") : (dy >= 0 ? "down" : "up");
+      const n = inds.length;
+      inds.forEach((ind, i) => {
+        const spreadV = (i - (n - 1) / 2) * (BOX_H + BOX_GAP);
+        const spreadH = (i - (n - 1) / 2) * (BOX_W + BOX_GAP);
+        let bx, by;
+        if (dir === "right") { bx = c.x + this.RADIUS_X + STEM + BOX_W / 2; by = c.y + spreadV; }
+        else if (dir === "left") { bx = c.x - this.RADIUS_X - STEM - BOX_W / 2; by = c.y + spreadV; }
+        else if (dir === "down") { bx = c.x + spreadH; by = c.y + this.RADIUS_Y + STEM + BOX_H / 2; }
+        else { bx = c.x + spreadH; by = c.y - this.RADIUS_Y - STEM - BOX_H / 2; }
+        boxes.push({ ind, cid: c.id, x: bx, y: by, w: BOX_W, h: BOX_H, mode: c.mode });
+      });
+    }
+    return boxes;
+  }
+
+  // Same text `render()` prints under a construct's name — factored out so
+  // renderWithMeasurement() can measure it when sizing the canvas (a long
+  // interaction-term label like "A × B" can be wider than the ellipse itself).
+  _subLabel(c) {
+    const isInteraction = c.mode === "I";
+    let sub;
+    if (isInteraction) {
+      const [a, b] = (c.interaction_of || []).map((sid) => this.getConstruct(sid));
+      sub = a && b ? `${a.name} × ${b.name}` : t("s2_summary_interaction");
+    } else {
+      sub = t(c.mode === "A" ? "diagram_reflective" : "diagram_formative");
+    }
+    if (this.annotate) {
+      const r2 = this.annotate.r2 ? this.annotate.r2[c.id] : null;
+      if (r2 !== null && r2 !== undefined) sub = `R² = ${r2.toFixed(3)}`;
+    } else if (!isInteraction) {
+      sub += ` · ${c.indicators.length} ${t("s2_summary_item_suffix")}`;
+    }
+    return sub;
+  }
+
+  _boxEdgeToward(box, point) {
+    const dx = point.x - box.x, dy = point.y - box.y;
+    if (Math.abs(dx) > Math.abs(dy)) {
+      return { x: box.x + Math.sign(dx) * box.w / 2, y: box.y };
+    }
+    return { x: box.x, y: box.y + Math.sign(dy) * box.h / 2 };
+  }
+
   // ---------- geometry ----------
   _canvasPoint(evt) {
     const rect = this.canvas.getBoundingClientRect();
@@ -311,14 +411,70 @@ class PathDiagram {
       }
     }
 
+    // indicator boxes (measurement model) — only present after
+    // renderWithMeasurement() has been called (results diagrams/report export)
+    if (this._indicatorBoxes) {
+      for (const b of this._indicatorBoxes) {
+        const c = this.getConstruct(b.cid);
+        if (!c) continue;
+        const boxAnchor = this._boxEdgeToward(b, c);
+        const nodeAnchor = this._borderIntersection(boxAnchor, c);
+        // reflective (Mode A): construct causes the indicator, so the arrow
+        // points construct -> box; formative (Mode B): the reverse.
+        const reflective = b.mode !== "B";
+        const from = reflective ? nodeAnchor : boxAnchor;
+        const to = reflective ? boxAnchor : nodeAnchor;
+
+        ctx.strokeStyle = "#8a93ab";
+        ctx.lineWidth = 1.4;
+        ctx.beginPath();
+        ctx.moveTo(from.x, from.y);
+        ctx.lineTo(to.x, to.y);
+        ctx.stroke();
+        this._drawArrowHead(from, to, "#8a93ab");
+
+        const val = this._loadings ? this._loadings[b.ind] : null;
+        if (val !== null && val !== undefined && !Number.isNaN(val)) {
+          const mx = (from.x + to.x) / 2, my = (from.y + to.y) / 2;
+          const label = Number(val).toFixed(3);
+          ctx.font = "10px sans-serif";
+          const tw = ctx.measureText(label).width;
+          ctx.fillStyle = "#fff";
+          ctx.fillRect(mx - tw / 2 - 3, my - 8, tw + 6, 14);
+          ctx.fillStyle = "#1c2333";
+          ctx.textAlign = "center";
+          ctx.fillText(label, mx, my + 3);
+          ctx.textAlign = "start";
+        }
+
+        ctx.fillStyle = "#fff6cf";
+        ctx.strokeStyle = "#c9a227";
+        ctx.lineWidth = 1.4;
+        ctx.beginPath();
+        ctx.rect(b.x - b.w / 2, b.y - b.h / 2, b.w, b.h);
+        ctx.fill();
+        ctx.stroke();
+        ctx.fillStyle = "#1c2333";
+        ctx.font = "11px sans-serif";
+        ctx.textAlign = "center";
+        ctx.fillText(b.ind, b.x, b.y + 4);
+        ctx.textAlign = "start";
+      }
+    }
+
     // nodes
     for (const c of this.constructs) {
       const isSel = this.selected && this.selected.type === "node" && this.selected.id === c.id;
       const isInteraction = c.mode === "I";
+      const isResults = !!this.annotate;
       const strokeColor = isInteraction ? "#c98a1f" : "#3457d5";
       ctx.beginPath();
       ctx.ellipse(c.x, c.y, this.RADIUS_X, this.RADIUS_Y, 0, 0, Math.PI * 2);
-      ctx.fillStyle = isSel ? "#dfe7ff" : (isInteraction ? "#fdf3e0" : "#eef1fd");
+      if (isResults && !isInteraction) {
+        ctx.fillStyle = "#2f8fe0";
+      } else {
+        ctx.fillStyle = isSel ? "#dfe7ff" : (isInteraction ? "#fdf3e0" : "#eef1fd");
+      }
       ctx.fill();
       ctx.lineWidth = isSel ? 3 : 2;
       ctx.strokeStyle = strokeColor;
@@ -326,26 +482,15 @@ class PathDiagram {
       ctx.stroke();
       ctx.setLineDash([]);
 
-      ctx.fillStyle = "#1c2333";
+      const onBlue = isResults && !isInteraction;
+      ctx.fillStyle = onBlue ? "#ffffff" : "#1c2333";
       ctx.font = "bold 13px sans-serif";
       ctx.textAlign = "center";
       this._wrapText(c.name, c.x, c.y - 4, this.RADIUS_X * 2 - 12, 14);
 
       ctx.font = "11px sans-serif";
-      ctx.fillStyle = "#6b7385";
-      let sub;
-      if (isInteraction) {
-        const [a, b] = (c.interaction_of || []).map((sid) => this.getConstruct(sid));
-        sub = a && b ? `${a.name} × ${b.name}` : t("s2_summary_interaction");
-      } else {
-        sub = t(c.mode === "A" ? "diagram_reflective" : "diagram_formative");
-      }
-      if (this.annotate) {
-        const r2 = this.annotate.r2 ? this.annotate.r2[c.id] : null;
-        if (r2 !== null && r2 !== undefined) sub = `R² = ${r2.toFixed(3)}`;
-      } else if (!isInteraction) {
-        sub += ` · ${c.indicators.length} ${t("s2_summary_item_suffix")}`;
-      }
+      ctx.fillStyle = onBlue ? "#eaf2ff" : "#6b7385";
+      const sub = this._subLabel(c);
       ctx.fillText(sub, c.x, c.y + this.RADIUS_Y - 10);
       ctx.textAlign = "start";
     }

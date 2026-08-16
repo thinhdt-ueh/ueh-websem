@@ -7,17 +7,36 @@ which is independent of whatever language the original analysis used.
 
 from __future__ import annotations
 
+import base64
 import io
 from datetime import datetime
 
 from docx import Document
 from docx.enum.text import WD_ALIGN_PARAGRAPH
-from docx.shared import Pt, RGBColor
+from docx.shared import Inches, Pt, RGBColor
 from openpyxl import Workbook
+from openpyxl.drawing.image import Image as XLImage
 from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.utils import get_column_letter
 
 from i18n import DEFAULT_LANG, t
+
+DIAGRAM_EXCEL_MAX_WIDTH_PX = 900
+
+
+def _decode_diagram_image(data: dict) -> bytes | None:
+    """The frontend sends the results diagram as a `canvas.toDataURL()` PNG
+    data URL — decode it back to raw bytes for embedding in the report, or
+    None if the caller didn't include one (e.g. older cached payloads)."""
+    raw = data.get("diagram_image")
+    if not raw or not isinstance(raw, str):
+        return None
+    if "," in raw:
+        raw = raw.split(",", 1)[1]
+    try:
+        return base64.b64decode(raw)
+    except (ValueError, TypeError):
+        return None
 
 HEADER_FILL = PatternFill(start_color="EEF1FD", end_color="EEF1FD", fill_type="solid")
 HEADER_FONT = Font(bold=True)
@@ -203,6 +222,17 @@ def build_excel_report(data: dict, lang: str = DEFAULT_LANG) -> io.BytesIO:
                               t("rpt_indicators", lang), t("rpt_endogenous", lang), t("rpt_moderation_of", lang)],
                       construct_rows, title=t("rpt_construct_list", lang))
     _autofit(ws)
+
+    # --- Path diagram (rendered client-side, sent as a PNG data URL) ---
+    diagram_bytes = _decode_diagram_image(data)
+    if diagram_bytes:
+        ws = wb.create_sheet(_sheet_name(t("rpt_sheet_diagram", lang)))
+        xl_img = XLImage(io.BytesIO(diagram_bytes))
+        if xl_img.width > DIAGRAM_EXCEL_MAX_WIDTH_PX:
+            scale = DIAGRAM_EXCEL_MAX_WIDTH_PX / xl_img.width
+            xl_img.width = int(xl_img.width * scale)
+            xl_img.height = int(xl_img.height * scale)
+        ws.add_image(xl_img, "A1")
 
     # --- Outer loadings ---
     ws = wb.create_sheet(_sheet_name(t("rpt_sheet_outer_loadings", lang)))
@@ -403,6 +433,11 @@ def build_word_report(data: dict, lang: str = DEFAULT_LANG) -> io.BytesIO:
           _interaction_of_label(c, id_to_name)]
          for c in data["constructs"]],
     )
+
+    diagram_bytes = _decode_diagram_image(data)
+    if diagram_bytes:
+        _add_heading(doc, t("rpt_section_diagram", lang), level=1)
+        doc.add_picture(io.BytesIO(diagram_bytes), width=Inches(6.3))
 
     # --- Measurement model ---
     _add_heading(doc, t("rpt_section_measurement", lang), level=1)

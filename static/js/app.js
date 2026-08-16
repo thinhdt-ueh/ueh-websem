@@ -563,10 +563,11 @@ async function exportCbsemReport(kind) {
   btn.textContent = t("s3_generating_file");
   document.getElementById("resultsError").classList.add("hidden");
   try {
+    const diagramImage = cbsemResultDiagram ? cbsemResultDiagram.canvas.toDataURL("image/png") : null;
     const res = await fetch(`/api/export_cbsem/${kind}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...lastCbsemResult, lang: getLang() }),
+      body: JSON.stringify({ ...lastCbsemResult, lang: getLang(), diagram_image: diagramImage }),
     });
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
@@ -599,10 +600,11 @@ async function exportReport(kind) {
   btn.textContent = t("s3_generating_file");
   document.getElementById("resultsError").classList.add("hidden");
   try {
+    const diagramImage = resultDiagram ? resultDiagram.canvas.toDataURL("image/png") : null;
     const res = await fetch(`/api/export/${kind}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...lastAnalysisResult, lang: getLang() }),
+      body: JSON.stringify({ ...lastAnalysisResult, lang: getLang(), diagram_image: diagramImage }),
     });
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
@@ -716,7 +718,7 @@ function renderResults(data) {
   resultDiagram = new PathDiagram(canvas, { editable: false });
   resultDiagram.loadFrom(editor.constructs, editor.paths);
   resultDiagram.annotate = { paths: data.structural.paths, r2: data.structural.r_squared };
-  resultDiagram.render();
+  resultDiagram.renderWithMeasurement(measurementValuesByIndicator(data));
 
   const idToName = {};
   data.constructs.forEach((c) => (idToName[c.id] = c.name));
@@ -731,6 +733,19 @@ function renderResults(data) {
   renderR2Table(data, idToName);
   renderVifTable(data, idToName);
   renderCmbTable(data.common_method_bias, idToName, "cmbHint", "cmbTable");
+}
+
+function measurementValuesByIndicator(data) {
+  // Reflective (Mode A) blocks are conventionally labeled with the outer
+  // loading on their diagram arrow; formative (Mode B) blocks with the outer
+  // weight instead — same convention SmartPLS uses.
+  const m = data.measurement;
+  const out = {};
+  data.constructs.forEach((c) => {
+    const src = c.mode === "B" ? m.outer_weights : m.outer_loadings;
+    c.indicators.forEach((ind) => { out[ind] = src ? src[ind] : null; });
+  });
+  return out;
 }
 
 function renderReliabilityTable(data, idToName) {
@@ -1013,7 +1028,9 @@ function renderCbsemResults(data) {
     source: p.source, target: p.target, coefficient: p.std, t_stat: p.z, significant: p.significant,
   }));
   cbsemResultDiagram.annotate = { paths: diagramPaths, r2: data.structural.r_squared };
-  cbsemResultDiagram.render();
+  const cbsemLoadings = {};
+  (data.measurement.loadings || []).forEach((row) => { cbsemLoadings[row.indicator] = row.std; });
+  cbsemResultDiagram.renderWithMeasurement(cbsemLoadings);
 
   const idToName = {};
   data.constructs.forEach((c) => (idToName[c.id] = c.name));

@@ -12,13 +12,14 @@ from datetime import datetime
 
 from docx import Document
 from docx.enum.text import WD_ALIGN_PARAGRAPH
-from docx.shared import Pt, RGBColor
+from docx.shared import Inches, Pt, RGBColor
 from openpyxl import Workbook
+from openpyxl.drawing.image import Image as XLImage
 from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.utils import get_column_letter
 
 from i18n import DEFAULT_LANG, t
-from pls.report import _cmb_rows, _interaction_of_label, _total_effects_rows
+from pls.report import DIAGRAM_EXCEL_MAX_WIDTH_PX, _cmb_rows, _decode_diagram_image, _interaction_of_label, _total_effects_rows
 
 HEADER_FILL = PatternFill(start_color="EEF1FD", end_color="EEF1FD", fill_type="solid")
 HEADER_FONT = Font(bold=True)
@@ -148,6 +149,16 @@ def build_excel_report(data: dict, lang: str = DEFAULT_LANG) -> io.BytesIO:
     _write_table(ws, r, [t("rpt_fit_index", lang), t("rpt_value", lang), t("rpt_fit_assessment", lang)],
                  fit_rows, title=t("rpt_model_fit", lang))
     _autofit(ws)
+
+    diagram_bytes = _decode_diagram_image(data)
+    if diagram_bytes:
+        ws = wb.create_sheet(_sheet_name(t("rpt_sheet_diagram", lang)))
+        xl_img = XLImage(io.BytesIO(diagram_bytes))
+        if xl_img.width > DIAGRAM_EXCEL_MAX_WIDTH_PX:
+            scale = DIAGRAM_EXCEL_MAX_WIDTH_PX / xl_img.width
+            xl_img.width = int(xl_img.width * scale)
+            xl_img.height = int(xl_img.height * scale)
+        ws.add_image(xl_img, "A1")
 
     ws = wb.create_sheet(_sheet_name(t("rpt_sheet_measurement", lang)))
     m = data["measurement"]
@@ -290,6 +301,11 @@ def build_word_report(data: dict, lang: str = DEFAULT_LANG) -> io.BytesIO:
           _interaction_of_label(c, id_to_name)]
          for c in data["constructs"]],
     )
+
+    diagram_bytes = _decode_diagram_image(data)
+    if diagram_bytes:
+        _add_heading(doc, t("rpt_section_diagram", lang), level=1)
+        doc.add_picture(io.BytesIO(diagram_bytes), width=Inches(6.3))
 
     _add_heading(doc, t("rpt_cbsem_section_fit", lang), level=1)
     _add_table(
