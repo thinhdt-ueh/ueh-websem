@@ -27,9 +27,14 @@ class PathDiagram {
   }
 
   // ---------- data API ----------
-  addConstruct(name, mode, x, y, interactionOf = null) {
+  addConstruct(name, mode, x, y, interactionOf = null, calcMethod = "two_stage", productTermGeneration = "standardized") {
     const id = "c" + Math.random().toString(36).slice(2, 9);
-    this.constructs.push({ id, name, mode, indicators: [], x, y, interaction_of: interactionOf });
+    this.constructs.push({
+      id, name, mode, indicators: [], x, y,
+      interaction_of: interactionOf,
+      calc_method: mode === "I" ? calcMethod : undefined,
+      product_term_generation: mode === "I" ? productTermGeneration : undefined,
+    });
     this.render();
     this.onChange();
     return id;
@@ -86,6 +91,8 @@ class PathDiagram {
         mode: c.mode,
         indicators: c.indicators,
         interaction_of: c.interaction_of || null,
+        calc_method: c.calc_method || null,
+        product_term_generation: c.product_term_generation || null,
       })),
       paths: this.paths.map((p) => ({ source: p.source, target: p.target })),
     };

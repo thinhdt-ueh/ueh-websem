@@ -138,9 +138,18 @@ def _cmb_rows(data: dict, id_to_name: dict, lang: str, fmt_fn=lambda v: v) -> tu
     return rows, threshold
 
 
-def _mode_label(mode: str, lang: str) -> str:
+CALC_METHOD_LABEL_KEYS = {
+    "product_indicator": "rpt_calc_method_product_indicator",
+    "two_stage": "rpt_calc_method_two_stage",
+    "orthogonalization": "rpt_calc_method_orthogonalization",
+}
+
+
+def _mode_label(mode: str, lang: str, calc_method: str | None = None) -> str:
     if mode == "I":
-        return t("rpt_interaction_term", lang)
+        base = t("rpt_interaction_term", lang)
+        key = CALC_METHOD_LABEL_KEYS.get(calc_method or "two_stage")
+        return f"{base} ({t(key, lang)})" if key else base
     return t("rpt_reflective", lang) if mode == "A" else t("rpt_formative", lang)
 
 
@@ -214,7 +223,7 @@ def build_excel_report(data: dict, lang: str = DEFAULT_LANG) -> io.BytesIO:
                       title=t("rpt_title_pls", lang))
 
     construct_rows = [
-        [c["name"], _mode_label(c["mode"], lang), ", ".join(c["indicators"]), _yn(c["is_endogenous"], lang),
+        [c["name"], _mode_label(c["mode"], lang, c.get("calc_method")), ", ".join(c["indicators"]), _yn(c["is_endogenous"], lang),
          _interaction_of_label(c, id_to_name)]
         for c in data["constructs"]
     ]
@@ -429,7 +438,7 @@ def build_word_report(data: dict, lang: str = DEFAULT_LANG) -> io.BytesIO:
     _add_table(
         doc, [t("rpt_construct", lang), t("rpt_measurement_type", lang), t("rpt_indicators", lang),
               t("rpt_endogenous", lang), t("rpt_moderation_of", lang)],
-        [[c["name"], _mode_label(c["mode"], lang), len(c["indicators"]), _yn(c["is_endogenous"], lang),
+        [[c["name"], _mode_label(c["mode"], lang, c.get("calc_method")), len(c["indicators"]), _yn(c["is_endogenous"], lang),
           _interaction_of_label(c, id_to_name)]
          for c in data["constructs"]],
     )

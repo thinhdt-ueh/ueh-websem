@@ -171,6 +171,10 @@ canvas { width: 100%; border: 1px solid var(--border); border-radius: 10px; back
 .checkbox-row input { width: auto; }
 #bootstrapOptions { margin-bottom: 4px; }
 
+.radio-group { display: flex; flex-direction: column; gap: 4px; margin: 4px 0 10px; }
+.radio-row { display: flex !important; align-items: center; gap: 7px; font-size: 13px; color: var(--text); }
+.radio-row input { width: auto; }
+
 .results-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); gap: 18px; }
 .results-grid > .panel-card { min-width: 0; }
 .results-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap; }

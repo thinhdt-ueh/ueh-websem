@@ -364,6 +364,26 @@ function renderInteractionSourcePicker(construct) {
   };
   selA.onchange = onSourceChange;
   selB.onchange = onSourceChange;
+
+  const calcMethod = construct.calc_method || "two_stage";
+  document.querySelectorAll('#cCalcMethod input[name="cCalcMethod"]').forEach((r) => {
+    r.checked = r.value === calcMethod;
+    r.onchange = () => {
+      construct.calc_method = r.value;
+      document.getElementById("productTermSection").classList.toggle("hidden", r.value === "two_stage");
+      renderModelSummary();
+    };
+  });
+  document.getElementById("productTermSection").classList.toggle("hidden", calcMethod === "two_stage");
+
+  const productTerm = construct.product_term_generation || "standardized";
+  document.querySelectorAll('#cProductTerm input[name="cProductTerm"]').forEach((r) => {
+    r.checked = r.value === productTerm;
+    r.onchange = () => {
+      construct.product_term_generation = r.value;
+      renderModelSummary();
+    };
+  });
 }
 
 document.getElementById("cName").addEventListener("input", (e) => {
@@ -439,8 +459,11 @@ function renderModelSummary() {
     const modeLabel = t(
       c.mode === "A" ? "s2_summary_reflective" : isInteraction ? "s2_summary_interaction" : "s2_summary_formative"
     );
+    const calcMethodLabel = isInteraction
+      ? t(`s2_calc_method_${c.calc_method || "two_stage"}`)
+      : "";
     const detail = isInteraction
-      ? `${modeLabel}: ${interactionOfLabel(c)}`
+      ? `${modeLabel} (${calcMethodLabel}): ${interactionOfLabel(c)}`
       : `${modeLabel}, ${c.indicators.length} ${t("s2_summary_item_suffix")}`;
     const isOpen = expandedConstructs.has(c.id);
     const indicatorList = isOpen && !isInteraction

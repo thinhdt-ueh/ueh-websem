@@ -90,6 +90,23 @@
             <label data-i18n="s2_interaction_source_b">Construct B</label>
             <select id="cSourceB"></select>
             <div id="interactionSourceError" class="error-box hidden"></div>
+
+            <label data-i18n="s2_calc_method_label">Phương pháp tính (Calculation Method)</label>
+            <div class="radio-group" id="cCalcMethod">
+              <label class="radio-row"><input type="radio" name="cCalcMethod" value="product_indicator"><span data-i18n="s2_calc_method_product_indicator">Product Indicator</span></label>
+              <label class="radio-row"><input type="radio" name="cCalcMethod" value="two_stage" checked><span data-i18n="s2_calc_method_two_stage">Two Stage</span></label>
+              <label class="radio-row"><input type="radio" name="cCalcMethod" value="orthogonalization"><span data-i18n="s2_calc_method_orthogonalization">Orthogonalization</span></label>
+            </div>
+            <p class="hint" data-i18n="s2_calc_method_cbsem_note">Lưu ý: CB-SEM luôn dùng Two Stage, bất kể lựa chọn ở đây.</p>
+
+            <div id="productTermSection" class="hidden">
+              <label data-i18n="s2_product_term_label">Sinh Product Term (Advanced)</label>
+              <div class="radio-group" id="cProductTerm">
+                <label class="radio-row"><input type="radio" name="cProductTerm" value="unstandardized"><span data-i18n="s2_product_term_unstandardized">Unstandardized</span></label>
+                <label class="radio-row"><input type="radio" name="cProductTerm" value="mean_centered"><span data-i18n="s2_product_term_mean_centered">Mean Centered</span></label>
+                <label class="radio-row"><input type="radio" name="cProductTerm" value="standardized" checked><span data-i18n="s2_product_term_standardized">Standardized</span></label>
+              </div>
+            </div>
           </div>
         </div>
         <hr>

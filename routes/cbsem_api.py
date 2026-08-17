@@ -108,6 +108,8 @@ def analyze_cbsem():
                 "indicators": c.indicators,
                 "is_endogenous": c.id in model.endogenous_ids(),
                 "interaction_of": c.interaction_of,
+                "calc_method": c.calc_method if c.mode == "I" else None,
+                "product_term_generation": c.product_term_generation if c.mode == "I" else None,
             }
             for c in model.constructs.values()
         ],

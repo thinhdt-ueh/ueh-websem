@@ -59,6 +59,12 @@ _CATALOG: dict[str, dict[str, str]] = {
             "Biến tương tác '{name}' dự báo '{target}', nên '{src}' cũng cần có đường dẫn hiệu ứng "
             "chính (main effect) trực tiếp đến '{target}'."
         ),
+        "err_interaction_invalid_calc_method": (
+            "Biến tương tác '{name}': phương pháp tính (calculation method) không hợp lệ."
+        ),
+        "err_interaction_invalid_product_term": (
+            "Biến tương tác '{name}': kiểu sinh product term (product term generation) không hợp lệ."
+        ),
         "lbl_blindfolding_skipped_moderation": (
             "Bỏ qua Q² (blindfolding): mô hình có biến điều tiết (moderation) nên không tương thích "
             "với phương pháp lược bỏ dữ liệu theo hàng dùng để tính Q²."
@@ -148,6 +154,9 @@ _CATALOG: dict[str, dict[str, str]] = {
         "rpt_interaction_term": "Biến tương tác (Moderation)",
         "rpt_moderation_no_reliability": "Biến tương tác — không áp dụng chỉ số độ tin cậy nội bộ",
         "rpt_moderation_of": "Biến tương tác của",
+        "rpt_calc_method_product_indicator": "Product Indicator",
+        "rpt_calc_method_two_stage": "Two Stage",
+        "rpt_calc_method_orthogonalization": "Orthogonalization",
         "rpt_fornell_larcker": "Fornell-Larcker Criterion",
         "rpt_htmt": "HTMT",
         "rpt_path_coefficients": "Path Coefficients",
@@ -290,6 +299,8 @@ _CATALOG: dict[str, dict[str, str]] = {
             "Interaction term '{name}' predicts '{target}', so '{src}' also needs a direct main-effect "
             "path to '{target}'."
         ),
+        "err_interaction_invalid_calc_method": "Interaction term '{name}': invalid calculation method.",
+        "err_interaction_invalid_product_term": "Interaction term '{name}': invalid product term generation setting.",
         "lbl_blindfolding_skipped_moderation": (
             "Q² (blindfolding) skipped: the model contains a moderation (interaction) term, which is "
             "not compatible with the row-wise data-omission procedure Q² relies on."
@@ -377,6 +388,9 @@ _CATALOG: dict[str, dict[str, str]] = {
         "rpt_interaction_term": "Interaction term (Moderation)",
         "rpt_moderation_no_reliability": "Interaction term — internal reliability metrics not applicable",
         "rpt_moderation_of": "Interaction of",
+        "rpt_calc_method_product_indicator": "Product Indicator",
+        "rpt_calc_method_two_stage": "Two Stage",
+        "rpt_calc_method_orthogonalization": "Orthogonalization",
         "rpt_fornell_larcker": "Fornell-Larcker Criterion",
         "rpt_htmt": "HTMT",
         "rpt_path_coefficients": "Path Coefficients",

@@ -14,6 +14,23 @@ class ModelError(ValueError):
     """Raised when a submitted model definition is invalid."""
 
 
+# How an interaction/moderation construct's score is formed:
+# - "two_stage": multiply the two source constructs' STAGE-1 FACTOR SCORES
+#   (Henseler & Chin 2010) — no indicators of its own, needs a two-pass estimation.
+# - "product_indicator": multiply every pair of raw indicators from the two
+#   source blocks (Chin, Marcolin & Newsted 2003) — becomes a real Mode A
+#   construct with those products as its indicator block, estimated in a
+#   single pass together with everything else.
+# - "orthogonalization": same product-indicator construction, but each product
+#   is first residualized against all main-effect indicators of both source
+#   blocks to remove their collinearity (Little, Bovaird & Widaman 2006).
+CALC_METHODS = ("product_indicator", "two_stage", "orthogonalization")
+# How each source indicator is transformed before the pairwise product is taken
+# (only meaningful for "product_indicator"/"orthogonalization" — "two_stage"
+# always works on already-standardized composite scores).
+PRODUCT_TERM_METHODS = ("unstandardized", "mean_centered", "standardized")
+
+
 @dataclass
 class Construct:
     id: str
@@ -21,6 +38,8 @@ class Construct:
     mode: str  # "A" (reflective), "B" (formative), or "I" (interaction/moderation term)
     indicators: list[str] = field(default_factory=list)
     interaction_of: list[str] | None = None  # for mode "I": [source_a_id, source_b_id]
+    calc_method: str = "two_stage"  # for mode "I": one of CALC_METHODS
+    product_term_generation: str = "standardized"  # for mode "I": one of PRODUCT_TERM_METHODS
 
 
 @dataclass
@@ -61,8 +80,15 @@ class Model:
                 interaction_of = [str(x).strip() for x in raw_pair if str(x).strip()]
                 if len(interaction_of) != 2 or interaction_of[0] == interaction_of[1]:
                     raise ModelError(t("err_interaction_invalid_sources", lang, name=name))
+                calc_method = str(c.get("calc_method") or "two_stage").strip().lower()
+                if calc_method not in CALC_METHODS:
+                    raise ModelError(t("err_interaction_invalid_calc_method", lang, name=name))
+                product_term_generation = str(c.get("product_term_generation") or "standardized").strip().lower()
+                if product_term_generation not in PRODUCT_TERM_METHODS:
+                    raise ModelError(t("err_interaction_invalid_product_term", lang, name=name))
                 constructs[cid] = Construct(id=cid, name=name, mode=mode, indicators=[],
-                                             interaction_of=interaction_of)
+                                             interaction_of=interaction_of, calc_method=calc_method,
+                                             product_term_generation=product_term_generation)
                 continue
 
             if len(indicators) < 1:
@@ -177,12 +203,25 @@ class Model:
     def interaction_ids(self) -> list[str]:
         return [cid for cid, c in self.constructs.items() if c.mode == "I"]
 
+    def two_stage_interaction_ids(self) -> list[str]:
+        """Interaction constructs needing the two-pass estimation (their score
+        isn't knowable until stage 1 produces factor scores for their sources)."""
+        return [cid for cid in self.interaction_ids() if self.constructs[cid].calc_method == "two_stage"]
+
+    def indicator_based_interaction_ids(self) -> list[str]:
+        """Interaction constructs estimated in a single pass, as a real Mode A
+        block over their auto-generated product-indicator columns."""
+        return [cid for cid in self.interaction_ids() if self.constructs[cid].calc_method != "two_stage"]
+
     def has_interactions(self) -> bool:
         return any(c.mode == "I" for c in self.constructs.values())
 
     def base_model_json(self) -> dict:
-        """This model's definition with interaction constructs (and any paths that
-        touch them) removed — the "stage 1" model for two-stage moderation analysis."""
+        """This model's definition with ALL interaction constructs (and any paths
+        that touch them) removed — used where every interaction must be handled
+        via the two-stage approach regardless of its configured calc_method
+        (currently: CB-SEM moderation, which doesn't support product-indicator
+        methods). See `stage1_model_json` for PLS-SEM's per-method handling."""
         interaction_ids = set(self.interaction_ids())
         return {
             "constructs": [
@@ -194,6 +233,30 @@ class Model:
                 for p in self.paths if p.source not in interaction_ids and p.target not in interaction_ids
             ],
         }
+
+    def stage1_model_json(self, generated_indicators: dict[str, list[str]]) -> dict:
+        """Model used for PLS-SEM's single main estimation pass: two-stage
+        interaction constructs are stripped entirely (handled afterwards from
+        stage-1 factor scores); product-indicator/orthogonalization interaction
+        constructs are kept but turned into a real Mode A construct over their
+        auto-generated product-indicator columns (`generated_indicators[cid]`),
+        so they're estimated together with everything else in this one pass.
+        """
+        two_stage = set(self.two_stage_interaction_ids())
+        constructs = []
+        for c in self.constructs.values():
+            if c.id in two_stage:
+                continue
+            if c.mode == "I":
+                constructs.append({"id": c.id, "name": c.name, "mode": "A",
+                                    "indicators": generated_indicators[c.id]})
+            else:
+                constructs.append({"id": c.id, "name": c.name, "mode": c.mode, "indicators": c.indicators})
+        paths = [
+            {"source": p.source, "target": p.target}
+            for p in self.paths if p.source not in two_stage and p.target not in two_stage
+        ]
+        return {"constructs": constructs, "paths": paths}
 
     def all_indicators(self) -> list[str]:
         out: list[str] = []

@@ -68,9 +68,12 @@ def fit_verdict(data_key: str, v, lang: str) -> str:
     return t("lbl_fit_poor", lang)
 
 
-def _mode_label(mode: str, lang: str) -> str:
+def _mode_label(mode: str, lang: str, calc_method: str | None = None) -> str:
     if mode == "I":
-        return t("rpt_interaction_term", lang)
+        base = t("rpt_interaction_term", lang)
+        # CB-SEM ignores calc_method and always treats interactions as two-stage
+        # (see cbsem/moderation.py) regardless of what was configured for them.
+        return f"{base} ({t('rpt_calc_method_two_stage', lang)})"
     return t("rpt_reflective", lang)  # CB-SEM only supports reflective measurement otherwise
 
 
@@ -133,7 +136,7 @@ def build_excel_report(data: dict, lang: str = DEFAULT_LANG) -> io.BytesIO:
                       title=t("rpt_title_cbsem", lang))
 
     construct_rows = [
-        [c["name"], _mode_label(c["mode"], lang), ", ".join(c["indicators"]), _yn(c["is_endogenous"], lang),
+        [c["name"], _mode_label(c["mode"], lang, c.get("calc_method")), ", ".join(c["indicators"]), _yn(c["is_endogenous"], lang),
          _interaction_of_label(c, id_to_name)]
         for c in data["constructs"]
     ]
@@ -297,7 +300,7 @@ def build_word_report(data: dict, lang: str = DEFAULT_LANG) -> io.BytesIO:
     _add_table(
         doc, [t("rpt_construct", lang), t("rpt_measurement_type", lang), t("rpt_indicators", lang),
               t("rpt_endogenous", lang), t("rpt_moderation_of", lang)],
-        [[c["name"], _mode_label(c["mode"], lang), len(c["indicators"]), _yn(c["is_endogenous"], lang),
+        [[c["name"], _mode_label(c["mode"], lang, c.get("calc_method")), len(c["indicators"]), _yn(c["is_endogenous"], lang),
           _interaction_of_label(c, id_to_name)]
          for c in data["constructs"]],
     )

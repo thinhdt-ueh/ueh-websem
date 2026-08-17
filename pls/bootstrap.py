@@ -27,6 +27,7 @@ from scipy import stats
 
 from .algorithm import PLSResult, _build_topology, _fit, _ols_beta, _standardize_cols
 from .model import Model
+from .moderation import _generate_indicator_based_interactions
 
 MAX_BOOTSTRAP_SAMPLES = 5000
 MIN_BOOTSTRAP_SAMPLES = 100
@@ -164,36 +165,45 @@ def run_bootstrap_with_moderation(
     max_iterations: int = 300,
 ) -> BootstrapResult:
     """Same idea as `run_bootstrap`, extended for models with interaction
-    (moderation) constructs: each resample re-runs stage 1 (the fast NumPy
-    `_fit` loop, on the base model only) and then stage 2 — forming the
-    interaction score from stage 1's composite scores and re-running the
-    structural regression over the full model — exactly mirroring
-    pls/moderation.py's point-estimate procedure, just without pandas
-    overhead in the hot loop.
+    (moderation) constructs, matching pls/moderation.py's point-estimate
+    procedure per interaction construct's `calc_method`:
 
-    Sign correction (see `run_bootstrap`'s docstring) extends naturally: an
-    interaction term's effective sign for a given resample is the *product*
-    of its two source constructs' signs, since flipping either factor of a
-    product flips the product itself.
+    - "product_indicator"/"orthogonalization" constructs already have real
+      indicators (generated once from the full original sample — same
+      simplification real PLS-SEM tools use for bootstrapping product terms —
+      so each resample just selects rows from them like any other indicator)
+      and need no special handling: they're plain topology members.
+    - "two_stage" constructs still need stage 1 (the fast NumPy `_fit` loop)
+      followed by forming their score as the product of their two source
+      constructs' stage-1 scores and redoing the structural regression, all
+      without pandas overhead in the hot loop.
+
+    Sign correction (see `run_bootstrap`'s docstring) extends naturally to
+    "two_stage" constructs: their effective sign for a given resample is the
+    *product* of their two source constructs' signs, since flipping either
+    factor of a product flips the product itself. "product_indicator"/
+    "orthogonalization" constructs need no such special-casing — they get
+    the same per-block sign correction as any other construct.
     """
     n_boot = max(MIN_BOOTSTRAP_SAMPLES, min(MAX_BOOTSTRAP_SAMPLES, int(n_boot)))
     rng = np.random.default_rng(seed)
 
-    base_model = Model.from_json(model.base_model_json())
-    base_indicators = base_model.all_indicators()
-    topo = _build_topology(base_model, base_indicators)
-    raw = original.data[base_indicators].values
+    augmented_df, generated = _generate_indicator_based_interactions(model, original.data)
+    stage1_model = Model.from_json(model.stage1_model_json(generated))
+    base_indicators = stage1_model.all_indicators()
+    topo = _build_topology(stage1_model, base_indicators)
+    raw = augmented_df[base_indicators].values
     n_obs, p = raw.shape
     k_base = len(topo.construct_ids)
     base_pos = {cid: i for i, cid in enumerate(topo.construct_ids)}
 
     orig_w = original.outer_weights[base_indicators].values
 
-    interaction_ids = model.interaction_ids()
+    two_stage_ids = model.two_stage_interaction_ids()
     interaction_sources = {
         icid: (base_pos[model.constructs[icid].interaction_of[0]],
                base_pos[model.constructs[icid].interaction_of[1]])
-        for icid in interaction_ids
+        for icid in two_stage_ids
     }
 
     all_ids = list(model.constructs.keys())
@@ -229,7 +239,7 @@ def run_bootstrap_with_moderation(
             return block_sign[base_pos[cid]]
 
         full_score: dict[str, np.ndarray] = {cid: Y[:, base_pos[cid]] for cid in topo.construct_ids}
-        for icid in interaction_ids:
+        for icid in two_stage_ids:
             pa, pb = interaction_sources[icid]
             full_score[icid] = _standardize_cols((Y[:, pa] * Y[:, pb])[:, None])[:, 0]
 
