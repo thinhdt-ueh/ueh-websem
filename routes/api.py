@@ -324,45 +324,88 @@ def analyze():
     return jsonify(response)
 
 
+SAMPLE_DATASETS = {
+    # Classic TAM: two mediators chained in series (PEOU -> PU -> ATT -> INT),
+    # no moderator — kept as the default/simplest starting example.
+    "tam": {
+        "csv": "tam_sample.csv",
+        "model": {
+            "constructs": [
+                {"id": "peou", "name": "Perceived Ease of Use", "mode": "A",
+                 "indicators": ["PEOU1", "PEOU2", "PEOU3"]},
+                {"id": "pu", "name": "Perceived Usefulness", "mode": "A",
+                 "indicators": ["PU1", "PU2", "PU3"]},
+                {"id": "att", "name": "Attitude", "mode": "A",
+                 "indicators": ["ATT1", "ATT2", "ATT3"]},
+                {"id": "int", "name": "Behavioral Intention", "mode": "A",
+                 "indicators": ["INT1", "INT2", "INT3"]},
+            ],
+            "paths": [
+                {"source": "peou", "target": "pu"},
+                {"source": "peou", "target": "att"},
+                {"source": "pu", "target": "att"},
+                {"source": "pu", "target": "int"},
+                {"source": "att", "target": "int"},
+            ],
+        },
+    },
+    # Extended TAM: adds a mediator (PU, on the PEOU -> INT path) *and* a
+    # moderator (Experience, interacting with PEOU) in the same model, so
+    # every relationship type the app supports — direct, indirect/mediated,
+    # and moderated — appears together with a genuinely significant effect
+    # for each (see scripts/moderation_validation.py's methodology).
+    "moderation": {
+        "csv": "tam_moderation_sample.csv",
+        "model": {
+            "constructs": [
+                {"id": "peou", "name": "Perceived Ease of Use", "mode": "A",
+                 "indicators": ["PEOU1", "PEOU2", "PEOU3"]},
+                {"id": "exp", "name": "Experience", "mode": "A",
+                 "indicators": ["EXP1", "EXP2", "EXP3"]},
+                {"id": "pu", "name": "Perceived Usefulness", "mode": "A",
+                 "indicators": ["PU1", "PU2", "PU3"]},
+                {"id": "int", "name": "Behavioral Intention", "mode": "A",
+                 "indicators": ["INT1", "INT2", "INT3"]},
+                {"id": "peou_x_exp", "name": "PEOU x Experience", "mode": "I",
+                 "interaction_of": ["peou", "exp"],
+                 "calc_method": "two_stage", "product_term_generation": "standardized"},
+            ],
+            "paths": [
+                {"source": "peou", "target": "pu"},
+                {"source": "pu", "target": "int"},
+                {"source": "peou", "target": "int"},
+                {"source": "exp", "target": "int"},
+                {"source": "peou_x_exp", "target": "int"},
+            ],
+        },
+    },
+}
+
+
 @api.get("/sample")
 def sample():
-    """Serve a ready-made demo dataset + model so users can try the app instantly."""
+    """Serve a ready-made demo dataset + model so users can try the app instantly.
+    ?dataset=tam (default) is the classic two-mediator TAM model; ?dataset=moderation
+    adds a moderator on top, so both mediation and moderation have a live example."""
+    dataset_key = request.args.get("dataset", "tam")
+    dataset = SAMPLE_DATASETS.get(dataset_key, SAMPLE_DATASETS["tam"])
+
     sample_dir = current_app.config["SAMPLE_DIR"]
-    csv_path = os.path.join(sample_dir, "tam_sample.csv")
+    csv_path = os.path.join(sample_dir, dataset["csv"])
     df = pd.read_csv(csv_path)
 
     file_id = uuid.uuid4().hex
     dest = os.path.join(_upload_dir(), file_id + ".csv")
     df.to_csv(dest, index=False)
 
-    model = {
-        "constructs": [
-            {"id": "peou", "name": "Perceived Ease of Use", "mode": "A",
-             "indicators": ["PEOU1", "PEOU2", "PEOU3"]},
-            {"id": "pu", "name": "Perceived Usefulness", "mode": "A",
-             "indicators": ["PU1", "PU2", "PU3"]},
-            {"id": "att", "name": "Attitude", "mode": "A",
-             "indicators": ["ATT1", "ATT2", "ATT3"]},
-            {"id": "int", "name": "Behavioral Intention", "mode": "A",
-             "indicators": ["INT1", "INT2", "INT3"]},
-        ],
-        "paths": [
-            {"source": "peou", "target": "pu"},
-            {"source": "peou", "target": "att"},
-            {"source": "pu", "target": "att"},
-            {"source": "pu", "target": "int"},
-            {"source": "att", "target": "int"},
-        ],
-    }
-
     return jsonify(
         file_id=file_id,
-        filename="tam_sample.csv",
+        filename=dataset["csv"],
         columns=list(df.columns),
         numeric_columns=list(df.columns),
         n_rows=int(df.shape[0]),
         preview=_clean(df.head(10).to_dict(orient="records")),
-        model=model,
+        model=dataset["model"],
     )
 
 

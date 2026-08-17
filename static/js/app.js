@@ -113,7 +113,8 @@ fileInput.addEventListener("change", () => {
   if (fileInput.files[0]) uploadFile(fileInput.files[0]);
 });
 
-document.getElementById("sampleBtn").addEventListener("click", loadSample);
+document.getElementById("sampleBtn").addEventListener("click", (e) => loadSample(e.target.dataset.dataset));
+document.getElementById("sampleModerationBtn").addEventListener("click", (e) => loadSample(e.target.dataset.dataset));
 
 async function uploadFile(file) {
   const errBox = document.getElementById("uploadError");
@@ -132,11 +133,11 @@ async function uploadFile(file) {
   }
 }
 
-async function loadSample() {
+async function loadSample(dataset) {
   const errBox = document.getElementById("uploadError");
   errBox.classList.add("hidden");
   try {
-    const res = await fetch("/api/sample");
+    const res = await fetch(`/api/sample?dataset=${encodeURIComponent(dataset || "tam")}`);
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || t("msg_sample_failed"));
     applyUploadResult(data);

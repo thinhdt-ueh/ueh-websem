@@ -12,6 +12,7 @@ const I18N = {
     nav_step2: "2. Mô hình",
     nav_step3: "3. Kết quả",
     nav_sample: "Dùng dữ liệu mẫu",
+    nav_sample_moderation: "Dữ liệu mẫu (Mediator + Moderator)",
     nav_guide: "📖 Hướng dẫn sử dụng",
 
     // --- step 1: upload ---
@@ -235,6 +236,7 @@ const I18N = {
     nav_step2: "2. Model",
     nav_step3: "3. Results",
     nav_sample: "Use sample data",
+    nav_sample_moderation: "Sample data (Mediator + Moderator)",
     nav_guide: "📖 User Guide",
 
     s1_title: "Upload survey data",
