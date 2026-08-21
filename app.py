@@ -6,6 +6,7 @@ from flask import Flask, render_template
 
 from routes.api import api
 from routes.cbsem_api import cbsem_api
+from routes.plspredict_api import plspredict_api
 from routes.sensitivity_api import sensitivity_api
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -22,6 +23,7 @@ def create_app() -> Flask:
     app.register_blueprint(api)
     app.register_blueprint(cbsem_api)
     app.register_blueprint(sensitivity_api)
+    app.register_blueprint(plspredict_api)
 
     @app.get("/")
     def index():

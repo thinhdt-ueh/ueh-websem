@@ -263,3 +263,20 @@ class Model:
         for c in self.constructs.values():
             out.extend(c.indicators)
         return out
+
+    def topological_order(self) -> list[str]:
+        """Construct ids ordered so every construct appears after all of its
+        predecessors — used by PLSpredict to propagate out-of-sample
+        predictions through the structural model in the right order. Safe to
+        call unconditionally: `from_json` already rejects cyclic models."""
+        in_degree = {cid: len(self.predecessors(cid)) for cid in self.constructs}
+        queue = [cid for cid, d in in_degree.items() if d == 0]
+        order: list[str] = []
+        while queue:
+            cid = queue.pop(0)
+            order.append(cid)
+            for succ in self.successors(cid):
+                in_degree[succ] -= 1
+                if in_degree[succ] == 0:
+                    queue.append(succ)
+        return order

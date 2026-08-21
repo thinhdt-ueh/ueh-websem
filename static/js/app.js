@@ -64,6 +64,9 @@ function refreshUIForLanguage() {
   if (lastCbsemResult && !document.getElementById("cbsemResultsContent").classList.contains("hidden")) {
     renderCbsemResults(lastCbsemResult);
   }
+  if (window.__lastPlspredict && !document.getElementById("plspredictSection").classList.contains("hidden")) {
+    renderPlspredictResults(window.__lastPlspredict);
+  }
 }
 
 // ---------------- Step navigation ----------------
@@ -617,6 +620,59 @@ document.getElementById("exportExcelBtn").addEventListener("click", () => export
 document.getElementById("exportWordBtn").addEventListener("click", () => exportReport("word"));
 document.getElementById("sensitivityBtn").addEventListener("click", () => openSensitivityModal("pls"));
 document.getElementById("cbsemSensitivityBtn").addEventListener("click", () => openSensitivityModal("cbsem"));
+document.getElementById("plspredictBtn").addEventListener("click", runPlspredict);
+
+async function runPlspredict() {
+  if (!editor) return;
+  const btn = document.getElementById("plspredictBtn");
+  const original = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = t("s3_plspredict_running");
+  document.getElementById("resultsError").classList.add("hidden");
+  try {
+    const res = await fetch("/api/plspredict", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ file_id: state.fileId, model: editor.serialize(), lang: getLang() }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || t("sens_failed"));
+    window.__lastPlspredict = data;
+    renderPlspredictResults(data);
+    document.getElementById("plspredictSection").classList.remove("hidden");
+    document.getElementById("plspredictSection").scrollIntoView({ behavior: "smooth", block: "start" });
+  } catch (err) {
+    document.getElementById("resultsError").textContent = err.message;
+    document.getElementById("resultsError").classList.remove("hidden");
+  } finally {
+    btn.disabled = false;
+    btn.textContent = original;
+  }
+}
+
+function renderPlspredictResults(data) {
+  const verdictKey = {
+    high: "lbl_plspredict_high", medium: "lbl_plspredict_medium",
+    low: "lbl_plspredict_low", none: "lbl_plspredict_none",
+  }[data.verdict] || "lbl_plspredict_low";
+  document.getElementById("plspredictVerdict").innerHTML =
+    `<strong>${t("s3_plspredict_verdict_label")}: ${t(verdictKey)}</strong> — ` +
+    t("s3_plspredict_verdict_detail", { k: data.k, n: data.n_obs, wins: data.n_wins, total: data.n_total });
+
+  let html = `<thead><tr><th>${t("th_indicator")}</th><th>${t("th_construct")}</th>` +
+    `<th>${t("th_plspredict_pls_rmse")}</th><th>${t("th_plspredict_pls_mae")}</th>` +
+    `<th>${t("th_plspredict_lm_rmse")}</th><th>${t("th_plspredict_lm_mae")}</th><th>${t("th_plspredict_result")}</th></tr></thead><tbody>`;
+  for (const p of data.predictions) {
+    const badge = p.pls_wins
+      ? `<span class="badge ok">${t("lbl_plspredict_pls_wins")}</span>`
+      : `<span class="badge warn">${t("lbl_plspredict_lm_wins")}</span>`;
+    html += `<tr><td>${escapeHtml(p.indicator)}</td><td>${escapeHtml(p.construct_name)}</td>` +
+      `<td>${fmt(p.pls_rmse)}</td><td>${fmt(p.pls_mae)}</td>` +
+      `<td>${fmt(p.lm_rmse)}</td><td>${fmt(p.lm_mae)}</td><td>${badge}</td></tr>`;
+  }
+  html += "</tbody>";
+  document.getElementById("plspredictTable").innerHTML = html;
+}
 
 function openSensitivityModal(method) {
   const root = document.getElementById("modalRoot");
@@ -713,6 +769,8 @@ async function runAnalysis() {
   document.getElementById("resultsContent").classList.add("hidden");
   document.getElementById("cbsemResultsContent").classList.add("hidden");
   document.getElementById("resultsError").classList.add("hidden");
+  document.getElementById("plspredictSection").classList.add("hidden");
+  window.__lastPlspredict = null;
   document.getElementById("resultsLoading").classList.remove("hidden");
   document.getElementById("resultsLoading").textContent = bootstrapEnabled
     ? t("s3_loading_pls_boot", { n: nBoot })

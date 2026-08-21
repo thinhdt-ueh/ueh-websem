@@ -153,6 +153,7 @@
             <p class="hint" id="convergenceInfo"></p>
           </div>
           <div class="export-buttons">
+            <button class="btn" id="plspredictBtn" data-i18n="s3_plspredict_btn">🔮 PLSpredict</button>
             <button class="btn" id="sensitivityBtn" data-i18n="s3_sensitivity_btn">📉 Phân tích độ nhạy cỡ mẫu</button>
             <button class="btn" id="exportExcelBtn" data-i18n="s3_export_excel">📊 Xuất Excel</button>
             <button class="btn" id="exportWordBtn" data-i18n="s3_export_word">📄 Xuất Word</button>
@@ -212,6 +213,12 @@
         <h2 data-i18n="s3_bootstrap_dist_title">Phân phối Bootstrap theo Path Coefficient</h2>
         <p class="hint" id="bootstrapHistHint"></p>
         <div id="bootstrapHistGrid" class="bootstrap-hist-grid"></div>
+      </div>
+      <div class="panel-card hidden" id="plspredictSection">
+        <h2 data-i18n="s3_plspredict_title">PLSpredict — Đánh giá khả năng dự báo ngoài mẫu</h2>
+        <p class="hint" data-i18n="s3_plspredict_hint">So sánh sai số dự báo (k-fold cross-validation) của mô hình PLS với một hồi quy tuyến tính đơn giản (LM) trên cùng dữ liệu — nếu PLS không thắng được LM, mô hình có thể thiếu giá trị dự báo thực tế dù R² trong mẫu cao (Shmueli et al., 2016).</p>
+        <p id="plspredictVerdict" class="hint"></p>
+        <div class="table-scroll"><table id="plspredictTable"></table></div>
       </div>
       <div class="panel-card">
         <h2 data-i18n="src_transparency_title">Minh bạch tính toán (Computation Transparency)</h2>
