@@ -6,6 +6,46 @@
 
 const SERIES_COLORS = ["#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#e87ba4", "#008300", "#4a3aa7", "#e34948"];
 const SERIES_OTHER_COLOR = "#a9a8a2";
+// Each series is identified by color AND a distinct {dash pattern, marker
+// shape} pair, so a black-and-white printout (or a colorblind reader) can
+// still tell every line apart — color is never the only channel carrying
+// identity here.
+const DASH_PATTERNS = [[], [7, 4], [1, 3], [9, 3, 2, 3], [4, 2], [10, 3, 1, 3, 1, 3], [2, 2], [12, 3]];
+const MARKER_SHAPES = ["circle", "square", "triangle", "diamond", "circle", "square", "triangle", "diamond"];
+const SHAPE_GLYPH = { circle: "●", square: "■", triangle: "▲", diamond: "◆" };
+
+function legendSwatchSvg(s) {
+  const dashAttr = s.dash && s.dash.length ? ` stroke-dasharray="${s.dash.join(",")}"` : "";
+  const glyph = SHAPE_GLYPH[s.shape] || "●";
+  return (
+    `<svg class="leg-swatch" width="22" height="12" viewBox="0 0 22 12" aria-hidden="true">` +
+    `<line x1="0" y1="6" x2="22" y2="6" stroke="${s.color}" stroke-width="2.4"${dashAttr}/>` +
+    `</svg>` +
+    `<span class="leg-glyph" style="color:${s.color}">${glyph}</span>`
+  );
+}
+
+function drawMarker(ctx, shape, x, y, size, fillColor) {
+  ctx.fillStyle = fillColor;
+  ctx.beginPath();
+  if (shape === "square") {
+    ctx.rect(x - size, y - size, size * 2, size * 2);
+  } else if (shape === "triangle") {
+    ctx.moveTo(x, y - size * 1.15);
+    ctx.lineTo(x + size * 1.05, y + size * 0.85);
+    ctx.lineTo(x - size * 1.05, y + size * 0.85);
+    ctx.closePath();
+  } else if (shape === "diamond") {
+    ctx.moveTo(x, y - size * 1.15);
+    ctx.lineTo(x + size * 1.15, y);
+    ctx.lineTo(x, y + size * 1.15);
+    ctx.lineTo(x - size * 1.15, y);
+    ctx.closePath();
+  } else {
+    ctx.arc(x, y, size, 0, Math.PI * 2);
+  }
+  ctx.fill();
+}
 
 applyStaticTranslations();
 document.querySelectorAll(".lang-btn").forEach((b) => b.classList.toggle("active", b.dataset.lang === getLang()));
@@ -89,6 +129,8 @@ function renderAll(data) {
     id: c.id,
     label: c.name,
     color: SERIES_COLORS[i] || SERIES_OTHER_COLOR,
+    dash: DASH_PATTERNS[i % DASH_PATTERNS.length],
+    shape: MARKER_SHAPES[i % MARKER_SHAPES.length],
     points: points.map((p) => ({ x: p.n, y: p.r_squared ? p.r_squared[c.id] : null, converged: p.converged })),
   }));
   drawLineChart("r2Chart", "r2Tooltip", "r2Legend", r2Series, {
@@ -100,6 +142,8 @@ function renderAll(data) {
     id: p.id,
     label: pathIdToLabel[p.id],
     color: SERIES_COLORS[i] || SERIES_OTHER_COLOR,
+    dash: DASH_PATTERNS[i % DASH_PATTERNS.length],
+    shape: MARKER_SHAPES[i % MARKER_SHAPES.length],
     points: points.map((row) => ({ x: row.n, y: row.paths ? row.paths[p.id] : null, converged: row.converged })),
   }));
   drawLineChart("pathChart", "pathTooltip", "pathLegend", pathSeries, {
@@ -163,10 +207,9 @@ function drawLineChart(canvasId, tooltipId, legendId, series, opts) {
   const maxTicks = Math.max(4, Math.floor(plotW / 60));
   const tickEvery = Math.max(1, Math.ceil(xVals.length / maxTicks));
 
-  // legend (always present for >=2 series)
-  legendEl.innerHTML = series
-    .map((s) => `<div class="leg-item"><span class="leg-swatch" style="background:${s.color}"></span>${escapeHtml(s.label)}</div>`)
-    .join("");
+  // legend (always present for >=2 series) — color + dash pattern + marker
+  // shape together, so identity never rests on color alone (print/CVD safe)
+  legendEl.innerHTML = series.map((s) => `<div class="leg-item">${legendSwatchSvg(s)}${escapeHtml(s.label)}</div>`).join("");
 
   // crosshair + tooltip
   canvas.onmousemove = (e) => {
@@ -189,7 +232,8 @@ function drawLineChart(canvasId, tooltipId, legendId, series, opts) {
       .map((s) => {
         const p = s.points.find((pp) => pp.x === nearest);
         if (!p || p.y === null || p.y === undefined) return "";
-        return `<div class="tt-row"><span class="tt-dot" style="background:${s.color}"></span>${escapeHtml(s.label)}: <strong>${fmt(p.y)}</strong>${p.converged ? "" : ` (${t("sens_not_converged_short")})`}</div>`;
+        const glyph = SHAPE_GLYPH[s.shape] || "●";
+        return `<div class="tt-row"><span class="tt-dot" style="color:${s.color}">${glyph}</span>${escapeHtml(s.label)}: <strong>${fmt(p.y)}</strong>${p.converged ? "" : ` (${t("sens_not_converged_short")})`}</div>`;
       })
       .join("");
     tooltip.innerHTML = `<div class="tt-title">${opts.xLabel} = ${nearest}</div>${rows}`;
@@ -247,10 +291,13 @@ function drawLineChart(canvasId, tooltipId, legendId, series, opts) {
     for (const s of series) {
       const pts = s.points.filter((p) => p.y !== null && p.y !== undefined);
       if (pts.length === 0) continue;
+      // color + dash pattern + marker shape together identify a series, so
+      // it still reads correctly with no color at all (print / CVD).
       ctx.strokeStyle = s.color;
       ctx.lineWidth = 2;
       ctx.lineJoin = "round";
       ctx.lineCap = "round";
+      ctx.setLineDash(s.dash || []);
       ctx.beginPath();
       pts.forEach((p, i) => {
         const px = xOf(p.x), py = yOf(p.y);
@@ -258,13 +305,13 @@ function drawLineChart(canvasId, tooltipId, legendId, series, opts) {
         else ctx.lineTo(px, py);
       });
       ctx.stroke();
+      ctx.setLineDash([]);
+
       for (const p of pts) {
         const px = xOf(p.x), py = yOf(p.y);
         const isNear = nearestX !== null && p.x === nearestX;
-        ctx.beginPath();
-        ctx.arc(px, py, isNear ? 5 : (p.converged ? 3 : 4.5), 0, Math.PI * 2);
-        ctx.fillStyle = s.color;
-        ctx.fill();
+        const size = isNear ? 5.5 : (p.converged ? 3.5 : 5);
+        drawMarker(ctx, s.shape, px, py, size, s.color);
         if (!p.converged) {
           ctx.strokeStyle = "#d03b3b";
           ctx.lineWidth = 2;

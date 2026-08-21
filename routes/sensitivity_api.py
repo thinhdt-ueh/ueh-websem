@@ -8,7 +8,7 @@ way to eyeball a minimum viable sample size for a given model, complementing
 At step i (i = 1, 2, 3, ...), n_current = n_total - step*i observations are
 drawn at random (no replacement) from the full cleaned dataset and the model
 is re-estimated from scratch on just that subsample. This continues until
-n_current would drop below the larger of ~50 or what the model actually needs
+n_current would drop below the larger of ~20 or what the model actually needs
 to run at all (indicator count + 5, same floor `run_pls_algorithm` enforces).
 """
 
@@ -31,7 +31,7 @@ from .api import _read_dataframe, _upload_dir
 
 sensitivity_api = Blueprint("sensitivity_api", __name__, url_prefix="/api")
 
-MIN_OBSERVATIONS_FLOOR = 50
+MIN_OBSERVATIONS_FLOOR = 20
 MAX_STEPS = 150
 
 
