@@ -790,13 +790,95 @@ function renderResults(data) {
   renderLoadingsTable(data);
   renderCrossLoadingsTable(data, idToName);
   renderMatrixTable("flTable", data.discriminant_validity.fornell_larcker, idToName);
-  renderMatrixTable("htmtTable", data.discriminant_validity.htmt, idToName);
+  renderHtmtHeatmap("htmtTable", "htmtLegend", data.discriminant_validity.htmt, idToName);
   renderPathTable(data);
   renderTotalEffectsTable(data, "totalEffectsTable");
   renderR2Table(data, idToName);
   renderVifTable(data, idToName);
   renderCmbTable(data.common_method_bias, idToName, "cmbHint", "cmbTable");
+  renderBootstrapHistograms(data);
   renderSourceTransparency("sourceTransparency", data.source_transparency);
+}
+
+function renderBootstrapHistograms(data) {
+  const section = document.getElementById("bootstrapHistSection");
+  const grid = document.getElementById("bootstrapHistGrid");
+  const pathsWithHist = (data.structural.paths || []).filter((p) => p.histogram);
+  if (!data.bootstrap || pathsWithHist.length === 0) {
+    section.classList.add("hidden");
+    grid.innerHTML = "";
+    return;
+  }
+  section.classList.remove("hidden");
+  document.getElementById("bootstrapHistHint").textContent = t("s3_bootstrap_dist_hint", { n: data.bootstrap.valid });
+  grid.innerHTML = pathsWithHist
+    .map((p, i) => `
+      <div class="bootstrap-hist-card">
+        <h4>${pathLabel(p)}</h4>
+        <canvas id="bootstrapHistCanvas${i}"></canvas>
+        <div class="hist-stats">${t("lbl_bootstrap_hist_stats", { orig: fmt(p.coefficient), lo: fmt(p.ci_lower), hi: fmt(p.ci_upper) })}</div>
+      </div>
+    `)
+    .join("");
+  pathsWithHist.forEach((p, i) => drawHistogram(document.getElementById(`bootstrapHistCanvas${i}`), p));
+}
+
+function drawHistogram(canvas, p) {
+  const h = p.histogram;
+  const cssWidth = canvas.getBoundingClientRect().width || 260;
+  const cssHeight = 110;
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width = cssWidth * dpr;
+  canvas.height = cssHeight * dpr;
+  const ctx = canvas.getContext("2d");
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, cssWidth, cssHeight);
+
+  const edges = h.edges, counts = h.counts;
+  const xMin = edges[0], xMax = edges[edges.length - 1];
+  const maxCount = Math.max(...counts, 1);
+  const PAD_L = 4, PAD_R = 4, PAD_T = 6, PAD_B = 16;
+  const plotW = cssWidth - PAD_L - PAD_R;
+  const plotH = cssHeight - PAD_T - PAD_B;
+  const xOf = (x) => PAD_L + ((x - xMin) / (xMax - xMin || 1)) * plotW;
+  const barW = plotW / counts.length;
+
+  ctx.fillStyle = "#c7d3f7";
+  counts.forEach((c, i) => {
+    const barH = (c / maxCount) * plotH;
+    ctx.fillRect(PAD_L + i * barW + 0.5, PAD_T + plotH - barH, Math.max(1, barW - 1), barH);
+  });
+
+  ctx.strokeStyle = "#c3c2b7";
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(PAD_L, PAD_T + plotH + 0.5);
+  ctx.lineTo(PAD_L + plotW, PAD_T + plotH + 0.5);
+  ctx.stroke();
+
+  const drawVLine = (xVal, color, dash) => {
+    if (xVal === null || xVal === undefined || xVal < xMin || xVal > xMax) return;
+    const x = xOf(xVal);
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash(dash);
+    ctx.beginPath();
+    ctx.moveTo(x, PAD_T);
+    ctx.lineTo(x, PAD_T + plotH);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  };
+  drawVLine(p.ci_lower, "#d64545", [3, 2]);
+  drawVLine(p.ci_upper, "#d64545", [3, 2]);
+  drawVLine(p.coefficient, "#3457d5", []);
+
+  ctx.fillStyle = "#898781";
+  ctx.font = "10px -apple-system, sans-serif";
+  ctx.textAlign = "left";
+  ctx.textBaseline = "top";
+  ctx.fillText(xMin.toFixed(2), PAD_L, PAD_T + plotH + 3);
+  ctx.textAlign = "right";
+  ctx.fillText(xMax.toFixed(2), PAD_L + plotW, PAD_T + plotH + 3);
 }
 
 function renderSourceTransparency(containerId, sections) {
@@ -914,6 +996,37 @@ function renderMatrixTable(elId, matrix, idToName) {
   }
   html += "</tbody>";
   document.getElementById(elId).innerHTML = html;
+}
+
+const HTMT_WARN_THRESHOLD = 0.85;
+const HTMT_CRITICAL_THRESHOLD = 0.90;
+
+function renderHtmtHeatmap(elId, legendId, matrix, idToName) {
+  const ids = Object.keys(matrix);
+  let html = "<thead><tr><th></th>" + ids.map((id) => `<th>${escapeHtml(idToName[id] || id)}</th>`).join("") + "</tr></thead><tbody>";
+  for (const rowId of ids) {
+    html += `<tr><td>${escapeHtml(idToName[rowId] || rowId)}</td>`;
+    for (const colId of ids) {
+      const v = matrix[colId][rowId];
+      let cls = "htmt-good";
+      if (rowId === colId) cls = "htmt-diag";
+      else if (v !== null && v !== undefined) {
+        if (v >= HTMT_CRITICAL_THRESHOLD) cls = "htmt-critical";
+        else if (v >= HTMT_WARN_THRESHOLD) cls = "htmt-warn";
+      }
+      html += `<td class="htmt-cell ${cls}">${fmt(v)}</td>`;
+    }
+    html += "</tr>";
+  }
+  html += "</tbody>";
+  document.getElementById(elId).innerHTML = html;
+  if (legendId) {
+    document.getElementById(legendId).innerHTML = `
+      <span><span class="leg-swatch" style="background:#e3f6e9"></span>${t("lbl_htmt_good", { v: HTMT_WARN_THRESHOLD })}</span>
+      <span><span class="leg-swatch" style="background:#fdf3e0"></span>${t("lbl_htmt_warn", { a: HTMT_WARN_THRESHOLD, b: HTMT_CRITICAL_THRESHOLD })}</span>
+      <span><span class="leg-swatch" style="background:#fdeceb"></span>${t("lbl_htmt_critical", { v: HTMT_CRITICAL_THRESHOLD })}</span>
+    `;
+  }
 }
 
 function pathLabel(p) {
@@ -1115,7 +1228,7 @@ function renderCbsemResults(data) {
   renderCbsemReliabilityTable(data);
   renderCbsemLoadingsTable(data, idToName);
   renderMatrixTable("cbsemFlTable", data.discriminant_validity.fornell_larcker, idToName);
-  renderMatrixTable("cbsemHtmtTable", data.discriminant_validity.htmt, idToName);
+  renderHtmtHeatmap("cbsemHtmtTable", "cbsemHtmtLegend", data.discriminant_validity.htmt, idToName);
   renderCbsemPathTable(data);
   renderTotalEffectsTable(data, "cbsemTotalEffectsTable");
   renderCbsemR2Table(data, idToName);

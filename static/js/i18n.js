@@ -154,6 +154,9 @@ const I18N = {
     s3_vif_title: "Đa cộng tuyến (VIF)",
     s3_cmb_title: "Common Method Bias — Full Collinearity Test",
     s3_cmb_hint: "Mỗi construct hồi quy trên TẤT CẢ construct còn lại (không chỉ predictor trực tiếp) — kỹ thuật WarpPLS (Kock, 2015). Mọi VIF ≤ {threshold} nghĩa là mô hình không có dấu hiệu CMB.",
+    s3_bootstrap_dist_title: "Phân phối Bootstrap theo Path Coefficient",
+    s3_bootstrap_dist_hint: "Phân phối của {n} mẫu bootstrap hợp lệ cho từng hệ số đường dẫn. Vạch xanh liền = giá trị ước lượng gốc; vạch đỏ đứt = khoảng tin cậy 95%.",
+    lbl_bootstrap_hist_stats: "Gốc: {orig} · KTC 95%: [{lo}, {hi}]",
 
     // --- step 3: CB-SEM result cards ---
     cbsem_fit_title: "Model Fit",
@@ -222,6 +225,9 @@ const I18N = {
     lbl_f2_medium: "Trung bình",
     lbl_f2_large: "Lớn",
     lbl_moderation_badge: "Điều tiết",
+    lbl_htmt_good: "< {v} — đạt giá trị phân biệt",
+    lbl_htmt_warn: "{a}–{b} — ranh giới, cần xem xét",
+    lbl_htmt_critical: "≥ {v} — có thể vi phạm giá trị phân biệt",
 
     // --- computation transparency section ---
     src_transparency_title: "Minh bạch tính toán (Computation Transparency)",
@@ -407,6 +413,9 @@ const I18N = {
     s3_vif_title: "Collinearity (VIF)",
     s3_cmb_title: "Common Method Bias — Full Collinearity Test",
     s3_cmb_hint: "Each construct is regressed on ALL other constructs (not just direct predictors) — the WarpPLS technique (Kock, 2015). Every VIF <= {threshold} means the model shows no sign of CMB.",
+    s3_bootstrap_dist_title: "Bootstrap Distributions by Path Coefficient",
+    s3_bootstrap_dist_hint: "Distribution of {n} valid bootstrap samples for each path coefficient. Solid blue line = original estimate; dashed red lines = 95% confidence interval.",
+    lbl_bootstrap_hist_stats: "Original: {orig} · 95% CI: [{lo}, {hi}]",
 
     cbsem_fit_title: "Model Fit",
     cbsem_reliability_title: "Reliability & Convergent Validity",
@@ -471,6 +480,9 @@ const I18N = {
     lbl_f2_medium: "Medium",
     lbl_f2_large: "Large",
     lbl_moderation_badge: "Moderation",
+    lbl_htmt_good: "< {v} — discriminant validity holds",
+    lbl_htmt_warn: "{a}–{b} — borderline, worth a closer look",
+    lbl_htmt_critical: "≥ {v} — may violate discriminant validity",
 
     // --- computation transparency section ---
     src_transparency_title: "Computation Transparency",

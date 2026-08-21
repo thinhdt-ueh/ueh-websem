@@ -42,14 +42,20 @@ class BootstrapResult:
     weight_stats: list[dict] = field(default_factory=list)
 
 
-def _summarize(values: list[float], original_value: float) -> dict:
+HISTOGRAM_BINS = 22
+
+
+def _summarize(values: list[float], original_value: float, include_histogram: bool = False) -> dict:
     arr = np.asarray(values, dtype=float)
     n = arr.size
     if n < 2:
-        return {
+        out = {
             "original": original_value, "mean": None, "std": None,
             "t_stat": None, "p_value": None, "ci_lower": None, "ci_upper": None,
         }
+        if include_histogram:
+            out["histogram"] = None
+        return out
     mean = float(arr.mean())
     std = float(arr.std(ddof=1))
     if std > 0:
@@ -58,10 +64,18 @@ def _summarize(values: list[float], original_value: float) -> dict:
     else:
         t_stat, p_value = None, None
     ci_lower, ci_upper = (float(v) for v in np.percentile(arr, [2.5, 97.5]))
-    return {
+    out = {
         "original": original_value, "mean": mean, "std": std,
         "t_stat": t_stat, "p_value": p_value, "ci_lower": ci_lower, "ci_upper": ci_upper,
     }
+    if include_histogram:
+        # Sent to the frontend to draw a small bootstrap-distribution chart
+        # per path — binned server-side (rather than shipping all `n` raw
+        # resample values) to keep the /api/analyze payload small regardless
+        # of how many thousand bootstrap samples were requested.
+        counts, edges = np.histogram(arr, bins=HISTOGRAM_BINS)
+        out["histogram"] = {"edges": [float(e) for e in edges], "counts": [int(c) for c in counts]}
+    return out
 
 
 def run_bootstrap(
@@ -133,7 +147,7 @@ def run_bootstrap(
     path_stats = []
     for (src, tgt), bucket in path_values.items():
         orig = float(original.path_coefficients.loc[src, tgt])
-        row = _summarize(bucket, orig)
+        row = _summarize(bucket, orig, include_histogram=True)
         row.update(source=src, target=tgt)
         path_stats.append(row)
 
@@ -263,7 +277,7 @@ def run_bootstrap_with_moderation(
     path_stats = []
     for (src, tgt), bucket in path_values.items():
         orig = float(original.path_coefficients.loc[src, tgt])
-        row = _summarize(bucket, orig)
+        row = _summarize(bucket, orig, include_histogram=True)
         row.update(source=src, target=tgt)
         path_stats.append(row)
 

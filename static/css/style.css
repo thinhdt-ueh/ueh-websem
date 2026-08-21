@@ -266,3 +266,22 @@ canvas { width: 100%; border: 1px solid var(--border); border-radius: 10px; back
   color: #e6e9f5;
   white-space: pre;
 }
+
+/* HTMT heatmap: color follows the value against fixed discriminant-validity
+ * thresholds (Henseler et al. 2015: <.85 good, .85-.90 borderline, >=.90
+ * poor) — status colors, not a series hue, so they stay off the app's main
+ * blue palette. */
+.htmt-cell { text-align: center; }
+.htmt-good { background: #e3f6e9; }
+.htmt-warn { background: #fdf3e0; }
+.htmt-critical { background: #fdeceb; }
+.htmt-diag { background: #f4f6fb; color: var(--muted); }
+.heatmap-legend { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 10px; font-size: 12.5px; color: var(--muted); }
+.heatmap-legend .leg-swatch { display: inline-block; width: 12px; height: 12px; border-radius: 3px; margin-right: 5px; vertical-align: middle; }
+
+/* Bootstrap distribution small multiples */
+.bootstrap-hist-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; margin-top: 6px; }
+.bootstrap-hist-card { border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; }
+.bootstrap-hist-card h4 { margin: 0 0 6px; font-size: 13px; color: var(--text); }
+.bootstrap-hist-card canvas { width: 100%; height: 110px; display: block; }
+.bootstrap-hist-card .hist-stats { margin-top: 6px; font-size: 11.5px; color: var(--muted); }

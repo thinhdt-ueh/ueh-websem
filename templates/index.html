@@ -183,6 +183,7 @@
         <div class="panel-card">
           <h2 data-i18n="s3_htmt_title">Giá trị phân biệt — HTMT</h2>
           <div class="table-scroll"><table id="htmtTable"></table></div>
+          <div class="heatmap-legend" id="htmtLegend"></div>
         </div>
         <div class="panel-card">
           <h2 data-i18n="s3_path_title">Mô hình cấu trúc — Path Coefficients &amp; f²</h2>
@@ -206,6 +207,11 @@
           <p class="hint" id="cmbHint"></p>
           <div class="table-scroll"><table id="cmbTable"></table></div>
         </div>
+      </div>
+      <div class="panel-card hidden" id="bootstrapHistSection">
+        <h2 data-i18n="s3_bootstrap_dist_title">Phân phối Bootstrap theo Path Coefficient</h2>
+        <p class="hint" id="bootstrapHistHint"></p>
+        <div id="bootstrapHistGrid" class="bootstrap-hist-grid"></div>
       </div>
       <div class="panel-card">
         <h2 data-i18n="src_transparency_title">Minh bạch tính toán (Computation Transparency)</h2>
@@ -254,6 +260,7 @@
         <div class="panel-card">
           <h2 data-i18n="s3_htmt_title">Giá trị phân biệt — HTMT</h2>
           <div class="table-scroll"><table id="cbsemHtmtTable"></table></div>
+          <div class="heatmap-legend" id="cbsemHtmtLegend"></div>
         </div>
         <div class="panel-card">
           <h2 data-i18n="cbsem_path_title">Mô hình cấu trúc — Path Coefficients</h2>

@@ -256,6 +256,7 @@ def analyze():
                 ci_lower=_round_or_none(boot_row["ci_lower"]),
                 ci_upper=_round_or_none(boot_row["ci_upper"]),
                 significant=(boot_row["p_value"] is not None and boot_row["p_value"] < 0.05),
+                histogram=boot_row.get("histogram"),
             )
         path_list.append(entry)
 
