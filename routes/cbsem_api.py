@@ -13,6 +13,7 @@ from i18n import get_lang, t
 from pls.effects import total_effects
 from pls.metrics import CMB_VIF_THRESHOLD
 from pls.model import Model, ModelError
+from pls.source_transparency import cbsem_sections
 
 from .api import _clean, _read_dataframe, _round_or_none, _upload_dir, df_to_nested_dict, series_to_dict
 
@@ -134,6 +135,7 @@ def analyze_cbsem():
             "vif": series_to_dict(metrics["full_collinearity_vif"]),
             "threshold": CMB_VIF_THRESHOLD,
         },
+        "source_transparency": [{"key": s.key, "code": s.code} for s in cbsem_sections(model)],
     }
     return jsonify(response)
 

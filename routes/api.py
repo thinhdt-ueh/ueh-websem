@@ -21,6 +21,7 @@ from pls.metrics import CMB_VIF_THRESHOLD, compute_all_metrics
 from pls.model import Model, ModelError
 from pls.moderation import run_pls_with_moderation
 from pls.report import build_excel_report, build_word_report
+from pls.source_transparency import pls_sections
 
 api = Blueprint("api", __name__, url_prefix="/api")
 
@@ -320,6 +321,14 @@ def analyze():
             "vif": series_to_dict(metrics["full_collinearity_vif"]),
             "threshold": CMB_VIF_THRESHOLD,
         },
+        "source_transparency": [
+            {"key": s.key, "code": s.code}
+            for s in pls_sections(
+                model,
+                bootstrap_enabled=bool(bootstrap_payload.get("enabled")),
+                blindfolding_ran=not model.has_interactions(),
+            )
+        ],
     }
     return jsonify(response)
 

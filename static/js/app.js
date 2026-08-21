@@ -757,6 +757,19 @@ function renderResults(data) {
   renderR2Table(data, idToName);
   renderVifTable(data, idToName);
   renderCmbTable(data.common_method_bias, idToName, "cmbHint", "cmbTable");
+  renderSourceTransparency("sourceTransparency", data.source_transparency);
+}
+
+function renderSourceTransparency(containerId, sections) {
+  const container = document.getElementById(containerId);
+  container.innerHTML = (sections || [])
+    .map((s, i) => `
+      <details${i === 0 ? " open" : ""}>
+        <summary>${escapeHtml(t(s.key))}</summary>
+        <pre><code>${escapeHtml(s.code)}</code></pre>
+      </details>
+    `)
+    .join("");
 }
 
 function measurementValuesByIndicator(data) {
@@ -1068,6 +1081,7 @@ function renderCbsemResults(data) {
   renderTotalEffectsTable(data, "cbsemTotalEffectsTable");
   renderCbsemR2Table(data, idToName);
   renderCmbTable(data.common_method_bias, idToName, "cbsemCmbHint", "cbsemCmbTable");
+  renderSourceTransparency("cbsemSourceTransparency", data.source_transparency);
 }
 
 function renderCbsemFitTable(data) {
