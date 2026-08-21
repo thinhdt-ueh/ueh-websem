@@ -111,6 +111,18 @@ python app.py
 
 Mở trình duyệt tại `http://127.0.0.1:5000`.
 
+## Chạy test
+
+```bash
+pip install -r requirements-dev.txt
+pytest
+```
+
+Bộ test (`tests/`) bao phủ thuật toán PLS-SEM/CB-SEM cốt lõi, moderation (cả 3
+calc method), bootstrap, các chỉ số đo lường, PLSpredict, IPMA, và các route
+API chính (upload/analyze/export) — chạy tự động qua GitHub Actions
+(`.github/workflows/tests.yml`) trên mỗi lần push/PR vào `main`.
+
 ## Triển khai lên internet (Render.com)
 
 Repo đã có sẵn `Procfile` + `render.yaml` (chạy bằng `gunicorn`, tắt debug
