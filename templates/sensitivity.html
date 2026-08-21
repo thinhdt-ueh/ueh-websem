@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>UEH-WebSEM — Sample Size Sensitivity</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/sensitivity.css') }}">
+</head>
+<body>
+<header class="topbar">
+  <img class="brand-logo" src="{{ url_for('static', filename='img/logo-ueh.png') }}" alt="UEH">
+  <div class="brand"><span>WebSEM</span></div>
+  <div class="hint" style="margin:0" data-i18n="sens_page_title">Phân tích độ nhạy theo cỡ mẫu</div>
+  <div class="lang-switch" id="langSwitch">
+    <button class="lang-btn" data-lang="vi">VI</button>
+    <button class="lang-btn active" data-lang="en">EN</button>
+  </div>
+  <button class="btn ghost" id="closeTabBtn" data-i18n="sens_close_tab">✕ Đóng tab này</button>
+</header>
+
+<main class="sens-main">
+  <div id="sensLoading" class="panel-card sens-status">
+    <p data-i18n="sens_loading">Đang chạy lại mô hình với các cỡ mẫu khác nhau…</p>
+  </div>
+  <div id="sensError" class="panel-card sens-status hidden"></div>
+
+  <div id="sensContent" class="hidden">
+    <div class="panel-card">
+      <h2 data-i18n="sens_summary_title">Tổng quan</h2>
+      <p class="hint" id="sensSummary"></p>
+    </div>
+
+    <div class="panel-card">
+      <h2 data-i18n="sens_r2_chart_title">R² theo cỡ mẫu (biến nội sinh)</h2>
+      <p class="hint" data-i18n="sens_chart_hint">Di chuột vào biểu đồ để xem giá trị chính xác tại từng cỡ mẫu. Điểm viền đỏ = mô hình không hội tụ ở cỡ mẫu đó.</p>
+      <div class="chart-wrap">
+        <canvas id="r2Chart"></canvas>
+        <div id="r2Tooltip" class="chart-tooltip hidden"></div>
+      </div>
+      <div id="r2Legend" class="chart-legend"></div>
+    </div>
+
+    <div class="panel-card">
+      <h2 data-i18n="sens_path_chart_title">Hệ số đường dẫn (Path Coefficients) theo cỡ mẫu</h2>
+      <p class="hint" data-i18n="sens_chart_hint">Di chuột vào biểu đồ để xem giá trị chính xác tại từng cỡ mẫu. Điểm viền đỏ = mô hình không hội tụ ở cỡ mẫu đó.</p>
+      <div class="chart-wrap">
+        <canvas id="pathChart"></canvas>
+        <div id="pathTooltip" class="chart-tooltip hidden"></div>
+      </div>
+      <div id="pathLegend" class="chart-legend"></div>
+    </div>
+
+    <div class="panel-card">
+      <h2 data-i18n="sens_table_title">Bảng số liệu chi tiết</h2>
+      <div class="table-scroll"><table id="sensTable"></table></div>
+    </div>
+  </div>
+</main>
+
+{% include "footer.html" %}
+
+<script src="{{ url_for('static', filename='js/i18n.js') }}"></script>
+<script src="{{ url_for('static', filename='js/sensitivity.js') }}"></script>
+</body>
+</html>

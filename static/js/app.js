@@ -615,6 +615,45 @@ async function exportCbsemReport(kind) {
 
 document.getElementById("exportExcelBtn").addEventListener("click", () => exportReport("excel"));
 document.getElementById("exportWordBtn").addEventListener("click", () => exportReport("word"));
+document.getElementById("sensitivityBtn").addEventListener("click", () => openSensitivityModal("pls"));
+document.getElementById("cbsemSensitivityBtn").addEventListener("click", () => openSensitivityModal("cbsem"));
+
+function openSensitivityModal(method) {
+  const root = document.getElementById("modalRoot");
+  const nRows = state.nRows || 0;
+  const suggestedStep = Math.max(1, Math.round(nRows * 0.05));
+  root.innerHTML = `
+    <div class="modal-backdrop">
+      <div class="modal-box">
+        <h3>${t("sens_modal_title")}</h3>
+        <p class="hint">${t("sens_modal_hint", { n: nRows })}</p>
+        <label>${t("sens_modal_step_label")}</label>
+        <input type="number" id="sensStep" min="1" step="1" value="${suggestedStep}">
+        <div id="sensModalError" class="error-box hidden"></div>
+        <div class="modal-actions">
+          <button class="btn" id="sensModalCancel">${t("modal_cancel")}</button>
+          <button class="btn primary" id="sensModalOk">${t("sens_modal_run")}</button>
+        </div>
+      </div>
+    </div>`;
+  document.getElementById("sensModalCancel").onclick = () => (root.innerHTML = "");
+  document.getElementById("sensModalOk").onclick = () => {
+    const step = parseInt(document.getElementById("sensStep").value, 10);
+    if (!Number.isInteger(step) || step < 1) {
+      const errBox = document.getElementById("sensModalError");
+      errBox.textContent = t("sens_modal_invalid_step");
+      errBox.classList.remove("hidden");
+      return;
+    }
+    const modelPayload = editor.serialize();
+    sessionStorage.setItem("websem_sensitivity_job", JSON.stringify({
+      file_id: state.fileId, model: modelPayload, method, step, lang: getLang(),
+    }));
+    root.innerHTML = "";
+    window.open("/sensitivity", "_blank");
+  };
+  document.getElementById("sensStep").focus();
+}
 
 async function exportReport(kind) {
   if (!lastAnalysisResult) return;
