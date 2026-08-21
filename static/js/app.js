@@ -67,6 +67,9 @@ function refreshUIForLanguage() {
   if (window.__lastPlspredict && !document.getElementById("plspredictSection").classList.contains("hidden")) {
     renderPlspredictResults(window.__lastPlspredict);
   }
+  if (window.__lastIpma && !document.getElementById("ipmaSection").classList.contains("hidden")) {
+    renderIpma(window.__lastIpma);
+  }
 }
 
 // ---------------- Step navigation ----------------
@@ -621,6 +624,190 @@ document.getElementById("exportWordBtn").addEventListener("click", () => exportR
 document.getElementById("sensitivityBtn").addEventListener("click", () => openSensitivityModal("pls"));
 document.getElementById("cbsemSensitivityBtn").addEventListener("click", () => openSensitivityModal("cbsem"));
 document.getElementById("plspredictBtn").addEventListener("click", runPlspredict);
+document.getElementById("ipmaBtn").addEventListener("click", openIpmaModal);
+
+function openIpmaModal() {
+  if (!editor) return;
+  const endogenous = editor.constructs.filter((c) => c.mode !== "I" && editor.paths.some((p) => p.target === c.id));
+  const root = document.getElementById("modalRoot");
+  root.innerHTML = `
+    <div class="modal-backdrop">
+      <div class="modal-box">
+        <h3>${t("s3_ipma_btn")}</h3>
+        <label>${t("s3_ipma_target_label")}</label>
+        <select id="ipmaTargetSelect">
+          ${endogenous.map((c) => `<option value="${escapeAttr(c.id)}">${escapeHtml(c.name)}</option>`).join("")}
+        </select>
+        <div class="modal-actions">
+          <button class="btn" id="ipmaModalCancel">${t("modal_cancel")}</button>
+          <button class="btn primary" id="ipmaModalOk">${t("sens_modal_run")}</button>
+        </div>
+      </div>
+    </div>`;
+  document.getElementById("ipmaModalCancel").onclick = () => (root.innerHTML = "");
+  document.getElementById("ipmaModalOk").onclick = () => {
+    const target = document.getElementById("ipmaTargetSelect").value;
+    root.innerHTML = "";
+    runIpma(target);
+  };
+}
+
+async function runIpma(target) {
+  const btn = document.getElementById("ipmaBtn");
+  const original = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = t("s3_plspredict_running");
+  document.getElementById("resultsError").classList.add("hidden");
+  try {
+    const res = await fetch("/api/ipma", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ file_id: state.fileId, model: editor.serialize(), lang: getLang(), target }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || t("sens_failed"));
+    window.__lastIpma = data;
+    document.getElementById("ipmaSection").classList.remove("hidden");
+    renderIpma(data);
+    document.getElementById("ipmaSection").scrollIntoView({ behavior: "smooth", block: "start" });
+  } catch (err) {
+    document.getElementById("resultsError").textContent = err.message;
+    document.getElementById("resultsError").classList.remove("hidden");
+  } finally {
+    btn.disabled = false;
+    btn.textContent = original;
+  }
+}
+
+function renderIpma(data) {
+  document.getElementById("ipmaTitle").textContent = t("s3_ipma_title", { target: data.target_name });
+
+  let html = `<thead><tr><th>${t("th_construct")}</th><th>${t("th_ipma_importance")}</th><th>${t("th_ipma_performance")}</th></tr></thead><tbody>`;
+  for (const r of data.rows) {
+    html += `<tr><td>${escapeHtml(r.construct_name)}</td><td>${fmt(r.importance)}</td><td>${fmt(r.performance, 1)}</td></tr>`;
+  }
+  html += "</tbody>";
+  document.getElementById("ipmaTable").innerHTML = html;
+
+  drawIpmaScatter(data.rows);
+}
+
+function drawIpmaScatter(rows) {
+  const canvas = document.getElementById("ipmaChart");
+  const tooltip = document.getElementById("ipmaTooltip");
+  const cssWidth = canvas.parentElement.clientWidth;
+  const cssHeight = Math.max(320, Math.min(460, cssWidth * 0.5));
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width = cssWidth * dpr;
+  canvas.height = cssHeight * dpr;
+  canvas.style.height = cssHeight + "px";
+  const ctx = canvas.getContext("2d");
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+  const importances = rows.map((r) => r.importance);
+  const iMin = Math.min(0, ...importances);
+  const iMax = Math.max(...importances) * 1.15 || 1;
+  const meanImportance = importances.reduce((a, b) => a + b, 0) / importances.length;
+  const meanPerformance = rows.reduce((a, r) => a + r.performance, 0) / rows.length;
+
+  const PAD_L = 46, PAD_R = 20, PAD_T = 16, PAD_B = 36;
+  const plotW = cssWidth - PAD_L - PAD_R;
+  const plotH = cssHeight - PAD_T - PAD_B;
+  const xOf = (x) => PAD_L + ((x - iMin) / (iMax - iMin || 1)) * plotW;
+  const yOf = (y) => PAD_T + plotH - (y / 100) * plotH;
+
+  function render(hoverIdx) {
+    ctx.clearRect(0, 0, cssWidth, cssHeight);
+
+    ctx.strokeStyle = "#e1e0d9";
+    ctx.fillStyle = "#898781";
+    ctx.font = "11px -apple-system, 'Segoe UI', sans-serif";
+    ctx.textAlign = "right";
+    ctx.textBaseline = "middle";
+    for (let i = 0; i <= 4; i++) {
+      const yv = i * 25;
+      const yy = yOf(yv);
+      ctx.beginPath();
+      ctx.moveTo(PAD_L, yy);
+      ctx.lineTo(PAD_L + plotW, yy);
+      ctx.lineWidth = 1;
+      ctx.stroke();
+      ctx.fillText(String(yv), PAD_L - 8, yy);
+    }
+    ctx.textAlign = "center";
+    ctx.textBaseline = "top";
+    const xTickCount = 5;
+    for (let i = 0; i <= xTickCount; i++) {
+      const xv = iMin + ((iMax - iMin) * i) / xTickCount;
+      ctx.fillText(xv.toFixed(2), xOf(xv), PAD_T + plotH + 8);
+    }
+
+    ctx.strokeStyle = "#c3c2b7";
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(PAD_L, PAD_T);
+    ctx.lineTo(PAD_L, PAD_T + plotH);
+    ctx.lineTo(PAD_L + plotW, PAD_T + plotH);
+    ctx.stroke();
+
+    // quadrant crosshair at the mean of the plotted antecedents
+    ctx.strokeStyle = "#c3c2b7";
+    ctx.setLineDash([4, 3]);
+    ctx.beginPath();
+    ctx.moveTo(xOf(meanImportance), PAD_T);
+    ctx.lineTo(xOf(meanImportance), PAD_T + plotH);
+    ctx.moveTo(PAD_L, yOf(meanPerformance));
+    ctx.lineTo(PAD_L + plotW, yOf(meanPerformance));
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    rows.forEach((r, i) => {
+      const px = xOf(r.importance), py = yOf(r.performance);
+      const isHover = i === hoverIdx;
+      ctx.beginPath();
+      ctx.arc(px, py, isHover ? 7 : 5.5, 0, Math.PI * 2);
+      ctx.fillStyle = SERIES_COLORS_APP[i % SERIES_COLORS_APP.length];
+      ctx.fill();
+      ctx.strokeStyle = "#fff";
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+      ctx.fillStyle = "#1c2333";
+      ctx.font = "11px -apple-system, 'Segoe UI', sans-serif";
+      ctx.textAlign = "left";
+      ctx.textBaseline = "middle";
+      ctx.fillText(r.construct_name, px + 10, py);
+    });
+  }
+  render(null);
+
+  canvas.onmousemove = (e) => {
+    const rect = canvas.getBoundingClientRect();
+    const mx = e.clientX - rect.left, my = e.clientY - rect.top;
+    let nearest = -1, bestDist = 400;
+    rows.forEach((r, i) => {
+      const d = Math.hypot(xOf(r.importance) - mx, yOf(r.performance) - my);
+      if (d < bestDist) { bestDist = d; nearest = i; }
+    });
+    render(nearest);
+    if (nearest === -1) {
+      tooltip.classList.add("hidden");
+      return;
+    }
+    const r = rows[nearest];
+    tooltip.innerHTML = `<div class="tt-title">${escapeHtml(r.construct_name)}</div>` +
+      `<div class="tt-row">${t("th_ipma_importance")}: <strong>${fmt(r.importance)}</strong></div>` +
+      `<div class="tt-row">${t("th_ipma_performance")}: <strong>${fmt(r.performance, 1)}</strong></div>`;
+    tooltip.classList.remove("hidden");
+    tooltip.style.left = Math.min(mx + 12, cssWidth - tooltip.offsetWidth - 8) + "px";
+    tooltip.style.top = Math.max(4, my - 40) + "px";
+  };
+  canvas.onmouseleave = () => {
+    tooltip.classList.add("hidden");
+    render(null);
+  };
+}
+
+const SERIES_COLORS_APP = ["#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#e87ba4", "#008300", "#4a3aa7", "#e34948"];
 
 async function runPlspredict() {
   if (!editor) return;
@@ -771,6 +958,8 @@ async function runAnalysis() {
   document.getElementById("resultsError").classList.add("hidden");
   document.getElementById("plspredictSection").classList.add("hidden");
   window.__lastPlspredict = null;
+  document.getElementById("ipmaSection").classList.add("hidden");
+  window.__lastIpma = null;
   document.getElementById("resultsLoading").classList.remove("hidden");
   document.getElementById("resultsLoading").textContent = bootstrapEnabled
     ? t("s3_loading_pls_boot", { n: nBoot })

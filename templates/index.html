@@ -153,6 +153,7 @@
             <p class="hint" id="convergenceInfo"></p>
           </div>
           <div class="export-buttons">
+            <button class="btn" id="ipmaBtn" data-i18n="s3_ipma_btn">🎯 IPMA</button>
             <button class="btn" id="plspredictBtn" data-i18n="s3_plspredict_btn">🔮 PLSpredict</button>
             <button class="btn" id="sensitivityBtn" data-i18n="s3_sensitivity_btn">📉 Phân tích độ nhạy cỡ mẫu</button>
             <button class="btn" id="exportExcelBtn" data-i18n="s3_export_excel">📊 Xuất Excel</button>
@@ -219,6 +220,12 @@
         <p class="hint" data-i18n="s3_plspredict_hint">So sánh sai số dự báo (k-fold cross-validation) của mô hình PLS với một hồi quy tuyến tính đơn giản (LM) trên cùng dữ liệu — nếu PLS không thắng được LM, mô hình có thể thiếu giá trị dự báo thực tế dù R² trong mẫu cao (Shmueli et al., 2016).</p>
         <p id="plspredictVerdict" class="hint"></p>
         <div class="table-scroll"><table id="plspredictTable"></table></div>
+      </div>
+      <div class="panel-card hidden" id="ipmaSection">
+        <h2 id="ipmaTitle">IPMA</h2>
+        <p class="hint" data-i18n="s3_ipma_hint">Trục ngang: Importance (tổng hiệu ứng chuẩn hoá lên biến mục tiêu). Trục dọc: Performance (điểm trung bình quy về thang 0–100 theo dữ liệu quan sát). Đường chấm: giá trị trung bình — chia thành 4 vùng để xác định construct nào đáng ưu tiên cải thiện.</p>
+        <div class="chart-wrap"><canvas id="ipmaChart"></canvas><div id="ipmaTooltip" class="chart-tooltip hidden"></div></div>
+        <div class="table-scroll"><table id="ipmaTable"></table></div>
       </div>
       <div class="panel-card">
         <h2 data-i18n="src_transparency_title">Minh bạch tính toán (Computation Transparency)</h2>

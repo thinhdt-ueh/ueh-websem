@@ -1,52 +1,9 @@
-/* Sample-size sensitivity page: chart, legend, tooltip. Reuses tokens/roles
- * from the validated dataviz reference palette (light mode only — this app
- * has no dark theme), scoped so it never bleeds into the main app's CSS. */
-:root {
-  --viz-surface: #fcfcfb;
-  --viz-ink: #0b0b0b;
-  --viz-ink-secondary: #52514e;
-  --viz-ink-muted: #898781;
-  --viz-grid: #e1e0d9;
-  --viz-axis: #c3c2b7;
-  --viz-critical: #d03b3b;
-  --viz-series-1: #2a78d6;
-  --viz-series-2: #eb6834;
-  --viz-series-3: #1baf7a;
-  --viz-series-4: #eda100;
-  --viz-series-5: #e87ba4;
-  --viz-series-6: #008300;
-  --viz-series-7: #4a3aa7;
-  --viz-series-8: #e34948;
-  --viz-series-other: #a9a8a2;
-}
-
+/* Sample-size sensitivity page: page layout only. Chart/legend/tooltip
+ * primitives (.chart-wrap, .chart-tooltip, .chart-legend, --viz-* tokens)
+ * live in style.css now, shared with the IPMA chart on the main results
+ * page — this file only has what's specific to this standalone page. */
 .sens-main { max-width: 1100px; margin: 0 auto; padding: 20px; display: flex; flex-direction: column; gap: 16px; }
 .sens-status { text-align: center; color: var(--muted); padding: 40px; }
-
-.chart-wrap { position: relative; background: var(--viz-surface); border-radius: 10px; }
-.chart-wrap canvas { width: 100%; display: block; cursor: crosshair; }
-
-.chart-tooltip {
-  position: absolute;
-  pointer-events: none;
-  background: #1c2333;
-  color: #fff;
-  border-radius: 6px;
-  padding: 8px 10px;
-  font-size: 12px;
-  line-height: 1.5;
-  box-shadow: 0 4px 14px rgba(0,0,0,.18);
-  z-index: 5;
-  white-space: nowrap;
-}
-.chart-tooltip .tt-row { display: flex; align-items: center; gap: 6px; }
-.chart-tooltip .tt-dot { font-size: 11px; line-height: 1; flex-shrink: 0; }
-.chart-tooltip .tt-title { font-weight: 700; margin-bottom: 4px; }
-
-.chart-legend { display: flex; flex-wrap: wrap; gap: 6px 16px; margin-top: 10px; }
-.chart-legend .leg-item { display: flex; align-items: center; gap: 5px; font-size: 12.5px; color: var(--viz-ink-secondary); }
-.chart-legend .leg-swatch { flex-shrink: 0; }
-.chart-legend .leg-glyph { font-size: 11px; line-height: 1; }
 
 @media (max-width: 640px) {
   .sens-main { padding: 12px; }
