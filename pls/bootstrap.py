@@ -26,6 +26,7 @@ import numpy as np
 from scipy import stats
 
 from .algorithm import PLSResult, _build_topology, _fit, _ols_beta, _standardize_cols
+from .effects import enumerate_indirect_routes
 from .model import Model
 from .moderation import _generate_indicator_based_interactions
 
@@ -40,6 +41,7 @@ class BootstrapResult:
     path_stats: list[dict] = field(default_factory=list)
     loading_stats: list[dict] = field(default_factory=list)
     weight_stats: list[dict] = field(default_factory=list)
+    specific_indirect_stats: list[dict] = field(default_factory=list)
 
 
 HISTOGRAM_BINS = 22
@@ -107,6 +109,13 @@ def run_bootstrap(
     loading_values: dict[str, list[float]] = {ind: [] for ind in indicators}
     weight_values: dict[str, list[float]] = {ind: [] for ind in indicators}
 
+    # Specific indirect effects: for each mediated route, the per-resample
+    # product of that route's already sign-corrected edge coefficients (not
+    # the product of the *marginal* bootstrap distributions of each edge,
+    # which would ignore the within-resample correlation between them).
+    routes = enumerate_indirect_routes(model)
+    route_values: dict[tuple[str, ...], list[float]] = {tuple(r): [] for r in routes}
+
     n_valid = 0
     for _ in range(n_boot):
         idx = rng.integers(0, n_obs, size=n_obs)
@@ -126,6 +135,7 @@ def run_bootstrap(
             dot = float(np.dot(orig_w[bi], w[bi]))
             block_sign[ci] = 1.0 if dot >= 0 else -1.0
 
+        iter_coef: dict[tuple[str, str], float] = {}
         for ci in endogenous:
             preds = topo.pred_pos[ci]
             beta = _ols_beta(Y[:, preds], Y[:, ci])[:-1]
@@ -133,7 +143,15 @@ def run_bootstrap(
             for pi, src_pos in enumerate(preds):
                 src_id = topo.construct_ids[src_pos]
                 s = block_sign[src_pos] * block_sign[ci]
-                path_values[(src_id, tgt_id)].append(s * float(beta[pi]))
+                signed_beta = s * float(beta[pi])
+                path_values[(src_id, tgt_id)].append(signed_beta)
+                iter_coef[(src_id, tgt_id)] = signed_beta
+
+        for route in routes:
+            prod = 1.0
+            for a, b in zip(route, route[1:]):
+                prod *= iter_coef[(a, b)]
+            route_values[tuple(route)].append(prod)
 
         for ci in range(k):
             bi = topo.block_idx[ci]
@@ -150,6 +168,15 @@ def run_bootstrap(
         row = _summarize(bucket, orig, include_histogram=True)
         row.update(source=src, target=tgt)
         path_stats.append(row)
+
+    specific_indirect_stats = []
+    for route in routes:
+        orig = 1.0
+        for a, b in zip(route, route[1:]):
+            orig *= float(original.path_coefficients.loc[a, b])
+        row = _summarize(route_values[tuple(route)], orig, include_histogram=False)
+        row.update(path=route)
+        specific_indirect_stats.append(row)
 
     loading_stats = []
     weight_stats = []
@@ -168,6 +195,7 @@ def run_bootstrap(
         path_stats=path_stats,
         loading_stats=loading_stats,
         weight_stats=weight_stats,
+        specific_indirect_stats=specific_indirect_stats,
     )
 
 
@@ -228,6 +256,9 @@ def run_bootstrap_with_moderation(
     loading_values: dict[str, list[float]] = {ind: [] for ind in base_indicators}
     weight_values: dict[str, list[float]] = {ind: [] for ind in base_indicators}
 
+    routes = enumerate_indirect_routes(model)
+    route_values: dict[tuple[str, ...], list[float]] = {tuple(r): [] for r in routes}
+
     n_valid = 0
     for _ in range(n_boot):
         idx = rng.integers(0, n_obs, size=n_obs)
@@ -257,13 +288,22 @@ def run_bootstrap_with_moderation(
             pa, pb = interaction_sources[icid]
             full_score[icid] = _standardize_cols((Y[:, pa] * Y[:, pb])[:, None])[:, 0]
 
+        iter_coef: dict[tuple[str, str], float] = {}
         for tgt in endogenous:
             preds = model.predecessors(tgt)
             A = np.column_stack([full_score[p] for p in preds])
             beta = _ols_beta(A, full_score[tgt])[:-1]
             s_tgt = sign_of(tgt)
             for pi, src in enumerate(preds):
-                path_values[(src, tgt)].append(sign_of(src) * s_tgt * float(beta[pi]))
+                signed_beta = sign_of(src) * s_tgt * float(beta[pi])
+                path_values[(src, tgt)].append(signed_beta)
+                iter_coef[(src, tgt)] = signed_beta
+
+        for route in routes:
+            prod = 1.0
+            for a, b in zip(route, route[1:]):
+                prod *= iter_coef[(a, b)]
+            route_values[tuple(route)].append(prod)
 
         for ci in range(k_base):
             bi = topo.block_idx[ci]
@@ -280,6 +320,15 @@ def run_bootstrap_with_moderation(
         row = _summarize(bucket, orig, include_histogram=True)
         row.update(source=src, target=tgt)
         path_stats.append(row)
+
+    specific_indirect_stats = []
+    for route in routes:
+        orig = 1.0
+        for a, b in zip(route, route[1:]):
+            orig *= float(original.path_coefficients.loc[a, b])
+        row = _summarize(route_values[tuple(route)], orig, include_histogram=False)
+        row.update(path=route)
+        specific_indirect_stats.append(row)
 
     loading_stats = []
     weight_stats = []
@@ -298,4 +347,5 @@ def run_bootstrap_with_moderation(
         path_stats=path_stats,
         loading_stats=loading_stats,
         weight_stats=weight_stats,
+        specific_indirect_stats=specific_indirect_stats,
     )

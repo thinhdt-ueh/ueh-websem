@@ -19,7 +19,14 @@ from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.utils import get_column_letter
 
 from i18n import DEFAULT_LANG, t
-from pls.report import DIAGRAM_EXCEL_MAX_WIDTH_PX, _cmb_rows, _decode_diagram_image, _interaction_of_label, _total_effects_rows
+from pls.report import (
+    DIAGRAM_EXCEL_MAX_WIDTH_PX,
+    _cmb_rows,
+    _decode_diagram_image,
+    _interaction_of_label,
+    _specific_indirect_rows,
+    _total_effects_rows,
+)
 
 HEADER_FILL = PatternFill(start_color="EEF1FD", end_color="EEF1FD", fill_type="solid")
 HEADER_FONT = Font(bold=True)
@@ -222,6 +229,15 @@ def build_excel_report(data: dict, lang: str = DEFAULT_LANG) -> io.BytesIO:
         ws.cell(row=r, column=1, value=t("rpt_total_effects_note", lang))
         r += 2
 
+    si_rows, si_has_boot = _specific_indirect_rows(data, lang)
+    if si_rows:
+        si_headers = [t("rpt_path", lang), t("rpt_indirect_effect", lang)]
+        if si_has_boot:
+            si_headers += [t("rpt_stdev", lang), t("rpt_t_stat", lang), t("rpt_p_value", lang), t("rpt_significance", lang)]
+        r = _write_table(ws, r, si_headers, si_rows, title=t("rpt_specific_indirect_title", lang))
+        ws.cell(row=r, column=1, value=t("rpt_specific_indirect_note", lang))
+        r += 2
+
     r2_rows = [[id_to_name[cid], r2] for cid, r2 in st["r_squared"].items()]
     r = _write_table(ws, r, [t("rpt_endogenous_construct", lang), t("rpt_r2", lang)], r2_rows,
                       title=t("rpt_r2_only_title", lang))
@@ -367,6 +383,18 @@ def build_word_report(data: dict, lang: str = DEFAULT_LANG) -> io.BytesIO:
         te_note_run = te_note.add_run(t("rpt_total_effects_note", lang))
         te_note_run.font.size = Pt(9)
         te_note_run.font.color.rgb = RGBColor(0x6B, 0x73, 0x85)
+
+    si_rows, si_has_boot = _specific_indirect_rows(data, lang, fmt_fn=_fmt)
+    if si_rows:
+        _add_heading(doc, t("rpt_specific_indirect_title", lang), level=2)
+        si_headers = [t("rpt_path", lang), t("rpt_indirect_effect", lang)]
+        if si_has_boot:
+            si_headers += [t("rpt_stdev", lang), t("rpt_t_stat", lang), t("rpt_p_value", lang), t("rpt_significance", lang)]
+        _add_table(doc, si_headers, si_rows)
+        si_note = doc.add_paragraph()
+        si_note_run = si_note.add_run(t("rpt_specific_indirect_note", lang))
+        si_note_run.font.size = Pt(9)
+        si_note_run.font.color.rgb = RGBColor(0x6B, 0x73, 0x85)
 
     _add_heading(doc, t("rpt_cbsem_section_r2", lang), level=2)
     _add_table(doc, [t("rpt_construct", lang), t("rpt_r2", lang)],

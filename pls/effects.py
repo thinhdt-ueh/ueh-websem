@@ -60,3 +60,49 @@ def total_effects(model: Model, coef: dict[str, dict[str, float]]) -> list[Effec
             if direct != 0.0 or indirect != 0.0:
                 rows.append(EffectRow(source=s, target=t, direct=direct, indirect=indirect, total=total))
     return rows
+
+
+@dataclass
+class SpecificIndirectRow:
+    path: list[str]
+    effect: float
+
+
+def enumerate_indirect_routes(model: Model) -> list[list[str]]:
+    """Every distinct directed simple route of two or more edges between any
+    two constructs — i.e. every specific mediated path a "Specific Indirect
+    Effects" report breaks the aggregate indirect effect into (SmartPLS's
+    report of the same name). The model graph is guaranteed acyclic
+    (validated at load time), so a plain DFS that refuses to revisit a
+    construct already on the current route both terminates and never double
+    counts a path."""
+    routes: list[list[str]] = []
+
+    def dfs(path: list[str]) -> None:
+        current = path[-1]
+        for nxt in model.successors(current):
+            if nxt in path:
+                continue
+            extended = path + [nxt]
+            if len(extended) >= 3:
+                routes.append(extended)
+            dfs(extended)
+
+    for start in model.constructs:
+        dfs([start])
+    return routes
+
+
+def specific_indirect_effects(
+    model: Model, coef: dict[str, dict[str, float]]
+) -> list[SpecificIndirectRow]:
+    """Point-estimate specific indirect effects: the product of the direct
+    structural coefficients along each individual mediated route (as opposed
+    to `total_effects`, which sums these across every route between a pair)."""
+    rows: list[SpecificIndirectRow] = []
+    for route in enumerate_indirect_routes(model):
+        effect = 1.0
+        for a, b in zip(route, route[1:]):
+            effect *= float(coef.get(a, {}).get(b, 0.0))
+        rows.append(SpecificIndirectRow(path=route, effect=effect))
+    return rows

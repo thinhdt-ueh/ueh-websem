@@ -128,6 +128,26 @@ def _total_effects_rows(data: dict, fmt_fn=lambda v: v) -> list:
     ]
 
 
+def _specific_indirect_rows(data: dict, lang: str, fmt_fn=lambda v: v) -> tuple[list, bool]:
+    """Rows for the "Specific Indirect Effects" report: one row per individual
+    mediated route (as opposed to `_total_effects_rows`, which sums all routes
+    between a pair). Bootstrap significance columns are included only when the
+    analysis was bootstrapped (CB-SEM reports point estimates only, same as
+    its Total Effects table)."""
+    items = data.get("structural", {}).get("specific_indirect_effects") or []
+    has_boot = any("t_stat" in row for row in items)
+    rows = []
+    for row in items:
+        out = [" → ".join(row["path_names"]), fmt_fn(row["effect"])]
+        if has_boot:
+            out += [
+                fmt_fn(row.get("bootstrap_std")), fmt_fn(row.get("t_stat")), fmt_fn(row.get("p_value")),
+                sig_label(row.get("significant"), lang),
+            ]
+        rows.append(out)
+    return rows, has_boot
+
+
 def _cmb_rows(data: dict, id_to_name: dict, lang: str, fmt_fn=lambda v: v) -> tuple[list, float]:
     cmb = data.get("common_method_bias") or {"vif": {}, "threshold": 3.3}
     threshold = cmb["threshold"]
@@ -345,6 +365,15 @@ def build_excel_report(data: dict, lang: str = DEFAULT_LANG) -> io.BytesIO:
         ws.cell(row=r, column=1, value=t("rpt_total_effects_note", lang))
         r += 2
 
+    si_rows, si_has_boot = _specific_indirect_rows(data, lang)
+    if si_rows:
+        si_headers = [t("rpt_path", lang), t("rpt_indirect_effect", lang)]
+        if si_has_boot:
+            si_headers += [t("rpt_stdev", lang), t("rpt_t_stat", lang), t("rpt_p_value", lang), t("rpt_significance", lang)]
+        r = _write_table(ws, r, si_headers, si_rows, title=t("rpt_specific_indirect_title", lang))
+        ws.cell(row=r, column=1, value=t("rpt_specific_indirect_note", lang))
+        r += 2
+
     r2_rows = []
     for cid, r2 in st["r_squared"].items():
         q2 = st.get("q_squared", {}).get(cid)
@@ -528,6 +557,18 @@ def build_word_report(data: dict, lang: str = DEFAULT_LANG) -> io.BytesIO:
         te_note_run = te_note.add_run(t("rpt_total_effects_note", lang))
         te_note_run.font.size = Pt(9)
         te_note_run.font.color.rgb = RGBColor(0x6B, 0x73, 0x85)
+
+    si_rows, si_has_boot = _specific_indirect_rows(data, lang, fmt_fn=_fmt)
+    if si_rows:
+        _add_heading(doc, t("rpt_specific_indirect_title", lang), level=2)
+        si_headers = [t("rpt_path", lang), t("rpt_indirect_effect", lang)]
+        if si_has_boot:
+            si_headers += [t("rpt_stdev", lang), t("rpt_t_stat", lang), t("rpt_p_value", lang), t("rpt_significance", lang)]
+        _add_table(doc, si_headers, si_rows)
+        si_note = doc.add_paragraph()
+        si_note_run = si_note.add_run(t("rpt_specific_indirect_note", lang))
+        si_note_run.font.size = Pt(9)
+        si_note_run.font.color.rgb = RGBColor(0x6B, 0x73, 0x85)
 
     _add_heading(doc, t("rpt_section_r2q2", lang), level=2)
     r2_rows = []

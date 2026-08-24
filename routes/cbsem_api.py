@@ -10,7 +10,7 @@ from cbsem.metrics import compute_all_cbsem_metrics
 from cbsem.moderation import run_cbsem_with_moderation
 from cbsem.report import build_excel_report, build_word_report
 from i18n import get_lang, t
-from pls.effects import total_effects
+from pls.effects import specific_indirect_effects, total_effects
 from pls.metrics import CMB_VIF_THRESHOLD
 from pls.model import Model, ModelError
 from pls.source_transparency import cbsem_sections
@@ -94,6 +94,14 @@ def analyze_cbsem():
         }
         for e in total_effects(model, coef)
     ]
+    specific_indirect_list = [
+        {
+            "path": row.path,
+            "path_names": [model.constructs[cid].name for cid in row.path],
+            "effect": round(row.effect, 6),
+        }
+        for row in specific_indirect_effects(model, coef)
+    ]
 
     response = {
         "method": "cbsem",
@@ -129,6 +137,7 @@ def analyze_cbsem():
         "structural": {
             "paths": paths,
             "total_effects": total_effects_list,
+            "specific_indirect_effects": specific_indirect_list,
             "r_squared": series_to_dict(result.r_squared),
         },
         "common_method_bias": {

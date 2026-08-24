@@ -179,6 +179,12 @@ _CATALOG: dict[str, dict[str, str]] = {
             "(qua các biến trung gian/mediator) từ nguồn đến đích; hiệu ứng tổng = trực tiếp + gián tiếp. "
             "Chỉ những cặp construct có ít nhất một đường đi (trực tiếp hoặc gián tiếp) mới xuất hiện ở đây."
         ),
+        "rpt_specific_indirect_title": "Hiệu ứng gián tiếp cụ thể (Specific Indirect Effects)",
+        "rpt_specific_indirect_note": (
+            "Mỗi dòng là MỘT đường đi trung gian cụ thể (tích các path coefficient dọc theo đường đó), "
+            "khác với bảng Total & Indirect Effects vốn cộng gộp tất cả đường đi giữa một cặp construct. "
+            "Nếu đã bootstrap, ý nghĩa thống kê được kiểm định trực tiếp trên tích của đúng lần lấy mẫu lại đó."
+        ),
         "rpt_f_squared": "f²",
         "rpt_f2_effect": "Mức ảnh hưởng f²",
         "rpt_r2_q2_title": "R² & Q² (Predictive Relevance)",
@@ -420,6 +426,12 @@ _CATALOG: dict[str, dict[str, str]] = {
             "Indirect effect = sum of the products of path coefficients along every indirect route "
             "(through mediator constructs) from source to target; total effect = direct + indirect. "
             "Only construct pairs with at least one route (direct or indirect) appear here."
+        ),
+        "rpt_specific_indirect_title": "Specific Indirect Effects",
+        "rpt_specific_indirect_note": (
+            "Each row is ONE specific mediated route (the product of path coefficients along that route), "
+            "unlike the Total & Indirect Effects table, which sums every route between a construct pair. "
+            "When bootstrapping was run, significance is tested directly on that same per-resample product."
         ),
         "rpt_f_squared": "f²",
         "rpt_f2_effect": "f² Effect Size",

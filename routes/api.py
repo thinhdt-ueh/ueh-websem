@@ -16,7 +16,7 @@ from pls.bootstrap import (
     run_bootstrap,
     run_bootstrap_with_moderation,
 )
-from pls.effects import total_effects
+from pls.effects import specific_indirect_effects, total_effects
 from pls.metrics import CMB_VIF_THRESHOLD, compute_all_metrics
 from pls.model import Model, ModelError
 from pls.moderation import run_pls_with_moderation
@@ -184,6 +184,7 @@ def analyze():
     bootstrap_payload = payload.get("bootstrap") or {}
     bootstrap_summary = None
     bootstrap_path_lookup: dict[tuple, dict] = {}
+    bootstrap_specific_indirect_lookup: dict[tuple, dict] = {}
     bootstrap_loadings = None
     bootstrap_weights = None
     if bootstrap_payload.get("enabled"):
@@ -207,6 +208,7 @@ def analyze():
             "clamped_max": MAX_BOOTSTRAP_SAMPLES,
         }
         bootstrap_path_lookup = {(row["source"], row["target"]): row for row in boot.path_stats}
+        bootstrap_specific_indirect_lookup = {tuple(row["path"]): row for row in boot.specific_indirect_stats}
         bootstrap_loadings = [_clean_bootstrap_row(row, "indicator") for row in boot.loading_stats]
         bootstrap_weights = [_clean_bootstrap_row(row, "indicator") for row in boot.weight_stats]
 
@@ -273,6 +275,26 @@ def analyze():
         for e in total_effects(model, coef)
     ]
 
+    specific_indirect_list = []
+    for row in specific_indirect_effects(model, coef):
+        entry = {
+            "path": row.path,
+            "path_names": [model.constructs[cid].name for cid in row.path],
+            "effect": round(row.effect, 6),
+        }
+        boot_row = bootstrap_specific_indirect_lookup.get(tuple(row.path))
+        if boot_row:
+            entry.update(
+                bootstrap_mean=_round_or_none(boot_row["mean"]),
+                bootstrap_std=_round_or_none(boot_row["std"]),
+                t_stat=_round_or_none(boot_row["t_stat"]),
+                p_value=_round_or_none(boot_row["p_value"], 6),
+                ci_lower=_round_or_none(boot_row["ci_lower"]),
+                ci_upper=_round_or_none(boot_row["ci_upper"]),
+                significant=(boot_row["p_value"] is not None and boot_row["p_value"] < 0.05),
+            )
+        specific_indirect_list.append(entry)
+
     response = {
         "converged": result.converged,
         "iterations": result.iterations,
@@ -310,6 +332,7 @@ def analyze():
         "structural": {
             "paths": path_list,
             "total_effects": total_effects_list,
+            "specific_indirect_effects": specific_indirect_list,
             "r_squared": series_to_dict(result.r_squared),
             "r_squared_adj": series_to_dict(result.r_squared_adj),
             "inner_vif": df_to_nested_dict(metrics["inner_vif"]),

@@ -1040,6 +1040,7 @@ function renderResults(data) {
   renderHtmtHeatmap("htmtTable", "htmtLegend", data.discriminant_validity.htmt, idToName);
   renderPathTable(data);
   renderTotalEffectsTable(data, "totalEffectsTable");
+  renderSpecificIndirectTable(data, "specificIndirectTable");
   renderR2Table(data, idToName);
   renderVifTable(data, idToName);
   renderCmbTable(data.common_method_bias, idToName, "cmbHint", "cmbTable");
@@ -1545,6 +1546,30 @@ function renderTotalEffectsTable(data, elId) {
   document.getElementById(elId).innerHTML = html;
 }
 
+// Decomposition of the aggregate indirect effect above into one row per
+// individual mediated route (SmartPLS's "Specific Indirect Effects" report):
+// e.g. X -> M1 -> Y and X -> M2 -> Y show up separately here even though
+// they're summed into a single X -> Y row in the Total Effects table.
+function renderSpecificIndirectTable(data, elId) {
+  const rows = data.structural.specific_indirect_effects || [];
+  const hasBoot = rows.some((r) => r.t_stat !== undefined);
+  let html = `<thead><tr><th>${t("th_path")}</th><th>${t("th_indirect_effect")}</th>`;
+  if (hasBoot) html += `<th>${t("th_stdev")}</th><th>${t("th_t_stat")}</th><th>${t("th_p_value")}</th><th>${t("th_significance")}</th>`;
+  html += `</tr></thead><tbody>`;
+  if (rows.length === 0) {
+    html += `<tr><td colspan="${hasBoot ? 6 : 2}" style="text-align:center;color:#6b7385">${t("lbl_dash")}</td></tr>`;
+  }
+  for (const r of rows) {
+    html += `<tr><td>${r.path_names.map(escapeHtml).join(" → ")}</td><td>${fmt(r.effect)}</td>`;
+    if (hasBoot) {
+      html += `<td>${fmt(r.bootstrap_std)}</td><td>${fmt(r.t_stat)}</td><td>${fmt(r.p_value)}</td><td>${sigBadge(r.significant)}</td>`;
+    }
+    html += "</tr>";
+  }
+  html += "</tbody>";
+  document.getElementById(elId).innerHTML = html;
+}
+
 function f2Label(v) {
   if (v === null || v === undefined) return t("lbl_dash");
   if (v < 0.02) return t("lbl_f2_none");
@@ -1709,6 +1734,7 @@ function renderCbsemResults(data) {
   renderHtmtHeatmap("cbsemHtmtTable", "cbsemHtmtLegend", data.discriminant_validity.htmt, idToName);
   renderCbsemPathTable(data);
   renderTotalEffectsTable(data, "cbsemTotalEffectsTable");
+  renderSpecificIndirectTable(data, "cbsemSpecificIndirectTable");
   renderCbsemR2Table(data, idToName);
   renderCmbTable(data.common_method_bias, idToName, "cbsemCmbHint", "cbsemCmbTable");
   renderSimpleSlopes(data, "cbsemSimpleSlopesSection", "cbsemSimpleSlopesGrid");
