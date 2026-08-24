@@ -42,7 +42,8 @@ body {
 .topbar {
   display: flex;
   align-items: center;
-  gap: 24px;
+  flex-wrap: wrap;
+  gap: 12px 24px;
   padding: 14px 28px;
   background: var(--card);
   border-bottom: 1px solid var(--border);
