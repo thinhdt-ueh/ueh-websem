@@ -196,7 +196,7 @@ canvas { width: 100%; border: 1px solid var(--border); border-radius: 10px; back
 .results-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); gap: 18px; }
 .results-grid > .panel-card { min-width: 0; }
 .results-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap; }
-.export-buttons { display: flex; gap: 8px; flex-shrink: 0; }
+.export-buttons { display: flex; flex-wrap: wrap; gap: 8px; }
 .loading-box { text-align: center; padding: 60px; color: var(--muted); font-size: 15px; }
 
 .badge { display: inline-block; padding: 1px 7px; border-radius: 999px; font-size: 11px; font-weight: 700; }
