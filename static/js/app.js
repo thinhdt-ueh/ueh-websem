@@ -1043,8 +1043,239 @@ function renderResults(data) {
   renderR2Table(data, idToName);
   renderVifTable(data, idToName);
   renderCmbTable(data.common_method_bias, idToName, "cmbHint", "cmbTable");
+  renderSimpleSlopes(data, "simpleSlopesSection", "simpleSlopesGrid");
   renderBootstrapHistograms(data);
   renderSourceTransparency("sourceTransparency", data.source_transparency);
+}
+
+// ---------------- Simple slopes (moderation interpretation) ----------------
+// Standard conditional-effects plot for a significant interaction (Aiken &
+// West, 1991): Y = b_focal*X + b_mod*Z + b_int*(X*Z), evaluated at the
+// moderator's -1SD/mean/+1SD (all constructs are already standardized
+// composite/factor scores, so no intercept term is needed). Every number
+// used here is a path coefficient already in the analyze response — no
+// extra API round-trip.
+const SLOPE_LEVEL_COLORS = { low: "#e34948", mean: "#2a78d6", high: "#1baf7a" };
+const SLOPE_LEVEL_DASH = { low: [], mean: [7, 4], high: [1, 3] };
+
+function renderSimpleSlopes(data, sectionId, gridId) {
+  const section = document.getElementById(sectionId);
+  const grid = document.getElementById(gridId);
+  const idToName = {};
+  data.constructs.forEach((c) => (idToName[c.id] = c.name));
+
+  const interactions = data.constructs.filter((c) => c.mode === "I" && c.interaction_of);
+  const cards = interactions
+    .map((ic) => {
+      const targetPath = data.structural.paths.find((p) => p.source === ic.id);
+      return targetPath ? { ic, targetId: targetPath.target } : null;
+    })
+    .filter(Boolean);
+
+  if (cards.length === 0) {
+    section.classList.add("hidden");
+    grid.innerHTML = "";
+    return;
+  }
+  section.classList.remove("hidden");
+
+  const coefOf = {};
+  for (const p of data.structural.paths) {
+    coefOf[`${p.source}->${p.target}`] = p.coefficient !== undefined ? p.coefficient : p.std;
+  }
+
+  grid.innerHTML = cards
+    .map(
+      (c, i) => `
+      <div class="slope-card" data-idx="${i}">
+        <div class="slope-card-header">
+          <h4 id="${gridId}Title${i}"></h4>
+          <button type="button" class="slope-swap-btn" data-idx="${i}">⇄ ${t("s3_slopes_swap")}</button>
+        </div>
+        <div class="chart-wrap"><canvas id="${gridId}Chart${i}"></canvas><div id="${gridId}Tooltip${i}" class="chart-tooltip hidden"></div></div>
+        <div class="chart-legend" id="${gridId}Legend${i}"></div>
+      </div>`
+    )
+    .join("");
+
+  const swapped = cards.map(() => false);
+
+  function draw(i) {
+    const { ic, targetId } = cards[i];
+    const [a, b] = ic.interaction_of;
+    const focalId = swapped[i] ? a : b;
+    const modId = swapped[i] ? b : a;
+    const bFocal = coefOf[`${focalId}->${targetId}`] || 0;
+    const bMod = coefOf[`${modId}->${targetId}`] || 0;
+    const bInt = coefOf[`${ic.id}->${targetId}`] || 0;
+
+    document.getElementById(`${gridId}Title${i}`).textContent =
+      `${idToName[modId]} × ${idToName[focalId]} → ${idToName[targetId]}`;
+
+    const xs = [];
+    for (let x = -2; x <= 2.0001; x += 0.25) xs.push(Math.round(x * 100) / 100);
+
+    const levels = [
+      { key: "low", z: -1, label: t("s3_slopes_low", { name: idToName[modId] }) },
+      { key: "mean", z: 0, label: t("s3_slopes_mean", { name: idToName[modId] }) },
+      { key: "high", z: 1, label: t("s3_slopes_high", { name: idToName[modId] }) },
+    ];
+    const series = levels.map((lv) => ({
+      id: lv.key,
+      label: lv.label,
+      color: SLOPE_LEVEL_COLORS[lv.key],
+      dash: SLOPE_LEVEL_DASH[lv.key],
+      points: xs.map((x) => ({ x, y: bFocal * x + bMod * lv.z + bInt * x * lv.z, converged: true })),
+    }));
+
+    drawSimpleSlopesChart(`${gridId}Chart${i}`, `${gridId}Tooltip${i}`, `${gridId}Legend${i}`, series, {
+      xLabel: idToName[focalId], yLabel: idToName[targetId],
+    });
+  }
+
+  grid.querySelectorAll(".slope-swap-btn").forEach((btn) => {
+    btn.onclick = () => {
+      const i = Number(btn.dataset.idx);
+      swapped[i] = !swapped[i];
+      draw(i);
+    };
+  });
+
+  cards.forEach((_, i) => draw(i));
+}
+
+function drawSimpleSlopesChart(canvasId, tooltipId, legendId, series, opts) {
+  const canvas = document.getElementById(canvasId);
+  const tooltip = document.getElementById(tooltipId);
+  const legendEl = document.getElementById(legendId);
+  const cssWidth = canvas.parentElement.clientWidth;
+  const cssHeight = Math.max(260, Math.min(360, cssWidth * 0.55));
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width = cssWidth * dpr;
+  canvas.height = cssHeight * dpr;
+  canvas.style.height = cssHeight + "px";
+  const ctx = canvas.getContext("2d");
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+  const allX = series[0].points.map((p) => p.x);
+  const allY = series.flatMap((s) => s.points.map((p) => p.y));
+  const xMin = Math.min(...allX), xMax = Math.max(...allX);
+  const yPad = (Math.max(...allY) - Math.min(...allY)) * 0.12 || 0.1;
+  const yMin = Math.min(...allY) - yPad, yMax = Math.max(...allY) + yPad;
+
+  const PAD_L = 50, PAD_R = 14, PAD_T = 14, PAD_B = 34;
+  const plotW = cssWidth - PAD_L - PAD_R;
+  const plotH = cssHeight - PAD_T - PAD_B;
+  const xOf = (x) => PAD_L + ((x - xMin) / (xMax - xMin || 1)) * plotW;
+  const yOf = (y) => PAD_T + plotH - ((y - yMin) / (yMax - yMin || 1)) * plotH;
+
+  legendEl.innerHTML = series
+    .map((s) => `<div class="leg-item" style="cursor:default"><svg class="leg-swatch" width="22" height="12" viewBox="0 0 22 12" aria-hidden="true"><line x1="0" y1="6" x2="22" y2="6" stroke="${s.color}" stroke-width="2.4"${s.dash.length ? ` stroke-dasharray="${s.dash.join(",")}"` : ""}/></svg>${escapeHtml(s.label)}</div>`)
+    .join("");
+
+  function render(nearestX) {
+    ctx.clearRect(0, 0, cssWidth, cssHeight);
+    ctx.strokeStyle = "#e1e0d9";
+    ctx.fillStyle = "#898781";
+    ctx.font = "11px -apple-system, 'Segoe UI', sans-serif";
+    ctx.textAlign = "right";
+    ctx.textBaseline = "middle";
+    for (let i = 0; i <= 4; i++) {
+      const yv = yMin + ((yMax - yMin) * i) / 4;
+      const yy = yOf(yv);
+      ctx.beginPath();
+      ctx.moveTo(PAD_L, yy);
+      ctx.lineTo(PAD_L + plotW, yy);
+      ctx.lineWidth = 1;
+      ctx.stroke();
+      ctx.fillText(yv.toFixed(2), PAD_L - 8, yy);
+    }
+    ctx.textAlign = "center";
+    ctx.textBaseline = "top";
+    for (let i = 0; i <= 4; i++) {
+      const xv = xMin + ((xMax - xMin) * i) / 4;
+      ctx.fillText(xv.toFixed(1), xOf(xv), PAD_T + plotH + 8);
+    }
+    ctx.fillText(opts.xLabel, PAD_L + plotW / 2, PAD_T + plotH + 20);
+    ctx.save();
+    ctx.translate(12, PAD_T + plotH / 2);
+    ctx.rotate(-Math.PI / 2);
+    ctx.fillText(opts.yLabel, 0, 0);
+    ctx.restore();
+
+    ctx.strokeStyle = "#c3c2b7";
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(PAD_L, PAD_T);
+    ctx.lineTo(PAD_L, PAD_T + plotH);
+    ctx.lineTo(PAD_L + plotW, PAD_T + plotH);
+    ctx.stroke();
+
+    if (nearestX !== null) {
+      ctx.strokeStyle = "#c3c2b7";
+      ctx.setLineDash([3, 3]);
+      ctx.beginPath();
+      ctx.moveTo(xOf(nearestX), PAD_T);
+      ctx.lineTo(xOf(nearestX), PAD_T + plotH);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+
+    for (const s of series) {
+      ctx.strokeStyle = s.color;
+      ctx.lineWidth = 2.2;
+      ctx.lineJoin = "round";
+      ctx.setLineDash(s.dash);
+      ctx.beginPath();
+      s.points.forEach((p, i) => {
+        const px = xOf(p.x), py = yOf(p.y);
+        if (i === 0) ctx.moveTo(px, py);
+        else ctx.lineTo(px, py);
+      });
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      if (nearestX !== null) {
+        const p = s.points.reduce((a, b) => (Math.abs(b.x - nearestX) < Math.abs(a.x - nearestX) ? b : a));
+        ctx.beginPath();
+        ctx.arc(xOf(p.x), yOf(p.y), 4.5, 0, Math.PI * 2);
+        ctx.fillStyle = s.color;
+        ctx.fill();
+        ctx.strokeStyle = "#fff";
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+      }
+    }
+  }
+  render(null);
+
+  canvas.onmousemove = (e) => {
+    const rect = canvas.getBoundingClientRect();
+    const mx = e.clientX - rect.left;
+    if (mx < PAD_L || mx > PAD_L + plotW) {
+      tooltip.classList.add("hidden");
+      render(null);
+      return;
+    }
+    const targetX = xMin + ((mx - PAD_L) / plotW) * (xMax - xMin);
+    const nearest = series[0].points.reduce((a, b) => (Math.abs(b.x - targetX) < Math.abs(a.x - targetX) ? b : a)).x;
+    render(nearest);
+    const rows = series
+      .map((s) => {
+        const p = s.points.find((pp) => pp.x === nearest);
+        return `<div class="tt-row"><span class="tt-dot" style="color:${s.color}">●</span>${escapeHtml(s.label)}: <strong>${fmt(p.y)}</strong></div>`;
+      })
+      .join("");
+    tooltip.innerHTML = `<div class="tt-title">${opts.xLabel} = ${nearest}</div>${rows}`;
+    tooltip.classList.remove("hidden");
+    const ttX = Math.min(xOf(nearest) + 12, cssWidth - tooltip.offsetWidth - 8);
+    tooltip.style.left = Math.max(4, ttX) + "px";
+    tooltip.style.top = "8px";
+  };
+  canvas.onmouseleave = () => {
+    tooltip.classList.add("hidden");
+    render(null);
+  };
 }
 
 function renderBootstrapHistograms(data) {
@@ -1480,6 +1711,7 @@ function renderCbsemResults(data) {
   renderTotalEffectsTable(data, "cbsemTotalEffectsTable");
   renderCbsemR2Table(data, idToName);
   renderCmbTable(data.common_method_bias, idToName, "cbsemCmbHint", "cbsemCmbTable");
+  renderSimpleSlopes(data, "cbsemSimpleSlopesSection", "cbsemSimpleSlopesGrid");
   renderSourceTransparency("cbsemSourceTransparency", data.source_transparency);
 }
 

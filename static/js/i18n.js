@@ -180,6 +180,12 @@ const I18N = {
     s3_bootstrap_dist_title: "Phân phối Bootstrap theo Path Coefficient",
     s3_bootstrap_dist_hint: "Phân phối của {n} mẫu bootstrap hợp lệ cho từng hệ số đường dẫn. Vạch xanh liền = giá trị ước lượng gốc; vạch đỏ đứt = khoảng tin cậy 95%.",
     lbl_bootstrap_hist_stats: "Gốc: {orig} · KTC 95%: [{lo}, {hi}]",
+    s3_slopes_title: "Biểu đồ độ dốc đơn giản (Simple Slopes)",
+    s3_slopes_hint: "Quan hệ giữa biến độc lập và biến kết quả tại ba mức của biến điều tiết (−1SD, Trung bình, +1SD), tính từ các hệ số path chuẩn hoá của chính lần chạy này (Aiken & West, 1991). Bấm \"⇄\" để đổi trục.",
+    s3_slopes_swap: "Đổi trục",
+    s3_slopes_low: "{name} tại −1 SD",
+    s3_slopes_mean: "{name} tại Trung bình",
+    s3_slopes_high: "{name} tại +1 SD",
 
     // --- step 3: CB-SEM result cards ---
     cbsem_fit_title: "Model Fit",
@@ -462,6 +468,12 @@ const I18N = {
     s3_bootstrap_dist_title: "Bootstrap Distributions by Path Coefficient",
     s3_bootstrap_dist_hint: "Distribution of {n} valid bootstrap samples for each path coefficient. Solid blue line = original estimate; dashed red lines = 95% confidence interval.",
     lbl_bootstrap_hist_stats: "Original: {orig} · 95% CI: [{lo}, {hi}]",
+    s3_slopes_title: "Simple Slopes Chart",
+    s3_slopes_hint: "The relationship between the independent variable and the outcome at three levels of the moderator (−1SD, Mean, +1SD), computed from this run's own standardized path coefficients (Aiken & West, 1991). Click \"⇄\" to swap axes.",
+    s3_slopes_swap: "Swap axes",
+    s3_slopes_low: "{name} at −1 SD",
+    s3_slopes_mean: "{name} at Mean",
+    s3_slopes_high: "{name} at +1 SD",
 
     cbsem_fit_title: "Model Fit",
     cbsem_reliability_title: "Reliability & Convergent Validity",

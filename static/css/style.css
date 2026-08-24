@@ -335,3 +335,11 @@ canvas { width: 100%; border: 1px solid var(--border); border-radius: 10px; back
 .chart-legend .leg-item[aria-pressed="false"] { opacity: .4; text-decoration: line-through; }
 .chart-legend .leg-swatch { flex-shrink: 0; }
 .chart-legend .leg-glyph { font-size: 11px; line-height: 1; }
+
+/* Simple slopes (moderation interpretation) small multiples */
+.simple-slopes-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); gap: 18px; margin-top: 6px; }
+.slope-card { border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; }
+.slope-card-header { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 8px; }
+.slope-card-header h4 { margin: 0; font-size: 14px; color: var(--text); }
+.slope-swap-btn { flex-shrink: 0; border: 1px solid var(--border); background: var(--card); border-radius: 6px; padding: 4px 9px; font-size: 12px; cursor: pointer; color: var(--muted); }
+.slope-swap-btn:hover { border-color: var(--primary); color: var(--primary); }
