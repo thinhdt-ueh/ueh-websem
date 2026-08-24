@@ -110,9 +110,12 @@
     <a class="sub" href="#read-discriminant">Discriminant validity</a>
     <a class="sub" href="#read-structural">Structural model</a>
     <a class="sub" href="#read-cmb">Common Method Bias</a>
-    <a href="#cbsem">7. CB-SEM fit indices</a>
-    <a href="#export">8. Exporting reports</a>
-    <a href="#faq">9. Troubleshooting</a>
+    <a href="#plspredict">7. PLSpredict — out-of-sample prediction</a>
+    <a href="#ipma">8. IPMA — Importance-Performance Map</a>
+    <a href="#sensitivity">9. Sample Size Sensitivity</a>
+    <a href="#cbsem">10. CB-SEM fit indices</a>
+    <a href="#export">11. Exporting reports</a>
+    <a href="#faq">12. Troubleshooting</a>
   </aside>
 
   <main class="doc">
@@ -287,7 +290,79 @@ Attitude (ATT)                <span class="arrow">──▶</span> Behavioral In
     </table></div>
     <p>All values sit far below 3.3, so this dataset shows no evidence of common method bias.</p>
 
-    <h2 id="cbsem">7. CB-SEM fit indices</h2>
+    <h2 id="plspredict">7. PLSpredict — Out-of-Sample Predictive Validity</h2>
+    <p>R² tells you how well the model fits the <em>data you have</em>, but not whether it would <em>predict well for new respondents</em> — those are genuinely different questions. <strong>PLSpredict</strong> (Shmueli, Ringle &amp; Sarstedt, 2016) answers the second one via k-fold cross-validation (default k = 10):</p>
+    <ol>
+      <li>Split the data into 10 folds; hold out one fold as the test set and train the model on the remaining nine.</li>
+      <li>Use the training fold's weights/coefficients to predict the endogenous indicators on the held-out (never-seen) test fold.</li>
+      <li>Compare PLS's prediction error against a <strong>simple linear regression (LM)</strong> benchmark — an OLS regression of each indicator directly on the raw indicators of its predictor constructs, bypassing the composite score entirely.</li>
+    </ol>
+    <p>Click <strong>"🔮 PLSpredict"</strong> on the results page to run it. On the TAM sample data (base model, no interaction term):</p>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Indicator</th><th>Construct</th><th class="num">PLS RMSE</th><th class="num">PLS MAE</th><th class="num">LM RMSE</th><th class="num">LM MAE</th><th>Result</th></tr></thead>
+      <tbody>
+        <tr><td>PU1</td><td>Perceived Usefulness</td><td class="num">1.030</td><td class="num">0.814</td><td class="num">1.036</td><td class="num">0.816</td><td><span class="badge ok">PLS wins</span></td></tr>
+        <tr><td>PU2</td><td>Perceived Usefulness</td><td class="num">1.099</td><td class="num">0.867</td><td class="num">1.102</td><td class="num">0.868</td><td><span class="badge ok">PLS wins</span></td></tr>
+        <tr><td>PU3</td><td>Perceived Usefulness</td><td class="num">1.146</td><td class="num">0.931</td><td class="num">1.143</td><td class="num">0.925</td><td><span class="badge warn">LM wins</span></td></tr>
+        <tr><td>ATT1</td><td>Attitude</td><td class="num">1.115</td><td class="num">0.892</td><td class="num">1.085</td><td class="num">0.871</td><td><span class="badge warn">LM wins</span></td></tr>
+        <tr><td>ATT2</td><td>Attitude</td><td class="num">1.110</td><td class="num">0.899</td><td class="num">1.088</td><td class="num">0.884</td><td><span class="badge warn">LM wins</span></td></tr>
+        <tr><td>ATT3</td><td>Attitude</td><td class="num">1.121</td><td class="num">0.874</td><td class="num">1.096</td><td class="num">0.870</td><td><span class="badge warn">LM wins</span></td></tr>
+        <tr><td>INT1</td><td>Behavioral Intention</td><td class="num">1.060</td><td class="num">0.837</td><td class="num">0.914</td><td class="num">0.737</td><td><span class="badge warn">LM wins</span></td></tr>
+        <tr><td>INT2</td><td>Behavioral Intention</td><td class="num">1.081</td><td class="num">0.859</td><td class="num">0.944</td><td class="num">0.761</td><td><span class="badge warn">LM wins</span></td></tr>
+        <tr><td>INT3</td><td>Behavioral Intention</td><td class="num">1.079</td><td class="num">0.837</td><td class="num">0.956</td><td class="num">0.743</td><td><span class="badge warn">LM wins</span></td></tr>
+      </tbody>
+    </table></div>
+    <p>PLS wins only 2 of 9 indicators ⇒ <strong>low predictive power</strong>, per Shmueli et al.'s rule of thumb (PLS wins all = high; wins most = medium; otherwise = low).</p>
+    <div class="callout">
+      <strong class="label">Why does LM usually win, and should that worry you?</strong>
+      It isn't a sign the model is wrong. PLS compresses a construct's three indicators into <em>one</em> composite score and predicts through that composite, while LM regresses directly on all three raw indicators (more degrees of freedom). For an endogenous construct further from the root (like Behavioral Intention, reached through two mediating constructs), the compression error compounds, so LM tends to win more decisively. This is exactly what PLSpredict is designed to catch: cases where composite compression buys you no real predictive advantage over regressing on the raw items, even though in-sample R² still looks respectable.
+    </div>
+    <div class="callout warn">
+      <strong class="label">Limitation</strong>
+      PLSpredict doesn't yet support models containing an interaction (moderator) construct — the app returns a clear error if you try to run it on one.
+    </div>
+
+    <h2 id="ipma">8. IPMA — Importance-Performance Map</h2>
+    <p><strong>IPMA</strong> (Importance-Performance Map Analysis; Ringle &amp; Sarstedt, 2016) answers a practical question: "which construct is most worth improving first?" For a <strong>target</strong> construct you choose, every one of its antecedent constructs is plotted on two axes:</p>
+    <ul>
+      <li><strong>Importance (x-axis)</strong> — the standardized total effect on the target construct, the exact same number already shown in the Total &amp; Indirect Effects table (section 4).</li>
+      <li><strong>Performance (y-axis)</strong> — the construct's average standing, rescaling each indicator to a 0–100 scale using that indicator's <em>observed</em> min/max in the data, then combining them with the same outer weights used to build the composite score.</li>
+    </ul>
+    <p>Click <strong>"🎯 IPMA"</strong>, choose <em>Behavioral Intention</em> as the target; on the TAM sample data:</p>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Construct</th><th class="num">Importance</th><th class="num">Performance (0–100)</th></tr></thead>
+      <tbody>
+        <tr><td>Perceived Ease of Use</td><td class="num">0.296</td><td class="num">51.2</td></tr>
+        <tr><td>Perceived Usefulness</td><td class="num">0.481</td><td class="num">49.4</td></tr>
+        <tr><td>Attitude</td><td class="num">0.358</td><td class="num">49.0</td></tr>
+      </tbody>
+    </table></div>
+    <p>The chart draws two dotted lines at the mean Importance and mean Performance of the constructs currently shown, dividing the plane into 4 zones. Here, <strong>Perceived Usefulness</strong> has the highest importance (0.481) but the lowest performance (49.4) of the three — landing in the "important but underperforming" zone, making it the top candidate to prioritize if the goal is raising Behavioral Intention.</p>
+    <div class="callout">
+      <strong class="label">Why doesn't performance match the original response scale?</strong>
+      Because the 0–100 scale is rescaled from the <em>observed</em> min/max in this particular dataset, not a fixed theoretical scale (e.g. a 1–7 Likert range). That means performance is only meaningful as a <em>relative</em> comparison across constructs within the same run — don't compare it directly across two different datasets.
+    </div>
+
+    <h2 id="sensitivity">9. Sample Size Sensitivity</h2>
+    <p>The question "how large a sample is enough?" is normally answered with a power analysis <em>before</em> collecting data. <strong>Sample Size Sensitivity</strong> approaches it from the other direction, <em>after</em> the data already exists: it re-runs the model repeatedly on progressively smaller random subsamples, to see at what point the main results (R², path coefficients) start swinging around noticeably.</p>
+    <p>Click <strong>"📉 Sample Size Sensitivity"</strong>, enter N (how many more observations to drop at each step); the results page <strong>opens in a new tab</strong>. With N = 20 on the TAM sample (original n = 250, running down to about 20 observations):</p>
+    <div class="table-wrap"><table>
+      <thead><tr><th class="num">n</th><th class="num">R² — Perceived Usefulness</th><th class="num">R² — Attitude</th><th class="num">R² — Intention</th></tr></thead>
+      <tbody>
+        <tr><td class="num">230</td><td class="num">0.207</td><td class="num">0.220</td><td class="num">0.353</td></tr>
+        <tr><td class="num">170</td><td class="num">0.163</td><td class="num">0.216</td><td class="num">0.334</td></tr>
+        <tr><td class="num">110</td><td class="num">0.209</td><td class="num">0.201</td><td class="num">0.444</td></tr>
+        <tr><td class="num">70</td><td class="num">0.247</td><td class="num">0.292</td><td class="num">0.403</td></tr>
+        <tr><td class="num">30</td><td class="num">0.204</td><td class="num">0.384</td><td class="num">0.532</td></tr>
+      </tbody>
+    </table></div>
+    <p>At n = 230 (close to the original sample), Attitude's R² is 0.220; by n = 30, the same statistic swings as high as 0.384 — visibly more volatile as the sample shrinks, exactly as statistical theory predicts (smaller samples carry larger standard errors). The results page plots this full trajectory on a chart, with a backing data table and distinct markers for any sample size where the model failed to converge.</p>
+    <div class="callout warn">
+      <strong class="label">Not a formal power analysis</strong>
+      This is an empirical exploration tool ("how much is enough, based on this actual dataset"), not a substitute for a proper power analysis (e.g. G*Power) run before data collection to determine the minimum required sample size.
+    </div>
+
+    <h2 id="cbsem">10. CB-SEM fit indices</h2>
     <p>Running the same model (with the interaction) under CB-SEM (Maximum Likelihood) produces classic global fit statistics that PLS-SEM does not report:</p>
     <div class="table-wrap"><table>
       <thead><tr><th>Index</th><th class="num">Value</th><th>Good-fit cutoff</th><th>Assessment</th></tr></thead>
@@ -306,16 +381,18 @@ Attitude (ATT)                <span class="arrow">──▶</span> Behavioral In
     </table></div>
     <p>Every practical fit index (CFI, TLI, RMSEA, SRMR, GFI, AGFI, NFI) clears its good-fit cutoff; only the χ² test itself is marginal, which is normal and expected — χ² almost always rejects large or non-normal samples even for a well-fitting model, which is exactly why the other indices exist.</p>
 
-    <h2 id="export">8. Exporting reports</h2>
+    <h2 id="export">11. Exporting reports</h2>
     <p>Both the Excel (.xlsx) and Word (.docx) exports rebuild every table shown on screen — including Total &amp; Indirect Effects and, when present, interaction-term rows and moderation-specific f² labels — directly from the analysis you just ran (no re-estimation, so exporting is instant). The report's language always follows whichever language (VI/EN) is selected in the interface <em>at export time</em>, independent of the language used when you originally ran the analysis.</p>
 
-    <h2 id="faq">9. Troubleshooting</h2>
+    <h2 id="faq">12. Troubleshooting</h2>
     <ul>
       <li><strong>“Interaction term ‘X’ predicts ‘Y’, so ‘Z’ also needs a direct main-effect path to ‘Y’.”</strong> — Draw the missing direct path from the named source construct to the moderated target, then re-run. Both multiplicands of an interaction must carry their own main effect on the outcome.</li>
       <li><strong>“Need at least 2 other constructs to create an interaction term.”</strong> — Add and configure at least two ordinary (non-interaction) constructs before switching a construct's type to “Interaction / moderation term”.</li>
       <li><strong>Q² shows a skip message instead of a value</strong> — this is expected whenever the model contains an interaction term (see §5); it does not indicate an error.</li>
       <li><strong>CB-SEM rejects a formative construct</strong> — CB-SEM (Maximum Likelihood) only supports reflective (Mode A) measurement; switch the construct to PLS-SEM, or change its measurement type if that's substantively appropriate.</li>
       <li><strong>File upload rejected for too many rows</strong> — the tool caps uploads at 5,000 rows; aggregate or sample your dataset down first.</li>
+      <li><strong>"PLSpredict doesn't yet support models with an interaction/moderation construct"</strong> — exactly as stated; this feature doesn't yet handle Interaction-type constructs. Temporarily remove the interaction term from the model (or check on a moderator-free version of it) if you want to run PLSpredict.</li>
+      <li><strong>The IPMA button has no constructs to choose from</strong> — IPMA needs at least one endogenous construct (something with an incoming path); if your model is all-exogenous, draw a structural path first.</li>
     </ul>
   </main>
 </div>

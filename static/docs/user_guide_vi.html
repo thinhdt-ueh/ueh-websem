@@ -110,9 +110,12 @@
     <a class="sub" href="#read-discriminant">Giá trị phân biệt</a>
     <a class="sub" href="#read-structural">Mô hình cấu trúc</a>
     <a class="sub" href="#read-cmb">Common Method Bias</a>
-    <a href="#cbsem">7. Các chỉ số fit của CB-SEM</a>
-    <a href="#export">8. Xuất báo cáo</a>
-    <a href="#faq">9. Xử lý sự cố thường gặp</a>
+    <a href="#plspredict">7. PLSpredict — dự báo ngoài mẫu</a>
+    <a href="#ipma">8. IPMA — bản đồ Importance-Performance</a>
+    <a href="#sensitivity">9. Phân tích độ nhạy theo cỡ mẫu</a>
+    <a href="#cbsem">10. Các chỉ số fit của CB-SEM</a>
+    <a href="#export">11. Xuất báo cáo</a>
+    <a href="#faq">12. Xử lý sự cố thường gặp</a>
   </aside>
 
   <main class="doc">
@@ -287,7 +290,79 @@ Thái độ (ATT)                 <span class="arrow">──▶</span> Ý địn
     </table></div>
     <p>Mọi giá trị đều thấp hơn nhiều so với 3.3, nên bộ dữ liệu này không cho thấy dấu hiệu của common method bias.</p>
 
-    <h2 id="cbsem">7. Các chỉ số fit của CB-SEM</h2>
+    <h2 id="plspredict">7. PLSpredict — Đánh giá khả năng dự báo ngoài mẫu</h2>
+    <p>R² cho biết mô hình khớp <em>dữ liệu hiện có</em> tốt đến đâu, nhưng không nói lên được liệu mô hình có <em>dự báo tốt cho người trả lời mới</em> hay không — hai câu hỏi này có thể cho câu trả lời khác nhau. <strong>PLSpredict</strong> (Shmueli, Ringle &amp; Sarstedt, 2016) trả lời câu hỏi thứ hai bằng k-fold cross-validation (mặc định k = 10):</p>
+    <ol>
+      <li>Chia dữ liệu thành 10 phần; lần lượt giữ lại 1 phần làm tập kiểm tra, huấn luyện mô hình trên 9 phần còn lại.</li>
+      <li>Dùng trọng số/hệ số ước lượng từ tập huấn luyện để dự báo giá trị các indicator nội sinh trên tập kiểm tra (chưa từng "nhìn thấy").</li>
+      <li>So sánh sai số dự báo của PLS với một <strong>hồi quy tuyến tính đơn giản (LM)</strong> — hồi quy OLS mỗi indicator trực tiếp trên các indicator thô của những construct dự báo nó, không đi qua composite score.</li>
+    </ol>
+    <p>Bấm nút <strong>"🔮 PLSpredict"</strong> trên trang kết quả để chạy. Trên dữ liệu mẫu TAM (mô hình gốc, không có biến tương tác):</p>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Indicator</th><th>Construct</th><th class="num">PLS RMSE</th><th class="num">PLS MAE</th><th class="num">LM RMSE</th><th class="num">LM MAE</th><th>Kết quả</th></tr></thead>
+      <tbody>
+        <tr><td>PU1</td><td>Nhận thức hữu ích</td><td class="num">1.030</td><td class="num">0.814</td><td class="num">1.036</td><td class="num">0.816</td><td><span class="badge ok">PLS thắng</span></td></tr>
+        <tr><td>PU2</td><td>Nhận thức hữu ích</td><td class="num">1.099</td><td class="num">0.867</td><td class="num">1.102</td><td class="num">0.868</td><td><span class="badge ok">PLS thắng</span></td></tr>
+        <tr><td>PU3</td><td>Nhận thức hữu ích</td><td class="num">1.146</td><td class="num">0.931</td><td class="num">1.143</td><td class="num">0.925</td><td><span class="badge warn">LM thắng</span></td></tr>
+        <tr><td>ATT1</td><td>Thái độ</td><td class="num">1.115</td><td class="num">0.892</td><td class="num">1.085</td><td class="num">0.871</td><td><span class="badge warn">LM thắng</span></td></tr>
+        <tr><td>ATT2</td><td>Thái độ</td><td class="num">1.110</td><td class="num">0.899</td><td class="num">1.088</td><td class="num">0.884</td><td><span class="badge warn">LM thắng</span></td></tr>
+        <tr><td>ATT3</td><td>Thái độ</td><td class="num">1.121</td><td class="num">0.874</td><td class="num">1.096</td><td class="num">0.870</td><td><span class="badge warn">LM thắng</span></td></tr>
+        <tr><td>INT1</td><td>Ý định hành vi</td><td class="num">1.060</td><td class="num">0.837</td><td class="num">0.914</td><td class="num">0.737</td><td><span class="badge warn">LM thắng</span></td></tr>
+        <tr><td>INT2</td><td>Ý định hành vi</td><td class="num">1.081</td><td class="num">0.859</td><td class="num">0.944</td><td class="num">0.761</td><td><span class="badge warn">LM thắng</span></td></tr>
+        <tr><td>INT3</td><td>Ý định hành vi</td><td class="num">1.079</td><td class="num">0.837</td><td class="num">0.956</td><td class="num">0.743</td><td><span class="badge warn">LM thắng</span></td></tr>
+      </tbody>
+    </table></div>
+    <p>PLS chỉ thắng 2/9 indicator ⇒ <strong>khả năng dự báo thấp</strong>, theo đúng quy tắc của Shmueli et al. (PLS thắng hết = cao; thắng đa số = trung bình; còn lại = thấp).</p>
+    <div class="callout">
+      <strong class="label">Vì sao LM thường thắng, và điều đó có đáng lo không?</strong>
+      Đây không phải dấu hiệu mô hình sai. PLS nén ba indicator của một construct thành <em>một</em> composite score rồi mới dự báo qua composite đó — trong khi LM hồi quy trực tiếp trên cả ba indicator thô (nhiều bậc tự do hơn). Với construct nội sinh xa gốc (như Ý định hành vi, phải "đi qua" hai construct trung gian), sai số nén dồn lại càng nhiều, nên LM càng dễ thắng. Đây chính là mục đích PLSpredict được thiết kế ra: phát hiện khi việc nén thành composite <em>không</em> mang lại lợi thế dự báo thực tế so với hồi quy trên item thô, dù R² trong mẫu vẫn cao.
+    </div>
+    <div class="callout warn">
+      <strong class="label">Giới hạn</strong>
+      PLSpredict hiện chưa hỗ trợ mô hình có biến tương tác (moderator) — ứng dụng sẽ báo lỗi rõ ràng nếu bạn thử chạy trên mô hình như vậy.
+    </div>
+
+    <h2 id="ipma">8. IPMA — Bản đồ Importance-Performance</h2>
+    <p><strong>IPMA</strong> (Importance-Performance Map Analysis; Ringle &amp; Sarstedt, 2016) trả lời câu hỏi thực tiễn: "nên ưu tiên cải thiện construct nào trước?" Với một construct <strong>mục tiêu</strong> do bạn chọn, mỗi construct tiền đề (antecedent) của nó được đặt lên biểu đồ theo hai trục:</p>
+    <ul>
+      <li><strong>Importance (trục ngang)</strong> — hiệu ứng tổng (total effect) chuẩn hoá lên construct mục tiêu, đúng con số đã thấy ở bảng Total &amp; Indirect Effects (mục 4).</li>
+      <li><strong>Performance (trục dọc)</strong> — điểm trung bình của construct, quy đổi mỗi indicator về thang 0–100 theo giá trị nhỏ nhất/lớn nhất <em>quan sát được</em> trong dữ liệu, rồi kết hợp bằng đúng outer weight dùng để tính composite score.</li>
+    </ul>
+    <p>Bấm <strong>"🎯 IPMA"</strong>, chọn construct mục tiêu là <em>Ý định hành vi</em>, kết quả trên dữ liệu mẫu TAM:</p>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Construct</th><th class="num">Importance</th><th class="num">Performance (0–100)</th></tr></thead>
+      <tbody>
+        <tr><td>Nhận thức dễ sử dụng</td><td class="num">0.296</td><td class="num">51.2</td></tr>
+        <tr><td>Nhận thức hữu ích</td><td class="num">0.481</td><td class="num">49.4</td></tr>
+        <tr><td>Thái độ</td><td class="num">0.358</td><td class="num">49.0</td></tr>
+      </tbody>
+    </table></div>
+    <p>Biểu đồ vẽ hai đường chấm tại giá trị trung bình của Importance và Performance trong số các construct đang hiển thị, chia mặt phẳng thành 4 vùng. Ở đây, <strong>Nhận thức hữu ích</strong> có importance cao nhất (0.481) nhưng performance lại thấp nhất (49.4) trong ba construct — rơi vào vùng "quan trọng nhưng hiệu suất chưa cao", tức là ứng viên hàng đầu để ưu tiên cải thiện nếu mục tiêu là tăng Ý định hành vi.</p>
+    <div class="callout">
+      <strong class="label">Vì sao performance không trùng khớp thang gốc?</strong>
+      Vì thang 0–100 được quy đổi theo min/max <em>quan sát được</em> trong bộ dữ liệu này, không phải theo thang lý thuyết cố định (ví dụ Likert 1–7). Điều này có nghĩa performance chỉ có ý nghĩa <em>so sánh tương đối</em> giữa các construct trong cùng một lần chạy, không nên so trực tiếp giữa hai bộ dữ liệu khác nhau.
+    </div>
+
+    <h2 id="sensitivity">9. Phân tích độ nhạy theo cỡ mẫu</h2>
+    <p>Câu hỏi "cỡ mẫu bao nhiêu là đủ?" thường được trả lời bằng công thức power analysis <em>trước khi</em> thu thập dữ liệu. Tính năng <strong>Phân tích độ nhạy theo cỡ mẫu</strong> tiếp cận câu hỏi này theo hướng ngược lại, <em>sau khi</em> đã có dữ liệu: chạy lại mô hình nhiều lần trên các mẫu con ngẫu nhiên ngày càng nhỏ, để xem kết quả chính (R², path coefficient) bắt đầu dao động mạnh từ cỡ mẫu nào.</p>
+    <p>Bấm <strong>"📉 Phân tích độ nhạy cỡ mẫu"</strong>, nhập N (số quan sát bớt thêm mỗi bước), trang kết quả sẽ <strong>mở ở tab mới</strong>. Với N = 20 trên dữ liệu mẫu TAM (n gốc = 250, chạy đến khi còn khoảng 20 quan sát):</p>
+    <div class="table-wrap"><table>
+      <thead><tr><th class="num">n</th><th class="num">R² — Nhận thức hữu ích</th><th class="num">R² — Thái độ</th><th class="num">R² — Ý định</th></tr></thead>
+      <tbody>
+        <tr><td class="num">230</td><td class="num">0.207</td><td class="num">0.220</td><td class="num">0.353</td></tr>
+        <tr><td class="num">170</td><td class="num">0.163</td><td class="num">0.216</td><td class="num">0.334</td></tr>
+        <tr><td class="num">110</td><td class="num">0.209</td><td class="num">0.201</td><td class="num">0.444</td></tr>
+        <tr><td class="num">70</td><td class="num">0.247</td><td class="num">0.292</td><td class="num">0.403</td></tr>
+        <tr><td class="num">30</td><td class="num">0.204</td><td class="num">0.384</td><td class="num">0.532</td></tr>
+      </tbody>
+    </table></div>
+    <p>Ở n = 230 (gần với cỡ mẫu gốc), R² của Thái độ là 0.220; xuống n = 30, cùng chỉ số này dao động lên tới 0.384 — biến động ngày càng rõ khi mẫu càng nhỏ, đúng như kỳ vọng thống kê (ước lượng trên mẫu nhỏ có sai số chuẩn lớn hơn). Trang kết quả vẽ toàn bộ quỹ đạo này trên biểu đồ, kèm bảng số liệu chi tiết và điểm đánh dấu riêng cho các cỡ mẫu mô hình không hội tụ được.</p>
+    <div class="callout warn">
+      <strong class="label">Đây không phải power analysis chính thức</strong>
+      Đây là công cụ khám phá thực nghiệm ("bao nhiêu là đủ, dựa trên chính dữ liệu này"), không thay thế cho một phân tích power (ví dụ G*Power) thực hiện trước khi thu thập dữ liệu để xác định cỡ mẫu tối thiểu cần thiết.
+    </div>
+
+    <h2 id="cbsem">10. Các chỉ số fit của CB-SEM</h2>
     <p>Chạy đúng mô hình đó (kèm biến tương tác) bằng CB-SEM (Maximum Likelihood) cho ra các chỉ số phù hợp mô hình toàn cục kinh điển mà PLS-SEM không báo cáo:</p>
     <div class="table-wrap"><table>
       <thead><tr><th>Chỉ số</th><th class="num">Giá trị</th><th>Ngưỡng fit tốt</th><th>Đánh giá</th></tr></thead>
@@ -306,16 +381,18 @@ Thái độ (ATT)                 <span class="arrow">──▶</span> Ý địn
     </table></div>
     <p>Mọi chỉ số fit thực dụng (CFI, TLI, RMSEA, SRMR, GFI, AGFI, NFI) đều vượt ngưỡng fit tốt; chỉ riêng kiểm định χ² là ở mức ranh giới, điều này bình thường và dễ hiểu — χ² gần như luôn bác bỏ với mẫu lớn hoặc không chuẩn ngay cả khi mô hình fit tốt, đó chính là lý do các chỉ số khác tồn tại.</p>
 
-    <h2 id="export">8. Xuất báo cáo</h2>
+    <h2 id="export">11. Xuất báo cáo</h2>
     <p>Cả bản xuất Excel (.xlsx) và Word (.docx) đều dựng lại toàn bộ bảng hiển thị trên màn hình — bao gồm Total &amp; Indirect Effects và, khi có, các dòng biến tương tác cùng nhãn f² dành riêng cho moderation — trực tiếp từ lần phân tích bạn vừa chạy (không ước lượng lại, nên xuất file diễn ra ngay lập tức). Ngôn ngữ của báo cáo luôn theo ngôn ngữ (VI/EN) đang chọn trên giao diện <em>tại thời điểm xuất file</em>, không phụ thuộc vào ngôn ngữ lúc bạn chạy phân tích ban đầu.</p>
 
-    <h2 id="faq">9. Xử lý sự cố thường gặp</h2>
+    <h2 id="faq">12. Xử lý sự cố thường gặp</h2>
     <ul>
       <li><strong>"Biến tương tác 'X' dự báo 'Y', nên 'Z' cũng cần có đường dẫn hiệu ứng chính trực tiếp đến 'Y'."</strong> — Vẽ thêm path trực tiếp còn thiếu từ construct nguồn được nêu tên đến construct bị điều tiết, rồi chạy lại. Cả hai thành phần nhân của biến tương tác đều phải có hiệu ứng chính riêng lên biến kết quả.</li>
       <li><strong>"Cần ít nhất 2 construct khác đã tồn tại để tạo biến tương tác."</strong> — Thêm và cấu hình ít nhất hai construct thông thường (không phải biến tương tác) trước khi chuyển loại đo lường của một construct thành "Biến tương tác / điều tiết".</li>
       <li><strong>Q² hiển thị thông báo bỏ qua thay vì một giá trị</strong> — đây là điều bình thường bất cứ khi nào mô hình chứa biến tương tác (xem mục 5); không phải là lỗi.</li>
       <li><strong>CB-SEM từ chối một construct formative</strong> — CB-SEM (Maximum Likelihood) chỉ hỗ trợ đo lường reflective (Mode A); hãy chuyển sang PLS-SEM, hoặc đổi loại đo lường của construct đó nếu phù hợp về mặt học thuật.</li>
       <li><strong>File tải lên bị từ chối vì quá nhiều dòng</strong> — công cụ giới hạn tối đa 5.000 dòng mỗi lần tải lên; hãy tổng hợp hoặc lấy mẫu bớt dữ liệu trước.</li>
+      <li><strong>"PLSpredict chưa hỗ trợ mô hình có biến điều tiết"</strong> — đúng như thông báo, tính năng này hiện chưa xử lý được construct kiểu Interaction; hãy tạm bỏ biến tương tác ra khỏi mô hình (hoặc kiểm tra trên phiên bản mô hình không có moderator) nếu muốn chạy PLSpredict.</li>
+      <li><strong>Nút IPMA không cho chọn construct nào cả</strong> — IPMA cần ít nhất một construct nội sinh (có path đi vào); nếu mô hình của bạn chỉ có construct ngoại sinh, hãy vẽ thêm path cấu trúc trước.</li>
     </ul>
   </main>
 </div>
