@@ -326,6 +326,12 @@ canvas { width: 100%; border: 1px solid var(--border); border-radius: 10px; back
 .chart-tooltip .tt-title { font-weight: 700; margin-bottom: 4px; }
 
 .chart-legend { display: flex; flex-wrap: wrap; gap: 6px 16px; margin-top: 10px; }
-.chart-legend .leg-item { display: flex; align-items: center; gap: 5px; font-size: 12.5px; color: var(--viz-ink-secondary); }
+.chart-legend .leg-item {
+  display: flex; align-items: center; gap: 5px; font-size: 12.5px; color: var(--viz-ink-secondary);
+  cursor: pointer; user-select: none; background: none; border: none; padding: 3px 4px; margin: -3px -4px;
+  border-radius: 5px; font-family: inherit;
+}
+.chart-legend .leg-item:hover { background: var(--accent-bg, rgba(0,0,0,.04)); }
+.chart-legend .leg-item[aria-pressed="false"] { opacity: .4; text-decoration: line-through; }
 .chart-legend .leg-swatch { flex-shrink: 0; }
 .chart-legend .leg-glyph { font-size: 11px; line-height: 1; }

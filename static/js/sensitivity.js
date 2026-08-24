@@ -14,6 +14,13 @@ const DASH_PATTERNS = [[], [7, 4], [1, 3], [9, 3, 2, 3], [4, 2], [10, 3, 1, 3, 1
 const MARKER_SHAPES = ["circle", "square", "triangle", "diamond", "circle", "square", "triangle", "diamond"];
 const SHAPE_GLYPH = { circle: "●", square: "■", triangle: "▲", diamond: "◆" };
 
+// Which series are toggled off via the legend, keyed by series id (a
+// construct id for the R² chart, a "source->target" path id for the path
+// chart — the two id spaces never collide). Kept outside renderAll() so a
+// window resize or language switch (both of which rebuild the series arrays
+// from scratch) doesn't silently un-hide everything the user just toggled.
+const hiddenSeriesIds = new Set();
+
 function legendSwatchSvg(s) {
   const dashAttr = s.dash && s.dash.length ? ` stroke-dasharray="${s.dash.join(",")}"` : "";
   const glyph = SHAPE_GLYPH[s.shape] || "●";
@@ -131,6 +138,7 @@ function renderAll(data) {
     color: SERIES_COLORS[i] || SERIES_OTHER_COLOR,
     dash: DASH_PATTERNS[i % DASH_PATTERNS.length],
     shape: MARKER_SHAPES[i % MARKER_SHAPES.length],
+    hidden: hiddenSeriesIds.has(c.id),
     points: points.map((p) => ({ x: p.n, y: p.r_squared ? p.r_squared[c.id] : null, converged: p.converged })),
   }));
   drawLineChart("r2Chart", "r2Tooltip", "r2Legend", r2Series, {
@@ -144,6 +152,7 @@ function renderAll(data) {
     color: SERIES_COLORS[i] || SERIES_OTHER_COLOR,
     dash: DASH_PATTERNS[i % DASH_PATTERNS.length],
     shape: MARKER_SHAPES[i % MARKER_SHAPES.length],
+    hidden: hiddenSeriesIds.has(p.id),
     points: points.map((row) => ({ x: row.n, y: row.paths ? row.paths[p.id] : null, converged: row.converged })),
   }));
   drawLineChart("pathChart", "pathTooltip", "pathLegend", pathSeries, {
@@ -208,8 +217,24 @@ function drawLineChart(canvasId, tooltipId, legendId, series, opts) {
   const tickEvery = Math.max(1, Math.ceil(xVals.length / maxTicks));
 
   // legend (always present for >=2 series) — color + dash pattern + marker
-  // shape together, so identity never rests on color alone (print/CVD safe)
-  legendEl.innerHTML = series.map((s) => `<div class="leg-item">${legendSwatchSvg(s)}${escapeHtml(s.label)}</div>`).join("");
+  // shape together, so identity never rests on color alone (print/CVD safe).
+  // Also doubles as a click-to-toggle filter: clicking a series' legend
+  // entry shows/hides just that line, so a crowded chart can be narrowed
+  // down to the series actually being compared.
+  legendEl.innerHTML = series
+    .map((s, i) => `<button type="button" class="leg-item" data-series-index="${i}" aria-pressed="${!s.hidden}">${legendSwatchSvg(s)}${escapeHtml(s.label)}</button>`)
+    .join("");
+  legendEl.querySelectorAll(".leg-item").forEach((btn) => {
+    btn.onclick = () => {
+      const s = series[Number(btn.dataset.seriesIndex)];
+      s.hidden = !s.hidden;
+      if (s.hidden) hiddenSeriesIds.add(s.id);
+      else hiddenSeriesIds.delete(s.id);
+      btn.setAttribute("aria-pressed", String(!s.hidden));
+      tooltip.classList.add("hidden");
+      redrawWithCrosshair(null);
+    };
+  });
 
   // crosshair + tooltip
   canvas.onmousemove = (e) => {
@@ -229,6 +254,7 @@ function drawLineChart(canvasId, tooltipId, legendId, series, opts) {
     redrawWithCrosshair(nearest);
 
     const rows = series
+      .filter((s) => !s.hidden)
       .map((s) => {
         const p = s.points.find((pp) => pp.x === nearest);
         if (!p || p.y === null || p.y === undefined) return "";
@@ -289,6 +315,7 @@ function drawLineChart(canvasId, tooltipId, legendId, series, opts) {
     }
 
     for (const s of series) {
+      if (s.hidden) continue;
       const pts = s.points.filter((p) => p.y !== null && p.y !== undefined);
       if (pts.length === 0) continue;
       // color + dash pattern + marker shape together identify a series, so
