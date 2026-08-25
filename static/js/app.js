@@ -998,19 +998,22 @@ function openPowerAnalysisModal() {
   function updateEstimate() {
     const points = computePoints();
     const nMc = parseInt(document.getElementById("powerNMc").value, 10) || 30;
+    const nBoot = parseInt(document.getElementById("powerNBoot").value, 10) || 100;
     const text = document.getElementById("powerEstimateText");
     if (!points) {
       text.textContent = "";
       return;
     }
-    // Rough client-side estimate only — matches this app's own benchmark
-    // (see MAX_TOTAL_FITS's comment in pls/power_analysis.py); the server
-    // enforces the real budget cap regardless of this guess.
-    const SEC_PER_REPLICATE = 0.4;
-    const estSec = Math.round(points.length * nMc * SEC_PER_REPLICATE);
+    // Rough client-side estimate only, based on a sustained ~7.7ms per
+    // inner PLS fit measured on this app's own sample model (see
+    // MAX_TOTAL_FITS's comment in pls/power_analysis.py) — each replicate
+    // costs (1 + n_boot_inner) fits. The server enforces the real budget
+    // cap regardless of this guess.
+    const SEC_PER_FIT = 0.0077;
+    const estSec = Math.round(points.length * nMc * (1 + nBoot) * SEC_PER_FIT);
     text.textContent = t("power_modal_estimate", { sec: estSec, points: points.length, mc: nMc });
   }
-  ["powerNFrom", "powerNTo", "powerNStep", "powerNMc"].forEach((id) => {
+  ["powerNFrom", "powerNTo", "powerNStep", "powerNMc", "powerNBoot"].forEach((id) => {
     document.getElementById(id).addEventListener("input", updateEstimate);
   });
   updateEstimate();

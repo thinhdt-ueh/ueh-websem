@@ -41,16 +41,19 @@ MAX_MC_REPLICATES = 500
 # value is honored, which it wouldn't be.
 MIN_BOOT_INNER = 100
 MAX_BOOT_INNER = 300
-MAX_SAMPLE_SIZE_POINTS = 8
+MAX_SAMPLE_SIZE_POINTS = 15
 # Benchmarked end-to-end on this app's own 4-construct/13-indicator sample
-# model: 4 sample-size points x 30 MC replicates x 100 inner bootstrap
-# resamples (the defaults in routes/power_api.py) took ~45s wall-clock,
-# i.e. roughly 3.7ms per inner PLS fit. This cap bounds total fits so even
-# the largest allowed request (MAX_SAMPLE_SIZE_POINTS x MAX_MC_REPLICATES x
-# (1+MAX_BOOT_INNER)) stays well inside the 300s gunicorn timeout
-# (Procfile), with margin for slower machines — see routes/power_api.py's
-# pre-flight check using it.
-MAX_TOTAL_FITS = 75_000
+# model, sustained over a longer run (10 sample-size points x 30 MC
+# replicates x 100 inner bootstrap resamples = 232s, i.e. ~7.7ms per inner
+# PLS fit) — a short 4-point run alone under-measured this by ~2x, so this
+# number comes from the longer, more representative sample. At the default
+# n_mc/n_boot_inner, MAX_SAMPLE_SIZE_POINTS x 30 x 101 ~= 45,450 fits,
+# comfortably under this cap. This cap is the real budget backstop
+# regardless of how a request splits fits between points/replicates/
+# bootstraps — it, not MAX_SAMPLE_SIZE_POINTS alone, is what keeps a
+# request inside the 500s gunicorn timeout (Procfile), with margin for
+# slower machines — see routes/power_api.py's pre-flight check using it.
+MAX_TOTAL_FITS = 50_000
 SIGNIFICANCE_ALPHA = 0.05
 # Guards sqrt() against a user-specified population that implies a
 # construct's disturbance variance is zero or negative (e.g. path
