@@ -623,6 +623,7 @@ document.getElementById("exportExcelBtn").addEventListener("click", () => export
 document.getElementById("exportWordBtn").addEventListener("click", () => exportReport("word"));
 document.getElementById("sensitivityBtn").addEventListener("click", () => openSensitivityModal("pls"));
 document.getElementById("cbsemSensitivityBtn").addEventListener("click", () => openSensitivityModal("cbsem"));
+document.getElementById("powerAnalysisBtn").addEventListener("click", openPowerAnalysisModal);
 document.getElementById("plspredictBtn").addEventListener("click", runPlspredict);
 document.getElementById("ipmaBtn").addEventListener("click", openIpmaModal);
 
@@ -896,6 +897,159 @@ function openSensitivityModal(method) {
     window.open("/sensitivity", "_blank");
   };
   document.getElementById("sensStep").focus();
+}
+
+function openPowerAnalysisModal() {
+  const modelPayload = editor.serialize();
+  const root = document.getElementById("modalRoot");
+
+  const nonReflective = modelPayload.constructs.filter((c) => c.mode !== "A");
+  if (nonReflective.length > 0) {
+    root.innerHTML = `
+      <div class="modal-backdrop">
+        <div class="modal-box">
+          <h3>${t("power_modal_title")}</h3>
+          <p class="hint">${t("power_btn_disabled_hint")}</p>
+          <div class="modal-actions">
+            <button class="btn" id="powerModalClose">${t("modal_cancel")}</button>
+          </div>
+        </div>
+      </div>`;
+    document.getElementById("powerModalClose").onclick = () => (root.innerHTML = "");
+    return;
+  }
+
+  const idToName = {};
+  modelPayload.constructs.forEach((c) => (idToName[c.id] = c.name));
+
+  const lastPaths = (lastAnalysisResult && lastAnalysisResult.structural && lastAnalysisResult.structural.paths) || [];
+  const coefByPath = {};
+  lastPaths.forEach((p) => { coefByPath[`${p.source}->${p.target}`] = p.coefficient; });
+
+  const lastLoadings = (lastAnalysisResult && lastAnalysisResult.measurement && lastAnalysisResult.measurement.outer_loadings) || {};
+  const avgLoadingByConstruct = {};
+  modelPayload.constructs.forEach((c) => {
+    const vals = (c.indicators || []).map((ind) => lastLoadings[ind]).filter((v) => v !== undefined && v !== null);
+    avgLoadingByConstruct[c.id] = vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : 0.7;
+  });
+
+  const nRows = state.nRows || 200;
+  const suggestedFrom = Math.max(50, Math.round((nRows * 0.5) / 10) * 10);
+  const suggestedTo = Math.max(suggestedFrom + 100, Math.round((nRows * 1.5) / 10) * 10);
+  const suggestedStep = Math.max(10, Math.round((suggestedTo - suggestedFrom) / 5 / 10) * 10);
+
+  const pathRows = modelPayload.paths
+    .map((p) => {
+      const key = `${p.source}->${p.target}`;
+      const def = coefByPath[key] !== undefined ? coefByPath[key] : 0.3;
+      return `<div class="modal-value-row"><span>${escapeHtml(idToName[p.source])} → ${escapeHtml(idToName[p.target])}</span>` +
+        `<input type="number" step="0.01" min="-0.99" max="0.99" value="${def.toFixed(2)}" data-path="${key}"></div>`;
+    })
+    .join("");
+
+  const loadingRows = modelPayload.constructs
+    .map((c) => {
+      const def = avgLoadingByConstruct[c.id];
+      return `<div class="modal-value-row"><span>${escapeHtml(c.name)}</span>` +
+        `<input type="number" step="0.01" min="0.1" max="0.99" value="${def.toFixed(2)}" data-construct="${c.id}"></div>`;
+    })
+    .join("");
+
+  root.innerHTML = `
+    <div class="modal-backdrop">
+      <div class="modal-box modal-wide">
+        <h3>${t("power_modal_title")}</h3>
+        <p class="hint">${t("power_modal_hint")}</p>
+        <div class="modal-section-title">${t("power_modal_paths_title")}</div>
+        ${pathRows}
+        <div class="modal-section-title">${t("power_modal_loadings_title")}</div>
+        ${loadingRows}
+        <div class="modal-section-title">${t("power_modal_range_title")}</div>
+        <div class="modal-range-row">
+          <label>${t("power_modal_from")}<input type="number" id="powerNFrom" min="10" step="10" value="${suggestedFrom}"></label>
+          <label>${t("power_modal_to")}<input type="number" id="powerNTo" min="20" step="10" value="${suggestedTo}"></label>
+          <label>${t("power_modal_step")}<input type="number" id="powerNStep" min="1" step="10" value="${suggestedStep}"></label>
+        </div>
+        <details>
+          <summary>${t("power_modal_advanced")}</summary>
+          <label>${t("power_modal_n_mc")}<input type="number" id="powerNMc" min="20" max="500" value="30"></label>
+          <label>${t("power_modal_n_boot")}<input type="number" id="powerNBoot" min="100" max="300" value="100"></label>
+          <p class="hint" style="margin:2px 0 0">${t("power_modal_n_mc_hint")}</p>
+        </details>
+        <p class="hint" id="powerEstimateText"></p>
+        <div id="powerModalError" class="error-box hidden"></div>
+        <div class="modal-actions">
+          <button class="btn" id="powerModalCancel">${t("modal_cancel")}</button>
+          <button class="btn primary" id="powerModalOk">${t("power_modal_run")}</button>
+        </div>
+      </div>
+    </div>`;
+
+  function computePoints() {
+    const from = parseInt(document.getElementById("powerNFrom").value, 10);
+    const to = parseInt(document.getElementById("powerNTo").value, 10);
+    const step = parseInt(document.getElementById("powerNStep").value, 10);
+    if (!Number.isInteger(from) || !Number.isInteger(to) || !Number.isInteger(step) || from >= to || step < 1) return null;
+    const points = [];
+    for (let n = from; n <= to; n += step) points.push(n);
+    return points;
+  }
+
+  function updateEstimate() {
+    const points = computePoints();
+    const nMc = parseInt(document.getElementById("powerNMc").value, 10) || 30;
+    const text = document.getElementById("powerEstimateText");
+    if (!points) {
+      text.textContent = "";
+      return;
+    }
+    // Rough client-side estimate only — matches this app's own benchmark
+    // (see MAX_TOTAL_FITS's comment in pls/power_analysis.py); the server
+    // enforces the real budget cap regardless of this guess.
+    const SEC_PER_REPLICATE = 0.4;
+    const estSec = Math.round(points.length * nMc * SEC_PER_REPLICATE);
+    text.textContent = t("power_modal_estimate", { sec: estSec, points: points.length, mc: nMc });
+  }
+  ["powerNFrom", "powerNTo", "powerNStep", "powerNMc"].forEach((id) => {
+    document.getElementById(id).addEventListener("input", updateEstimate);
+  });
+  updateEstimate();
+
+  document.getElementById("powerModalCancel").onclick = () => (root.innerHTML = "");
+  document.getElementById("powerModalOk").onclick = () => {
+    const errBox = document.getElementById("powerModalError");
+    const points = computePoints();
+    const nMc = parseInt(document.getElementById("powerNMc").value, 10);
+    const nBoot = parseInt(document.getElementById("powerNBoot").value, 10);
+    let valid = !!points && Number.isInteger(nMc) && nMc >= 1 && Number.isInteger(nBoot) && nBoot >= 1;
+
+    const pathValues = {};
+    root.querySelectorAll("input[data-path]").forEach((inp) => {
+      const v = parseFloat(inp.value);
+      if (Number.isNaN(v)) valid = false;
+      pathValues[inp.dataset.path] = v;
+    });
+    const loadingValues = {};
+    root.querySelectorAll("input[data-construct]").forEach((inp) => {
+      const v = parseFloat(inp.value);
+      if (Number.isNaN(v) || v <= 0 || v >= 1) valid = false;
+      loadingValues[inp.dataset.construct] = v;
+    });
+
+    if (!valid) {
+      errBox.textContent = t("power_modal_invalid");
+      errBox.classList.remove("hidden");
+      return;
+    }
+    sessionStorage.setItem("websem_power_job", JSON.stringify({
+      model: modelPayload, path_values: pathValues, loading_values: loadingValues,
+      n_from: points[0], n_to: points[points.length - 1],
+      n_step: parseInt(document.getElementById("powerNStep").value, 10),
+      n_mc: nMc, n_boot_inner: nBoot, lang: getLang(),
+    }));
+    root.innerHTML = "";
+    window.open("/power_analysis", "_blank");
+  };
 }
 
 async function exportReport(kind) {

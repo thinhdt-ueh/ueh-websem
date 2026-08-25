@@ -5,7 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>UEH-WebSEM — Sample Size Sensitivity</title>
 <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-<link rel="stylesheet" href="{{ url_for('static', filename='css/sensitivity.css') }}">
 </head>
 <body>
 <header class="topbar">
@@ -19,11 +18,11 @@
   <button class="btn ghost" id="closeTabBtn" data-i18n="sens_close_tab">✕ Đóng tab này</button>
 </header>
 
-<main class="sens-main">
-  <div id="sensLoading" class="panel-card sens-status">
+<main class="standalone-page">
+  <div id="sensLoading" class="panel-card standalone-status">
     <p data-i18n="sens_loading">Đang chạy lại mô hình với các cỡ mẫu khác nhau…</p>
   </div>
-  <div id="sensError" class="panel-card sens-status hidden"></div>
+  <div id="sensError" class="panel-card standalone-status hidden"></div>
 
   <div id="sensContent" class="hidden">
     <div class="panel-card">

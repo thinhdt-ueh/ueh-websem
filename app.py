@@ -8,6 +8,7 @@ from routes.api import api
 from routes.cbsem_api import cbsem_api
 from routes.ipma_api import ipma_api
 from routes.plspredict_api import plspredict_api
+from routes.power_api import power_api
 from routes.sensitivity_api import sensitivity_api
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -26,6 +27,7 @@ def create_app() -> Flask:
     app.register_blueprint(sensitivity_api)
     app.register_blueprint(plspredict_api)
     app.register_blueprint(ipma_api)
+    app.register_blueprint(power_api)
 
     @app.get("/")
     def index():
@@ -34,6 +36,10 @@ def create_app() -> Flask:
     @app.get("/sensitivity")
     def sensitivity_page():
         return render_template("sensitivity.html")
+
+    @app.get("/power_analysis")
+    def power_analysis_page():
+        return render_template("power_analysis.html")
 
     return app
 

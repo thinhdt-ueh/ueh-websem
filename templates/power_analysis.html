@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>UEH-WebSEM — Power Analysis</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+<header class="topbar">
+  <img class="brand-logo" src="{{ url_for('static', filename='img/logo-ueh.png') }}" alt="UEH">
+  <div class="brand"><span>WebSEM</span></div>
+  <div class="hint" style="margin:0" data-i18n="power_page_title">Phân tích lũy thừa thống kê (Power Analysis)</div>
+  <div class="lang-switch" id="langSwitch">
+    <button class="lang-btn" data-lang="vi">VI</button>
+    <button class="lang-btn active" data-lang="en">EN</button>
+  </div>
+  <button class="btn ghost" id="closeTabBtn" data-i18n="sens_close_tab">✕ Đóng tab này</button>
+</header>
+
+<main class="standalone-page">
+  <div id="powerLoading" class="panel-card standalone-status">
+    <p data-i18n="power_loading">Đang mô phỏng Monte Carlo — có thể mất một lúc…</p>
+  </div>
+  <div id="powerError" class="panel-card standalone-status hidden"></div>
+
+  <div id="powerContent" class="hidden">
+    <div class="panel-card">
+      <h2 data-i18n="power_summary_title">Tổng quan</h2>
+      <p class="hint" id="powerSummary"></p>
+      <p class="hint" data-i18n="power_method_hint">Mỗi điểm mô phỏng: sinh dữ liệu tổng hợp từ mô hình quần thể đã khai báo (path coefficient &amp; loading kỳ vọng), chạy PLS-SEM + Bootstrap, rồi tính tỉ lệ số lần path có ý nghĩa thống kê (p &lt; 0.05) trên tổng số lần lặp hội tụ. Giả định các construct ngoại sinh độc lập nhau (Aguirre-Urreta &amp; Rönkkö, 2015).</p>
+    </div>
+
+    <div class="panel-card">
+      <h2 data-i18n="power_chart_title">Đường cong lũy thừa (Power) theo cỡ mẫu</h2>
+      <p class="hint" data-i18n="power_chart_hint">Di chuột vào biểu đồ để xem giá trị chính xác. Đường nét đứt ngang = ngưỡng 80% (quy ước thông thường). Bấm vào chú thích để ẩn/hiện từng đường.</p>
+      <div class="chart-wrap">
+        <canvas id="powerChart"></canvas>
+        <div id="powerTooltip" class="chart-tooltip hidden"></div>
+      </div>
+      <div id="powerLegend" class="chart-legend"></div>
+    </div>
+
+    <div class="panel-card">
+      <h2 data-i18n="power_table_title">Bảng số liệu chi tiết</h2>
+      <div class="table-scroll"><table id="powerTable"></table></div>
+    </div>
+  </div>
+</main>
+
+{% include "footer.html" %}
+
+<script src="{{ url_for('static', filename='js/i18n.js') }}"></script>
+<script src="{{ url_for('static', filename='js/power_analysis.js') }}"></script>
+</body>
+</html>

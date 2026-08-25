@@ -216,6 +216,19 @@ canvas { width: 100%; border: 1px solid var(--border); border-radius: 10px; back
 .modal-box input, .modal-box select { width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 7px; margin: 6px 0 12px; }
 .modal-actions { display: flex; justify-content: flex-end; gap: 8px; }
 
+/* Wider modal variant for forms with several rows of inputs (e.g. Power
+ * Analysis's population-model editor) rather than one field. */
+.modal-box.modal-wide { width: min(560px, 94vw); max-height: 85vh; overflow-y: auto; }
+.modal-section-title { font-size: 12.5px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .02em; margin: 14px 0 4px; }
+.modal-value-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 4px 0; }
+.modal-value-row span { flex: 1; font-size: 13px; color: var(--text); }
+.modal-value-row input { width: 80px; margin: 0; flex-shrink: 0; }
+.modal-range-row { display: flex; gap: 10px; }
+.modal-range-row label { flex: 1; font-size: 12.5px; color: var(--muted); }
+.modal-range-row input { width: 100%; }
+.modal-box details { margin: 10px 0; }
+.modal-box summary { cursor: pointer; font-size: 12.5px; font-weight: 600; color: var(--muted); }
+
 /* ===================== Responsive (tablet / mobile) ===================== */
 
 /* Tablet & below: stack the model builder into one column, drop the side
@@ -251,6 +264,8 @@ canvas { width: 100%; border: 1px solid var(--border); border-radius: 10px; back
   table th, table td { padding: 5px 7px; }
 
   .modal-box { padding: 16px; }
+
+  .standalone-page { padding: 12px; }
 }
 
 .source-transparency { display: flex; flex-direction: column; gap: 8px; }
@@ -305,7 +320,12 @@ canvas { width: 100%; border: 1px solid var(--border); border-radius: 10px; back
 .bootstrap-hist-card canvas { width: 100%; height: 110px; display: block; }
 .bootstrap-hist-card .hist-stats { margin-top: 6px; font-size: 11.5px; color: var(--muted); }
 
-/* Shared chart primitives (sensitivity page charts + IPMA chart) */
+/* Shared standalone-page shell (sensitivity page, power analysis page —
+ * both "opens in a new tab" pages with a loading/error/content flow) */
+.standalone-page { max-width: 1100px; margin: 0 auto; padding: 20px; display: flex; flex-direction: column; gap: 16px; }
+.standalone-status { text-align: center; color: var(--muted); padding: 40px; }
+
+/* Shared chart primitives (sensitivity page charts + IPMA chart + power analysis chart) */
 .chart-wrap { position: relative; background: var(--viz-surface); border-radius: 10px; }
 .chart-wrap canvas { width: 100%; display: block; cursor: crosshair; }
 
