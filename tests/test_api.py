@@ -91,6 +91,50 @@ def test_sensitivity_endpoint(client, tam_df, tam_model_json):
     data = resp.get_json()
     assert data["points"]
     assert all(p["n"] >= 20 for p in data["points"])
+    # p-values are opt-in for PLS-SEM (need an extra bootstrap per step)
+    assert data["has_p_values"] is False
+    assert all(p["p_values"] == {} for p in data["points"])
+
+
+def test_sensitivity_endpoint_cbsem_gets_p_values_for_free(client, tam_df, tam_model_json):
+    file_id = _upload(client, tam_df)
+    resp = client.post("/api/sensitivity", json={
+        "file_id": file_id, "model": tam_model_json, "lang": "en", "method": "cbsem", "step": 40,
+    })
+    assert resp.status_code == 200, resp.get_json()
+    data = resp.get_json()
+    assert data["has_p_values"] is True
+    assert data["n_boot"] is None  # CB-SEM's ML fit needs no bootstrap for this
+    converged_points = [p for p in data["points"] if p["converged"]]
+    assert converged_points
+    assert all(p["p_values"] for p in converged_points)
+
+
+def test_sensitivity_endpoint_pls_bootstrap_enabled(client, tam_df, tam_model_json):
+    file_id = _upload(client, tam_df)
+    resp = client.post("/api/sensitivity", json={
+        "file_id": file_id, "model": tam_model_json, "lang": "en", "method": "pls", "step": 60,
+        "bootstrap": {"enabled": True, "n_boot": 100},
+    })
+    assert resp.status_code == 200, resp.get_json()
+    data = resp.get_json()
+    assert data["has_p_values"] is True
+    assert data["n_boot"] == 100
+    converged_points = [p for p in data["points"] if p["converged"]]
+    assert converged_points
+    assert all(p["p_values"] for p in converged_points)
+    for p_value in converged_points[0]["p_values"].values():
+        assert p_value is None or 0.0 <= p_value <= 1.0
+
+
+def test_sensitivity_endpoint_rejects_excessive_bootstrap_budget(client, tam_df, tam_model_json):
+    file_id = _upload(client, tam_df)
+    resp = client.post("/api/sensitivity", json={
+        "file_id": file_id, "model": tam_model_json, "lang": "en", "method": "pls", "step": 1,
+        "bootstrap": {"enabled": True, "n_boot": 5000},
+    })
+    assert resp.status_code == 400
+    assert "error" in resp.get_json()
 
 
 def test_plspredict_endpoint(client, tam_df, tam_model_json):

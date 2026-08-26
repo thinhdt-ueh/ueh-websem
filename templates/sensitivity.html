@@ -50,6 +50,16 @@
       <div id="pathLegend" class="chart-legend"></div>
     </div>
 
+    <div class="panel-card hidden" id="sensPvalueSection">
+      <h2 data-i18n="sens_pvalue_chart_title">P-value theo cỡ mẫu</h2>
+      <p class="hint" data-i18n="sens_pvalue_chart_hint">Đường nét đứt đỏ = ngưỡng 0.05. Với PLS-SEM, p-value ở đây đến từ một lượt Bootstrap chạy riêng ở mỗi cỡ mẫu (không phải bootstrap của lần phân tích chính) nên có thể dao động nhẹ giữa các lần chạy khác nhau.</p>
+      <div class="chart-wrap">
+        <canvas id="pvalueChart"></canvas>
+        <div id="pvalueTooltip" class="chart-tooltip hidden"></div>
+      </div>
+      <div id="pvalueLegend" class="chart-legend"></div>
+    </div>
+
     <div class="panel-card">
       <h2 data-i18n="sens_table_title">Bảng số liệu chi tiết</h2>
       <div class="table-scroll"><table id="sensTable"></table></div>

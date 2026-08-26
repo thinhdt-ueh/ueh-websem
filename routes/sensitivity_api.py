@@ -24,6 +24,7 @@ from cbsem.estimator import CBSEMError, run_cbsem
 from cbsem.moderation import run_cbsem_with_moderation
 from i18n import get_lang, t
 from pls.algorithm import run_pls_algorithm
+from pls.bootstrap import MAX_BOOTSTRAP_SAMPLES, MIN_BOOTSTRAP_SAMPLES, run_bootstrap, run_bootstrap_with_moderation
 from pls.model import Model, ModelError
 from pls.moderation import run_pls_with_moderation
 
@@ -33,6 +34,11 @@ sensitivity_api = Blueprint("sensitivity_api", __name__, url_prefix="/api")
 
 MIN_OBSERVATIONS_FLOOR = 20
 MAX_STEPS = 150
+# PLS-SEM p-values need an extra bootstrap *inside* every step (CB-SEM's ML
+# fit gives them for free, no extra cost) -- bounds how large
+# steps * n_boot can get so opting into significance testing here can't turn
+# a normally-fast diagnostic into an open-ended-length request.
+MAX_BOOTSTRAP_TOTAL_FITS = 15_000
 
 
 def _round(v, ndigits: int = 6):
@@ -47,16 +53,22 @@ def _round(v, ndigits: int = 6):
     return round(v, ndigits)
 
 
-def _run_once(model: Model, method: str, sub_df: pd.DataFrame, lang: str):
-    """Returns (converged, paths: {"src->tgt": coeff}, r_squared: {cid: r2})."""
+def _run_once(model: Model, method: str, sub_df: pd.DataFrame, lang: str, n_boot: int | None, seed: int):
+    """Returns (converged, paths: {"src->tgt": coeff}, p_values: {"src->tgt": p},
+    r_squared: {cid: r2}). p_values is populated for every path when method is
+    "cbsem" (its ML fit gives p for free) or when method is "pls" and n_boot
+    is given (an extra bootstrap run at this step); otherwise empty."""
     if method == "cbsem":
         fn = run_cbsem_with_moderation if model.has_interactions() else run_cbsem
         result = fn(model, sub_df, lang=lang)
         paths = {}
+        p_values = {}
         for _, row in result.structural.iterrows():
-            paths[f"{row['source']}->{row['target']}"] = _round(row["std"])
+            key = f"{row['source']}->{row['target']}"
+            paths[key] = _round(row["std"])
+            p_values[key] = _round(row["p"], 6)
         r_squared = {cid: _round(v) for cid, v in result.r_squared.to_dict().items()}
-        return bool(result.converged), paths, r_squared
+        return bool(result.converged), paths, p_values, r_squared
 
     fn = run_pls_with_moderation if model.has_interactions() else run_pls_algorithm
     result = fn(model, sub_df, lang=lang)
@@ -64,8 +76,14 @@ def _run_once(model: Model, method: str, sub_df: pd.DataFrame, lang: str):
         f"{p.source}->{p.target}": _round(float(result.path_coefficients.loc[p.source, p.target]))
         for p in model.paths
     }
+    p_values = {}
+    if n_boot:
+        boot_fn = run_bootstrap_with_moderation if model.has_interactions() else run_bootstrap
+        boot = boot_fn(model, result, n_boot=n_boot, seed=seed)
+        for row in boot.path_stats:
+            p_values[f"{row['source']}->{row['target']}"] = _round(row["p_value"], 6)
     r_squared = {cid: _round(v) for cid, v in result.r_squared.to_dict().items()}
-    return bool(result.converged), paths, r_squared
+    return bool(result.converged), paths, p_values, r_squared
 
 
 @sensitivity_api.post("/sensitivity")
@@ -82,6 +100,17 @@ def sensitivity():
         step = 0
     if step < 1:
         return jsonify(error=t("err_sensitivity_invalid_step", lang)), 400
+
+    # p-values are free for CB-SEM (already in its ML fit) but need an extra
+    # bootstrap per step for PLS-SEM, so that one's opt-in.
+    bootstrap_payload = payload.get("bootstrap") or {}
+    n_boot = None
+    if method == "pls" and bootstrap_payload.get("enabled"):
+        try:
+            n_boot = int(bootstrap_payload.get("n_boot", MIN_BOOTSTRAP_SAMPLES))
+        except (TypeError, ValueError):
+            n_boot = MIN_BOOTSTRAP_SAMPLES
+        n_boot = max(MIN_BOOTSTRAP_SAMPLES, min(MAX_BOOTSTRAP_SAMPLES, n_boot))
 
     if not file_id:
         return jsonify(error=t("err_analyze_missing_file_id", lang)), 400
@@ -107,6 +136,14 @@ def sensitivity():
     if n_total <= min_n:
         return jsonify(error=t("err_sensitivity_not_enough_rows", lang, n=n_total, min=min_n)), 400
 
+    if n_boot:
+        expected_steps = min(MAX_STEPS, (n_total - min_n) // step + 1)
+        total_fits = expected_steps * n_boot
+        if total_fits > MAX_BOOTSTRAP_TOTAL_FITS:
+            return jsonify(error=t(
+                "err_sensitivity_bootstrap_budget_exceeded", lang, total=total_fits, max=MAX_BOOTSTRAP_TOTAL_FITS,
+            )), 400
+
     rng = np.random.default_rng(42)
     points = []
     i = 1
@@ -117,14 +154,18 @@ def sensitivity():
         idx = rng.choice(n_total, size=n_current, replace=False)
         sub_df = df.iloc[idx]
         try:
-            converged, paths, r_squared = _run_once(model, method, sub_df, lang)
+            converged, paths, p_values, r_squared = _run_once(
+                model, method, sub_df, lang, n_boot, seed=1000 + i,
+            )
         except (ValueError, CBSEMError):
-            points.append({"n": n_current, "converged": False, "paths": {}, "r_squared": {}})
+            points.append({"n": n_current, "converged": False, "paths": {}, "p_values": {}, "r_squared": {}})
             i += 1
             continue
         except Exception as exc:  # noqa: BLE001
             return jsonify(error=t("err_pls_run_error", lang, exc=exc)), 500
-        points.append({"n": n_current, "converged": converged, "paths": paths, "r_squared": r_squared})
+        points.append({
+            "n": n_current, "converged": converged, "paths": paths, "p_values": p_values, "r_squared": r_squared,
+        })
         i += 1
 
     return jsonify(
@@ -132,6 +173,8 @@ def sensitivity():
         n_total=n_total,
         step=step,
         min_n=min_n,
+        has_p_values=(method == "cbsem" or n_boot is not None),
+        n_boot=n_boot,
         truncated=i > MAX_STEPS,
         constructs=[
             {"id": c.id, "name": c.name} for c in model.constructs.values() if c.id in model.endogenous_ids()

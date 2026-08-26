@@ -139,6 +139,11 @@ const I18N = {
     sens_modal_step_label: "N — số quan sát giảm thêm mỗi bước",
     sens_modal_run: "Chạy phân tích",
     sens_modal_invalid_step: "N phải là số nguyên dương.",
+    sens_modal_cbsem_pvalue_note: "CB-SEM tự động có p-value cho từng path ở mỗi bước (từ ước lượng Maximum Likelihood) — không cần chạy thêm gì.",
+    sens_modal_bootstrap_label: "Cũng tính p-value / ý nghĩa thống kê (chạy Bootstrap ở mỗi bước — chậm hơn)",
+    sens_modal_n_boot_label: "Số lần bootstrap mỗi bước",
+    sens_modal_bootstrap_hint: "PLS-SEM không có công thức ý nghĩa thống kê dạng đóng — mỗi bước cỡ mẫu sẽ chạy thêm một lượt Bootstrap riêng để tính p-value, nên bật tuỳ chọn này sẽ chạy lâu hơn đáng kể so với mặc định.",
+    sens_modal_invalid_n_boot: "Số lần bootstrap phải là số nguyên ≥ 100.",
 
     // --- sensitivity.html (opens in a new tab) ---
     sens_page_title: "Phân tích độ nhạy theo cỡ mẫu",
@@ -151,6 +156,8 @@ const I18N = {
     sens_r2_chart_title: "R² theo cỡ mẫu (biến nội sinh)",
     sens_chart_hint: "Di chuột vào biểu đồ để xem giá trị chính xác tại từng cỡ mẫu. Điểm viền đỏ = mô hình không hội tụ ở cỡ mẫu đó.",
     sens_path_chart_title: "Hệ số đường dẫn (Path Coefficients) theo cỡ mẫu",
+    sens_pvalue_chart_title: "P-value theo cỡ mẫu",
+    sens_pvalue_chart_hint: "Đường nét đứt đỏ = ngưỡng 0.05. Với PLS-SEM, p-value ở đây đến từ một lượt Bootstrap chạy riêng ở mỗi cỡ mẫu (không phải bootstrap của lần phân tích chính) nên có thể dao động nhẹ giữa các lần chạy khác nhau.",
     sens_table_title: "Bảng số liệu chi tiết",
     sens_th_n: "n (quan sát)",
     sens_th_converged: "Hội tụ",
@@ -158,6 +165,7 @@ const I18N = {
     sens_no: "Không",
     sens_axis_n: "n",
     sens_axis_coef: "Hệ số",
+    sens_axis_pvalue: "P-value",
     sens_not_converged_short: "không hội tụ",
     sens_guide_section_title: "Hướng dẫn đọc & Ý nghĩa các chỉ số",
     sens_guide_what_summary: "Sample Size Sensitivity là gì?",
@@ -170,8 +178,9 @@ const I18N = {
       "<li><strong>Trục hoành (n):</strong> cỡ mẫu tại mỗi bước, giảm dần từ tổng số quan sát ban đầu.</li>" +
       "<li><strong>Biểu đồ R²:</strong> R² của từng biến nội sinh thay đổi thế nào khi cỡ mẫu giảm.</li>" +
       "<li><strong>Biểu đồ Path Coefficients:</strong> từng hệ số đường dẫn thay đổi ra sao khi cỡ mẫu giảm.</li>" +
+      "<li><strong>Biểu đồ P-value</strong> (nếu bật): p-value của từng path tại mỗi cỡ mẫu, đường nét đứt đỏ ở 0.05. Với CB-SEM luôn có sẵn (miễn phí, lấy trực tiếp từ ước lượng ML); với PLS-SEM chỉ có khi bật tuỳ chọn Bootstrap trong hộp thoại cấu hình, vì cần chạy thêm một lượt bootstrap riêng ở mỗi cỡ mẫu.</li>" +
       "<li><strong>Điểm viền đỏ:</strong> mô hình không hội tụ ở cỡ mẫu đó — dấu hiệu cỡ mẫu đã quá nhỏ để ước lượng ổn định.</li>" +
-      "<li><strong>Bảng chi tiết:</strong> liệt kê từng cỡ mẫu đã chạy, có hội tụ hay không, cùng R² và path coefficient tương ứng tại điểm đó.</li>" +
+      "<li><strong>Bảng chi tiết:</strong> liệt kê từng cỡ mẫu đã chạy, có hội tụ hay không, cùng R² và path coefficient (và p-value nếu có) tương ứng tại điểm đó.</li>" +
       "</ul>",
     sens_guide_limits_summary: "Giới hạn",
     sens_guide_limits_body:
@@ -598,6 +607,11 @@ const I18N = {
     sens_modal_step_label: "N — observations dropped per additional step",
     sens_modal_run: "Run analysis",
     sens_modal_invalid_step: "N must be a positive integer.",
+    sens_modal_cbsem_pvalue_note: "CB-SEM already gives a p-value for every path at each step (from its Maximum Likelihood fit) — nothing extra needed.",
+    sens_modal_bootstrap_label: "Also compute p-values / significance (runs Bootstrap at every step — slower)",
+    sens_modal_n_boot_label: "Bootstrap resamples per step",
+    sens_modal_bootstrap_hint: "PLS-SEM has no closed-form significance test — enabling this runs an extra Bootstrap at every sample-size step to get a p-value, so it takes noticeably longer than the default.",
+    sens_modal_invalid_n_boot: "The bootstrap count must be an integer >= 100.",
 
     // --- sensitivity.html (opens in a new tab) ---
     sens_page_title: "Sample Size Sensitivity Analysis",
@@ -610,6 +624,8 @@ const I18N = {
     sens_r2_chart_title: "R² by sample size (endogenous constructs)",
     sens_chart_hint: "Hover the chart to see the exact value at each sample size. Red-ringed points = the model did not converge at that sample size.",
     sens_path_chart_title: "Path coefficients by sample size",
+    sens_pvalue_chart_title: "P-value by sample size",
+    sens_pvalue_chart_hint: "The dashed red line marks the 0.05 threshold. For PLS-SEM, these p-values come from a separate Bootstrap run at each sample size (not the main analysis's own bootstrap), so they can vary slightly between runs.",
     sens_table_title: "Detailed data table",
     sens_th_n: "n (observations)",
     sens_th_converged: "Converged",
@@ -617,6 +633,7 @@ const I18N = {
     sens_no: "No",
     sens_axis_n: "n",
     sens_axis_coef: "Coefficient",
+    sens_axis_pvalue: "P-value",
     sens_not_converged_short: "not converged",
     sens_guide_section_title: "Reading Guide & What the Numbers Mean",
     sens_guide_what_summary: "What is Sample Size Sensitivity?",
@@ -629,8 +646,9 @@ const I18N = {
       "<li><strong>X-axis (n):</strong> the sample size at each step, decreasing from the original total observation count.</li>" +
       "<li><strong>R² chart:</strong> how each endogenous construct's R² changes as sample size shrinks.</li>" +
       "<li><strong>Path Coefficients chart:</strong> how each structural path coefficient changes as sample size shrinks.</li>" +
+      "<li><strong>P-value chart</strong> (when enabled): each path's p-value at every sample size, dashed red line at 0.05. Always available for CB-SEM (free, straight from the ML fit); for PLS-SEM only when the Bootstrap option was enabled in the config dialog, since it needs its own extra bootstrap run at every sample size.</li>" +
       "<li><strong>Red-ringed points:</strong> the model didn't converge at that sample size — a sign the sample has become too small for stable estimation.</li>" +
-      "<li><strong>Detailed table:</strong> every sample size tested, whether it converged, and the corresponding R² and path coefficients at that point.</li>" +
+      "<li><strong>Detailed table:</strong> every sample size tested, whether it converged, and the corresponding R² and path coefficients (and p-value if available) at that point.</li>" +
       "</ul>",
     sens_guide_limits_summary: "Limitations",
     sens_guide_limits_body:

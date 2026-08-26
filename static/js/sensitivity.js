@@ -159,18 +159,52 @@ function renderAll(data) {
     xLabel: t("sens_axis_n"), yLabel: t("sens_axis_coef"),
   });
 
-  renderTable(points, data.constructs, data.paths, idToName, pathIdToLabel);
+  const pvalueSection = document.getElementById("sensPvalueSection");
+  if (data.has_p_values) {
+    pvalueSection.classList.remove("hidden");
+    const pvalueSeries = data.paths.map((p, i) => ({
+      id: "pval_" + p.id,
+      label: pathIdToLabel[p.id],
+      color: SERIES_COLORS[i] || SERIES_OTHER_COLOR,
+      dash: DASH_PATTERNS[i % DASH_PATTERNS.length],
+      shape: MARKER_SHAPES[i % MARKER_SHAPES.length],
+      hidden: hiddenSeriesIds.has("pval_" + p.id),
+      points: points.map((row) => ({ x: row.n, y: row.p_values ? row.p_values[p.id] : null, converged: row.converged })),
+    }));
+    drawLineChart("pvalueChart", "pvalueTooltip", "pvalueLegend", pvalueSeries, {
+      yMin: 0, yMax: 1, yFormat: (v) => v.toFixed(3), refLine: 0.05,
+      xLabel: t("sens_axis_n"), yLabel: t("sens_axis_pvalue"),
+    });
+  } else {
+    pvalueSection.classList.add("hidden");
+  }
+
+  renderTable(points, data.constructs, data.paths, idToName, pathIdToLabel, data.has_p_values);
 }
 
-function renderTable(points, constructs, paths, idToName, pathIdToLabel) {
+function renderTable(points, constructs, paths, idToName, pathIdToLabel, hasPValues) {
   let html = `<thead><tr><th>${t("sens_th_n")}</th><th>${t("sens_th_converged")}</th>`;
   constructs.forEach((c) => (html += `<th>R² ${escapeHtml(c.name)}</th>`));
-  paths.forEach((p) => (html += `<th>${escapeHtml(pathIdToLabel[p.id])}</th>`));
+  paths.forEach((p) => {
+    html += `<th>${escapeHtml(pathIdToLabel[p.id])}</th>`;
+    if (hasPValues) html += `<th>p (${escapeHtml(pathIdToLabel[p.id])})</th>`;
+  });
   html += "</tr></thead><tbody>";
   for (const row of points) {
     html += `<tr><td>${row.n}</td><td>${row.converged ? t("sens_yes") : `<span class="badge warn">${t("sens_no")}</span>`}</td>`;
     constructs.forEach((c) => (html += `<td>${fmt(row.r_squared ? row.r_squared[c.id] : null)}</td>`));
-    paths.forEach((p) => (html += `<td>${fmt(row.paths ? row.paths[p.id] : null)}</td>`));
+    paths.forEach((p) => {
+      html += `<td>${fmt(row.paths ? row.paths[p.id] : null)}</td>`;
+      if (hasPValues) {
+        const pv = row.p_values ? row.p_values[p.id] : null;
+        if (pv === null || pv === undefined) {
+          html += `<td>${t("lbl_dash")}</td>`;
+        } else {
+          const badgeClass = pv < 0.05 ? "ok" : "warn";
+          html += `<td>${fmt(pv, 4)} <span class="badge ${badgeClass}">${pv < 0.05 ? t("lbl_significant") : t("lbl_not_significant")}</span></td>`;
+        }
+      }
+    });
     html += "</tr>";
   }
   html += "</tbody>";
@@ -303,6 +337,17 @@ function drawLineChart(canvasId, tooltipId, legendId, series, opts) {
     ctx.lineTo(PAD_L, PAD_T + plotH);
     ctx.lineTo(PAD_L + plotW, PAD_T + plotH);
     ctx.stroke();
+
+    if (opts.refLine !== undefined) {
+      const refY = yOf(opts.refLine);
+      ctx.strokeStyle = "#d64545";
+      ctx.setLineDash([5, 4]);
+      ctx.beginPath();
+      ctx.moveTo(PAD_L, refY);
+      ctx.lineTo(PAD_L + plotW, refY);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
 
     if (nearestX !== null) {
       ctx.strokeStyle = "#c3c2b7";

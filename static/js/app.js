@@ -902,9 +902,25 @@ function renderPlspredictResults(data) {
 }
 
 function openSensitivityModal(method) {
+  const isCbsem = method === "cbsem";
   const root = document.getElementById("modalRoot");
   const nRows = state.nRows || 0;
   const suggestedStep = Math.max(1, Math.round(nRows * 0.05));
+  // CB-SEM's ML fit already gives a p-value per path at every step, no
+  // extra cost — PLS-SEM has no closed-form significance test at all, so
+  // getting one means an extra bootstrap run at every single step, hence
+  // opt-in with its own count rather than always-on like CB-SEM.
+  const pvalueSection = isCbsem
+    ? `<p class="hint">${t("sens_modal_cbsem_pvalue_note")}</p>`
+    : `
+      <label class="radio-row" style="margin:10px 0 4px">
+        <input type="checkbox" id="sensBootEnabled"> ${t("sens_modal_bootstrap_label")}
+      </label>
+      <div id="sensBootOptions" class="hidden">
+        <label>${t("sens_modal_n_boot_label")}</label>
+        <input type="number" id="sensNBoot" min="100" max="5000" step="50" value="100">
+        <p class="hint">${t("sens_modal_bootstrap_hint")}</p>
+      </div>`;
   root.innerHTML = `
     <div class="modal-backdrop">
       <div class="modal-box">
@@ -912,6 +928,7 @@ function openSensitivityModal(method) {
         <p class="hint">${t("sens_modal_hint", { n: nRows })}</p>
         <label>${t("sens_modal_step_label")}</label>
         <input type="number" id="sensStep" min="1" step="1" value="${suggestedStep}">
+        ${pvalueSection}
         <div id="sensModalError" class="error-box hidden"></div>
         <div class="modal-actions">
           <button class="btn" id="sensModalCancel">${t("modal_cancel")}</button>
@@ -919,19 +936,31 @@ function openSensitivityModal(method) {
         </div>
       </div>
     </div>`;
+  if (!isCbsem) {
+    document.getElementById("sensBootEnabled").onchange = (e) => {
+      document.getElementById("sensBootOptions").classList.toggle("hidden", !e.target.checked);
+    };
+  }
   document.getElementById("sensModalCancel").onclick = () => (root.innerHTML = "");
   document.getElementById("sensModalOk").onclick = () => {
     const step = parseInt(document.getElementById("sensStep").value, 10);
+    const errBox = document.getElementById("sensModalError");
     if (!Number.isInteger(step) || step < 1) {
-      const errBox = document.getElementById("sensModalError");
       errBox.textContent = t("sens_modal_invalid_step");
       errBox.classList.remove("hidden");
       return;
     }
-    const modelPayload = editor.serialize();
-    sessionStorage.setItem("websem_sensitivity_job", JSON.stringify({
-      file_id: state.fileId, model: modelPayload, method, step, lang: getLang(),
-    }));
+    const job = { file_id: state.fileId, model: editor.serialize(), method, step, lang: getLang() };
+    if (!isCbsem && document.getElementById("sensBootEnabled").checked) {
+      const nBoot = parseInt(document.getElementById("sensNBoot").value, 10);
+      if (!Number.isInteger(nBoot) || nBoot < 100) {
+        errBox.textContent = t("sens_modal_invalid_n_boot");
+        errBox.classList.remove("hidden");
+        return;
+      }
+      job.bootstrap = { enabled: true, n_boot: nBoot };
+    }
+    sessionStorage.setItem("websem_sensitivity_job", JSON.stringify(job));
     root.innerHTML = "";
     window.open("/sensitivity", "_blank");
   };
