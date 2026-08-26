@@ -372,20 +372,34 @@ function renderInteractionSourcePicker(construct) {
   selA.onchange = onSourceChange;
   selB.onchange = onSourceChange;
 
+  // "Standardized" isn't a separate choice under Two Stage — it multiplies
+  // two stage-1 factor scores, which are already standardized by
+  // construction (Henseler & Chin, 2010), so there's no unstandardized/
+  // mean-centered variant of it to pick. The product-term radios stay
+  // visible but disabled (and visually pinned to "standardized") in that
+  // case, rather than disappearing, so it reads as "this is already what
+  // you get" instead of "this option went missing".
+  function updateProductTermUI(isTwoStage) {
+    document.querySelectorAll('#cProductTerm input[name="cProductTerm"]').forEach((r) => {
+      r.disabled = isTwoStage;
+      if (isTwoStage) r.checked = r.value === "standardized";
+      else r.checked = r.value === (construct.product_term_generation || "standardized");
+    });
+    document.getElementById("productTermTwoStageNote").classList.toggle("hidden", !isTwoStage);
+  }
+
   const calcMethod = construct.calc_method || "two_stage";
   document.querySelectorAll('#cCalcMethod input[name="cCalcMethod"]').forEach((r) => {
     r.checked = r.value === calcMethod;
     r.onchange = () => {
       construct.calc_method = r.value;
-      document.getElementById("productTermSection").classList.toggle("hidden", r.value === "two_stage");
+      updateProductTermUI(r.value === "two_stage");
       renderModelSummary();
     };
   });
-  document.getElementById("productTermSection").classList.toggle("hidden", calcMethod === "two_stage");
+  updateProductTermUI(calcMethod === "two_stage");
 
-  const productTerm = construct.product_term_generation || "standardized";
   document.querySelectorAll('#cProductTerm input[name="cProductTerm"]').forEach((r) => {
-    r.checked = r.value === productTerm;
     r.onchange = () => {
       construct.product_term_generation = r.value;
       renderModelSummary();

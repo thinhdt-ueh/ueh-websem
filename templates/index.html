@@ -100,13 +100,14 @@
             </div>
             <p class="hint" data-i18n="s2_calc_method_cbsem_note">Lưu ý: CB-SEM luôn dùng Two Stage, bất kể lựa chọn ở đây.</p>
 
-            <div id="productTermSection" class="hidden">
+            <div id="productTermSection">
               <label data-i18n="s2_product_term_label">Sinh Product Term (Advanced)</label>
               <div class="radio-group" id="cProductTerm">
                 <label class="radio-row"><input type="radio" name="cProductTerm" value="unstandardized"><span data-i18n="s2_product_term_unstandardized">Unstandardized</span></label>
                 <label class="radio-row"><input type="radio" name="cProductTerm" value="mean_centered"><span data-i18n="s2_product_term_mean_centered">Mean Centered</span></label>
                 <label class="radio-row"><input type="radio" name="cProductTerm" value="standardized" checked><span data-i18n="s2_product_term_standardized">Standardized</span></label>
               </div>
+              <p class="hint hidden" id="productTermTwoStageNote" data-i18n="s2_product_term_two_stage_note">Two Stage luôn nhân hai factor score giai đoạn 1 — vốn đã chuẩn hóa (standardized) sẵn theo định nghĩa (Henseler &amp; Chin, 2010), nên không có lựa chọn nào khác ở đây để chọn thêm.</p>
             </div>
           </div>
         </div>
