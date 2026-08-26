@@ -148,6 +148,26 @@ def _specific_indirect_rows(data: dict, lang: str, fmt_fn=lambda v: v) -> tuple[
     return rows, has_boot
 
 
+def _moderated_mediation_rows(data: dict, lang: str, fmt_fn=lambda v: v) -> tuple[list, bool]:
+    """Rows for the "Index of Moderated Mediation" report (Hayes, 2015):
+    one row per mediated route with exactly one moderated edge (see
+    pls/effects.py's find_moderated_mediation_opportunities). Bootstrap
+    significance columns only when bootstrapped (CB-SEM: point estimate
+    only, same convention as specific indirect effects)."""
+    items = data.get("structural", {}).get("moderated_mediation") or []
+    has_boot = any("t_stat" in row for row in items)
+    rows = []
+    for row in items:
+        out = [" → ".join(row["path_names"]), row["moderator_name"], fmt_fn(row["index"])]
+        if has_boot:
+            out += [
+                fmt_fn(row.get("bootstrap_std")), fmt_fn(row.get("t_stat")), fmt_fn(row.get("p_value")),
+                sig_label(row.get("significant"), lang),
+            ]
+        rows.append(out)
+    return rows, has_boot
+
+
 def _cmb_rows(data: dict, id_to_name: dict, lang: str, fmt_fn=lambda v: v) -> tuple[list, float]:
     cmb = data.get("common_method_bias") or {"vif": {}, "threshold": 3.3}
     threshold = cmb["threshold"]
@@ -374,6 +394,15 @@ def build_excel_report(data: dict, lang: str = DEFAULT_LANG) -> io.BytesIO:
         ws.cell(row=r, column=1, value=t("rpt_specific_indirect_note", lang))
         r += 2
 
+    mm_rows, mm_has_boot = _moderated_mediation_rows(data, lang)
+    if mm_rows:
+        mm_headers = [t("rpt_path", lang), t("rpt_moderator", lang), t("rpt_mm_index", lang)]
+        if mm_has_boot:
+            mm_headers += [t("rpt_stdev", lang), t("rpt_t_stat", lang), t("rpt_p_value", lang), t("rpt_significance", lang)]
+        r = _write_table(ws, r, mm_headers, mm_rows, title=t("rpt_moderated_mediation_title", lang))
+        ws.cell(row=r, column=1, value=t("rpt_moderated_mediation_note", lang))
+        r += 2
+
     r2_rows = []
     for cid, r2 in st["r_squared"].items():
         q2 = st.get("q_squared", {}).get(cid)
@@ -569,6 +598,18 @@ def build_word_report(data: dict, lang: str = DEFAULT_LANG) -> io.BytesIO:
         si_note_run = si_note.add_run(t("rpt_specific_indirect_note", lang))
         si_note_run.font.size = Pt(9)
         si_note_run.font.color.rgb = RGBColor(0x6B, 0x73, 0x85)
+
+    mm_rows, mm_has_boot = _moderated_mediation_rows(data, lang, fmt_fn=_fmt)
+    if mm_rows:
+        _add_heading(doc, t("rpt_moderated_mediation_title", lang), level=2)
+        mm_headers = [t("rpt_path", lang), t("rpt_moderator", lang), t("rpt_mm_index", lang)]
+        if mm_has_boot:
+            mm_headers += [t("rpt_stdev", lang), t("rpt_t_stat", lang), t("rpt_p_value", lang), t("rpt_significance", lang)]
+        _add_table(doc, mm_headers, mm_rows)
+        mm_note = doc.add_paragraph()
+        mm_note_run = mm_note.add_run(t("rpt_moderated_mediation_note", lang))
+        mm_note_run.font.size = Pt(9)
+        mm_note_run.font.color.rgb = RGBColor(0x6B, 0x73, 0x85)
 
     _add_heading(doc, t("rpt_section_r2q2", lang), level=2)
     r2_rows = []

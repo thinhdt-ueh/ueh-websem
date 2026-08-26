@@ -24,6 +24,7 @@ from pls.report import (
     _cmb_rows,
     _decode_diagram_image,
     _interaction_of_label,
+    _moderated_mediation_rows,
     _specific_indirect_rows,
     _total_effects_rows,
 )
@@ -238,6 +239,15 @@ def build_excel_report(data: dict, lang: str = DEFAULT_LANG) -> io.BytesIO:
         ws.cell(row=r, column=1, value=t("rpt_specific_indirect_note", lang))
         r += 2
 
+    mm_rows, mm_has_boot = _moderated_mediation_rows(data, lang)
+    if mm_rows:
+        mm_headers = [t("rpt_path", lang), t("rpt_moderator", lang), t("rpt_mm_index", lang)]
+        if mm_has_boot:
+            mm_headers += [t("rpt_stdev", lang), t("rpt_t_stat", lang), t("rpt_p_value", lang), t("rpt_significance", lang)]
+        r = _write_table(ws, r, mm_headers, mm_rows, title=t("rpt_moderated_mediation_title", lang))
+        ws.cell(row=r, column=1, value=t("rpt_moderated_mediation_note", lang))
+        r += 2
+
     r2_rows = [[id_to_name[cid], r2] for cid, r2 in st["r_squared"].items()]
     r = _write_table(ws, r, [t("rpt_endogenous_construct", lang), t("rpt_r2", lang)], r2_rows,
                       title=t("rpt_r2_only_title", lang))
@@ -395,6 +405,18 @@ def build_word_report(data: dict, lang: str = DEFAULT_LANG) -> io.BytesIO:
         si_note_run = si_note.add_run(t("rpt_specific_indirect_note", lang))
         si_note_run.font.size = Pt(9)
         si_note_run.font.color.rgb = RGBColor(0x6B, 0x73, 0x85)
+
+    mm_rows, mm_has_boot = _moderated_mediation_rows(data, lang, fmt_fn=_fmt)
+    if mm_rows:
+        _add_heading(doc, t("rpt_moderated_mediation_title", lang), level=2)
+        mm_headers = [t("rpt_path", lang), t("rpt_moderator", lang), t("rpt_mm_index", lang)]
+        if mm_has_boot:
+            mm_headers += [t("rpt_stdev", lang), t("rpt_t_stat", lang), t("rpt_p_value", lang), t("rpt_significance", lang)]
+        _add_table(doc, mm_headers, mm_rows)
+        mm_note = doc.add_paragraph()
+        mm_note_run = mm_note.add_run(t("rpt_moderated_mediation_note", lang))
+        mm_note_run.font.size = Pt(9)
+        mm_note_run.font.color.rgb = RGBColor(0x6B, 0x73, 0x85)
 
     _add_heading(doc, t("rpt_cbsem_section_r2", lang), level=2)
     _add_table(doc, [t("rpt_construct", lang), t("rpt_r2", lang)],

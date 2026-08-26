@@ -260,6 +260,9 @@ const I18N = {
     s3_total_effects_hint: "Hiệu ứng gián tiếp = tổng tích các hệ số path dọc theo mọi đường đi qua biến trung gian (mediator); hiệu ứng tổng = trực tiếp + gián tiếp.",
     s3_specific_indirect_title: "Hiệu ứng gián tiếp cụ thể (Specific Indirect Effects)",
     s3_specific_indirect_hint: "Mỗi dòng là một đường đi trung gian cụ thể — khác với bảng Total & Indirect Effects vốn cộng gộp tất cả đường đi giữa một cặp construct. Nếu đã bootstrap, ý nghĩa thống kê được kiểm định trực tiếp trên tích của đúng lần lấy mẫu lại đó.",
+    s3_moderated_mediation_title: "Index of Moderated Mediation (Hayes, 2015)",
+    s3_moderated_mediation_hint: "Chỉ số đo hiệu ứng gián tiếp thay đổi bao nhiêu khi biến điều tiết tăng 1 đơn vị — cho các đường trung gian có đúng một đoạn (edge) bị điều tiết. Nếu đã bootstrap, ý nghĩa thống kê được kiểm định trực tiếp trên chỉ số này qua từng lần lấy mẫu lại.",
+    s3_moderated_mediation_hint_cbsem: "Chỉ số đo hiệu ứng gián tiếp thay đổi bao nhiêu khi biến điều tiết tăng 1 đơn vị — cho các đường trung gian có đúng một đoạn (edge) bị điều tiết. Ở CB-SEM đây là điểm ước lượng, chưa có kiểm định ý nghĩa thống kê riêng cho chỉ số này.",
     s3_r2q2_title: "R² & Q² của biến nội sinh (Predictive Relevance)",
     s3_vif_title: "Đa cộng tuyến (VIF)",
     s3_cmb_title: "Common Method Bias — Full Collinearity Test",
@@ -306,6 +309,8 @@ const I18N = {
     th_direct_effect: "Hiệu ứng trực tiếp",
     th_indirect_effect: "Hiệu ứng gián tiếp",
     th_total_effect: "Hiệu ứng tổng",
+    th_moderator: "Biến điều tiết",
+    th_mm_index: "Index",
     th_f_squared: "f²",
     th_f2_effect: "Mức ảnh hưởng f²",
     th_r2: "R²",
@@ -383,6 +388,7 @@ const I18N = {
       "<ul>" +
       "<li><strong>Total &amp; Indirect Effects:</strong> hiệu ứng gián tiếp = tổng tích các path coefficient dọc theo <em>mọi</em> đường đi qua biến trung gian, giữa một cặp construct; hiệu ứng tổng = trực tiếp + gián tiếp.</li>" +
       "<li><strong>Specific Indirect Effects:</strong> tách riêng <em>từng</em> đường đi trung gian cụ thể (thay vì cộng gộp như bảng trên) — nếu đã bootstrap, mỗi đường đi cũng được kiểm định ý nghĩa thống kê riêng, dựa trên đúng tích số của các hệ số trong cùng một lần lấy mẫu lại.</li>" +
+      "<li><strong>Index of Moderated Mediation (Hayes, 2015):</strong> chỉ xuất hiện khi mô hình vừa có mediator vừa có moderator tác động lên đúng một đoạn của đường trung gian đó (Model 7/14 của PROCESS). Chỉ số này là <em>độ dốc</em> của hiệu ứng gián tiếp theo biến điều tiết — hiệu ứng gián tiếp thay đổi bao nhiêu khi biến điều tiết tăng 1 đơn vị. Nếu khoảng tin cậy 95% của chỉ số không chứa 0 → mức độ điều tiết lên hiệu ứng gián tiếp có ý nghĩa thống kê, chặt chẽ hơn việc chỉ so sánh \"có ý nghĩa ở nhóm này nhưng không ở nhóm kia\".</li>" +
       "</ul>",
     results_guide_predictive_summary: "R², Q² & Đa cộng tuyến (VIF)",
     results_guide_predictive_body:
@@ -423,6 +429,7 @@ const I18N = {
       "<ul>" +
       "<li><strong>Total &amp; Indirect Effects:</strong> hiệu ứng gián tiếp = tổng tích các path coefficient dọc theo <em>mọi</em> đường đi qua biến trung gian, giữa một cặp construct; hiệu ứng tổng = trực tiếp + gián tiếp.</li>" +
       "<li><strong>Specific Indirect Effects:</strong> tách riêng <em>từng</em> đường đi trung gian cụ thể — ở CB-SEM đây chỉ là điểm ước lượng (point estimate), <strong>chưa</strong> có kiểm định ý nghĩa thống kê riêng cho từng đường đi (cần một phương pháp riêng, ví dụ delta method/Sobel test, để suy ra sai số chuẩn của một tích số).</li>" +
+      "<li><strong>Index of Moderated Mediation (Hayes, 2015):</strong> chỉ xuất hiện khi mô hình vừa có mediator vừa có moderator tác động lên đúng một đoạn của đường trung gian đó. Đây là <em>độ dốc</em> của hiệu ứng gián tiếp theo biến điều tiết — ở CB-SEM cũng chỉ là điểm ước lượng, chưa có kiểm định ý nghĩa thống kê riêng.</li>" +
       "</ul>",
     cbsem_guide_r2cmb_summary: "R² & Common Method Bias",
     cbsem_guide_r2cmb_body:
@@ -711,6 +718,9 @@ const I18N = {
     s3_total_effects_hint: "Indirect effect = sum of the products of path coefficients along every route through a mediator construct; total effect = direct + indirect.",
     s3_specific_indirect_title: "Specific Indirect Effects",
     s3_specific_indirect_hint: "Each row is one specific mediated route — unlike the Total & Indirect Effects table, which sums every route between a construct pair. When bootstrapping was run, significance is tested directly on that same per-resample product.",
+    s3_moderated_mediation_title: "Index of Moderated Mediation (Hayes, 2015)",
+    s3_moderated_mediation_hint: "Measures how much the indirect effect changes per one-unit increase in the moderator — for mediated routes with exactly one moderated edge. When bootstrapping was run, significance is tested directly on this index across resamples.",
+    s3_moderated_mediation_hint_cbsem: "Measures how much the indirect effect changes per one-unit increase in the moderator — for mediated routes with exactly one moderated edge. For CB-SEM this is a point estimate only, without its own significance test yet.",
     s3_r2q2_title: "R² & Q² of Endogenous Constructs (Predictive Relevance)",
     s3_vif_title: "Collinearity (VIF)",
     s3_cmb_title: "Common Method Bias — Full Collinearity Test",
@@ -754,6 +764,8 @@ const I18N = {
     th_direct_effect: "Direct Effect",
     th_indirect_effect: "Indirect Effect",
     th_total_effect: "Total Effect",
+    th_moderator: "Moderator",
+    th_mm_index: "Index",
     th_f_squared: "f²",
     th_f2_effect: "f² Effect Size",
     th_r2: "R²",
@@ -830,6 +842,7 @@ const I18N = {
       "<ul>" +
       "<li><strong>Total &amp; Indirect Effects:</strong> the indirect effect is the sum of the products of path coefficients along <em>every</em> route through a mediator between a pair of constructs; the total effect is direct + indirect.</li>" +
       "<li><strong>Specific Indirect Effects:</strong> breaks out <em>each individual</em> mediated route (instead of summing them as in the table above) — when bootstrapped, each route also gets its own significance test, based on that route's product within the same resample.</li>" +
+      "<li><strong>Index of Moderated Mediation (Hayes, 2015):</strong> appears only when the model has both a mediator and a moderator acting on exactly one segment of that mediated route (PROCESS Model 7/14 shape). This index is the <em>slope</em> of the indirect effect with respect to the moderator — how much the indirect effect changes per one-unit increase in the moderator. A 95% CI that excludes 0 means the moderation of the indirect effect is itself statistically significant — a more rigorous test than just comparing \"significant in one group but not the other\".</li>" +
       "</ul>",
     results_guide_predictive_summary: "R², Q² & Collinearity (VIF)",
     results_guide_predictive_body:
@@ -870,6 +883,7 @@ const I18N = {
       "<ul>" +
       "<li><strong>Total &amp; Indirect Effects:</strong> the indirect effect is the sum of the products of path coefficients along <em>every</em> route through a mediator between a pair of constructs; the total effect is direct + indirect.</li>" +
       "<li><strong>Specific Indirect Effects:</strong> breaks out <em>each individual</em> mediated route — for CB-SEM this is a point estimate only, <strong>without</strong> its own significance test yet (that needs a dedicated method, e.g. the delta method/Sobel test, to derive a product's standard error).</li>" +
+      "<li><strong>Index of Moderated Mediation (Hayes, 2015):</strong> appears only when the model has both a mediator and a moderator acting on exactly one segment of that mediated route. This is the <em>slope</em> of the indirect effect with respect to the moderator — for CB-SEM also a point estimate only, without its own significance test yet.</li>" +
       "</ul>",
     cbsem_guide_r2cmb_summary: "R² & Common Method Bias",
     cbsem_guide_r2cmb_body:

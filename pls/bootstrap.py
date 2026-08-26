@@ -26,7 +26,7 @@ import numpy as np
 from scipy import stats
 
 from .algorithm import PLSResult, _build_topology, _fit, _ols_beta, _standardize_cols
-from .effects import enumerate_indirect_routes
+from .effects import enumerate_indirect_routes, find_moderated_mediation_opportunities
 from .model import Model
 from .moderation import _generate_indicator_based_interactions
 
@@ -42,6 +42,7 @@ class BootstrapResult:
     loading_stats: list[dict] = field(default_factory=list)
     weight_stats: list[dict] = field(default_factory=list)
     specific_indirect_stats: list[dict] = field(default_factory=list)
+    moderated_mediation_stats: list[dict] = field(default_factory=list)
 
 
 HISTOGRAM_BINS = 22
@@ -116,6 +117,9 @@ def run_bootstrap(
     routes = enumerate_indirect_routes(model)
     route_values: dict[tuple[str, ...], list[float]] = {tuple(r): [] for r in routes}
 
+    mm_opportunities = find_moderated_mediation_opportunities(model)
+    mm_values: list[list[float]] = [[] for _ in mm_opportunities]
+
     n_valid = 0
     for _ in range(n_boot):
         idx = rng.integers(0, n_obs, size=n_obs)
@@ -153,6 +157,12 @@ def run_bootstrap(
                 prod *= iter_coef[(a, b)]
             route_values[tuple(route)].append(prod)
 
+        for mi, opp in enumerate(mm_opportunities):
+            index = 1.0
+            for i, (a, b) in enumerate(zip(opp.route, opp.route[1:])):
+                index *= iter_coef[(opp.interaction_id, b)] if i == opp.moderated_index else iter_coef[(a, b)]
+            mm_values[mi].append(index)
+
         for ci in range(k):
             bi = topo.block_idx[ci]
             s = block_sign[ci]
@@ -178,6 +188,17 @@ def run_bootstrap(
         row.update(path=route)
         specific_indirect_stats.append(row)
 
+    moderated_mediation_stats = []
+    for mi, opp in enumerate(mm_opportunities):
+        orig = 1.0
+        for i, (a, b) in enumerate(zip(opp.route, opp.route[1:])):
+            src = opp.interaction_id if i == opp.moderated_index else a
+            orig *= float(original.path_coefficients.loc[src, b])
+        row = _summarize(mm_values[mi], orig, include_histogram=False)
+        row.update(route=opp.route, moderated_index=opp.moderated_index,
+                    interaction_id=opp.interaction_id, moderator_id=opp.moderator_id)
+        moderated_mediation_stats.append(row)
+
     loading_stats = []
     weight_stats = []
     for ind, bucket in loading_values.items():
@@ -196,6 +217,7 @@ def run_bootstrap(
         loading_stats=loading_stats,
         weight_stats=weight_stats,
         specific_indirect_stats=specific_indirect_stats,
+        moderated_mediation_stats=moderated_mediation_stats,
     )
 
 
@@ -259,6 +281,9 @@ def run_bootstrap_with_moderation(
     routes = enumerate_indirect_routes(model)
     route_values: dict[tuple[str, ...], list[float]] = {tuple(r): [] for r in routes}
 
+    mm_opportunities = find_moderated_mediation_opportunities(model)
+    mm_values: list[list[float]] = [[] for _ in mm_opportunities]
+
     n_valid = 0
     for _ in range(n_boot):
         idx = rng.integers(0, n_obs, size=n_obs)
@@ -305,6 +330,12 @@ def run_bootstrap_with_moderation(
                 prod *= iter_coef[(a, b)]
             route_values[tuple(route)].append(prod)
 
+        for mi, opp in enumerate(mm_opportunities):
+            index = 1.0
+            for i, (a, b) in enumerate(zip(opp.route, opp.route[1:])):
+                index *= iter_coef[(opp.interaction_id, b)] if i == opp.moderated_index else iter_coef[(a, b)]
+            mm_values[mi].append(index)
+
         for ci in range(k_base):
             bi = topo.block_idx[ci]
             s = block_sign[ci]
@@ -330,6 +361,17 @@ def run_bootstrap_with_moderation(
         row.update(path=route)
         specific_indirect_stats.append(row)
 
+    moderated_mediation_stats = []
+    for mi, opp in enumerate(mm_opportunities):
+        orig = 1.0
+        for i, (a, b) in enumerate(zip(opp.route, opp.route[1:])):
+            src = opp.interaction_id if i == opp.moderated_index else a
+            orig *= float(original.path_coefficients.loc[src, b])
+        row = _summarize(mm_values[mi], orig, include_histogram=False)
+        row.update(route=opp.route, moderated_index=opp.moderated_index,
+                    interaction_id=opp.interaction_id, moderator_id=opp.moderator_id)
+        moderated_mediation_stats.append(row)
+
     loading_stats = []
     weight_stats = []
     for ind, bucket in loading_values.items():
@@ -348,4 +390,5 @@ def run_bootstrap_with_moderation(
         loading_stats=loading_stats,
         weight_stats=weight_stats,
         specific_indirect_stats=specific_indirect_stats,
+        moderated_mediation_stats=moderated_mediation_stats,
     )

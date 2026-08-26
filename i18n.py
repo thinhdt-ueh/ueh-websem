@@ -192,6 +192,14 @@ _CATALOG: dict[str, dict[str, str]] = {
             "khác với bảng Total & Indirect Effects vốn cộng gộp tất cả đường đi giữa một cặp construct. "
             "Nếu đã bootstrap, ý nghĩa thống kê được kiểm định trực tiếp trên tích của đúng lần lấy mẫu lại đó."
         ),
+        "rpt_moderator": "Biến điều tiết",
+        "rpt_mm_index": "Index",
+        "rpt_moderated_mediation_title": "Index of Moderated Mediation (Hayes, 2015)",
+        "rpt_moderated_mediation_note": (
+            "Chỉ xuất hiện với các đường trung gian có đúng một đoạn (edge) bị điều tiết. Chỉ số là độ dốc "
+            "của hiệu ứng gián tiếp theo biến điều tiết — hiệu ứng gián tiếp thay đổi bao nhiêu khi biến điều "
+            "tiết tăng 1 đơn vị. Nếu đã bootstrap, ý nghĩa thống kê được kiểm định trực tiếp trên chỉ số này."
+        ),
         "rpt_f_squared": "f²",
         "rpt_f2_effect": "Mức ảnh hưởng f²",
         "rpt_r2_q2_title": "R² & Q² (Predictive Relevance)",
@@ -446,6 +454,14 @@ _CATALOG: dict[str, dict[str, str]] = {
             "Each row is ONE specific mediated route (the product of path coefficients along that route), "
             "unlike the Total & Indirect Effects table, which sums every route between a construct pair. "
             "When bootstrapping was run, significance is tested directly on that same per-resample product."
+        ),
+        "rpt_moderator": "Moderator",
+        "rpt_mm_index": "Index",
+        "rpt_moderated_mediation_title": "Index of Moderated Mediation (Hayes, 2015)",
+        "rpt_moderated_mediation_note": (
+            "Appears only for mediated routes with exactly one moderated edge. The index is the slope of "
+            "the indirect effect with respect to the moderator -- how much the indirect effect changes per "
+            "one-unit increase in the moderator. When bootstrapping was run, significance is tested directly on this index."
         ),
         "rpt_f_squared": "f²",
         "rpt_f2_effect": "f² Effect Size",

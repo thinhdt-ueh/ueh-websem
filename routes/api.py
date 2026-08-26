@@ -16,7 +16,7 @@ from pls.bootstrap import (
     run_bootstrap,
     run_bootstrap_with_moderation,
 )
-from pls.effects import specific_indirect_effects, total_effects
+from pls.effects import moderated_mediation_indices, specific_indirect_effects, total_effects
 from pls.metrics import CMB_VIF_THRESHOLD, compute_all_metrics
 from pls.model import Model, ModelError
 from pls.moderation import run_pls_with_moderation
@@ -185,6 +185,7 @@ def analyze():
     bootstrap_summary = None
     bootstrap_path_lookup: dict[tuple, dict] = {}
     bootstrap_specific_indirect_lookup: dict[tuple, dict] = {}
+    bootstrap_moderated_mediation_lookup: dict[tuple, dict] = {}
     bootstrap_loadings = None
     bootstrap_weights = None
     if bootstrap_payload.get("enabled"):
@@ -209,6 +210,9 @@ def analyze():
         }
         bootstrap_path_lookup = {(row["source"], row["target"]): row for row in boot.path_stats}
         bootstrap_specific_indirect_lookup = {tuple(row["path"]): row for row in boot.specific_indirect_stats}
+        bootstrap_moderated_mediation_lookup = {
+            (row["interaction_id"], tuple(row["route"])): row for row in boot.moderated_mediation_stats
+        }
         bootstrap_loadings = [_clean_bootstrap_row(row, "indicator") for row in boot.loading_stats]
         bootstrap_weights = [_clean_bootstrap_row(row, "indicator") for row in boot.weight_stats]
 
@@ -295,6 +299,35 @@ def analyze():
             )
         specific_indirect_list.append(entry)
 
+    moderated_mediation_list = []
+    for row in moderated_mediation_indices(model, coef):
+        downstream = row.route[row.moderated_index + 1:]
+        entry = {
+            "route": row.route,
+            "moderated_index": row.moderated_index,
+            "interaction_id": row.interaction_id,
+            "interaction_name": model.constructs[row.interaction_id].name,
+            "moderator_id": row.moderator_id,
+            "moderator_name": model.constructs[row.moderator_id].name,
+            "focal_id": row.route[row.moderated_index],
+            "focal_name": model.constructs[row.route[row.moderated_index]].name,
+            "path_names": [model.constructs[row.interaction_id].name]
+            + [model.constructs[cid].name for cid in downstream],
+            "index": round(row.index, 6),
+        }
+        boot_row = bootstrap_moderated_mediation_lookup.get((row.interaction_id, tuple(row.route)))
+        if boot_row:
+            entry.update(
+                bootstrap_mean=_round_or_none(boot_row["mean"]),
+                bootstrap_std=_round_or_none(boot_row["std"]),
+                t_stat=_round_or_none(boot_row["t_stat"]),
+                p_value=_round_or_none(boot_row["p_value"], 6),
+                ci_lower=_round_or_none(boot_row["ci_lower"]),
+                ci_upper=_round_or_none(boot_row["ci_upper"]),
+                significant=(boot_row["p_value"] is not None and boot_row["p_value"] < 0.05),
+            )
+        moderated_mediation_list.append(entry)
+
     response = {
         "converged": result.converged,
         "iterations": result.iterations,
@@ -333,6 +366,7 @@ def analyze():
             "paths": path_list,
             "total_effects": total_effects_list,
             "specific_indirect_effects": specific_indirect_list,
+            "moderated_mediation": moderated_mediation_list,
             "r_squared": series_to_dict(result.r_squared),
             "r_squared_adj": series_to_dict(result.r_squared_adj),
             "inner_vif": df_to_nested_dict(metrics["inner_vif"]),

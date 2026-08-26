@@ -1236,6 +1236,7 @@ function renderResults(data) {
   renderPathTable(data);
   renderTotalEffectsTable(data, "totalEffectsTable");
   renderSpecificIndirectTable(data, "specificIndirectTable");
+  renderModeratedMediationTable(data, "moderatedMediationSection", "moderatedMediationTable");
   renderR2Table(data, idToName);
   renderVifTable(data, idToName);
   renderCmbTable(data.common_method_bias, idToName, "cmbHint", "cmbTable");
@@ -1765,6 +1766,35 @@ function renderSpecificIndirectTable(data, elId) {
   document.getElementById(elId).innerHTML = html;
 }
 
+// Index of Moderated Mediation (Hayes, 2015): only appears (section is
+// hidden otherwise) for models where a mediated route has exactly one
+// moderated edge — see pls/effects.py's find_moderated_mediation_opportunities
+// for why routes with zero or two-or-more moderated edges never show up here.
+function renderModeratedMediationTable(data, sectionId, tableId) {
+  const rows = data.structural.moderated_mediation || [];
+  const section = document.getElementById(sectionId);
+  if (rows.length === 0) {
+    section.classList.add("hidden");
+    document.getElementById(tableId).innerHTML = "";
+    return;
+  }
+  section.classList.remove("hidden");
+
+  const hasBoot = rows.some((r) => r.t_stat !== undefined);
+  let html = `<thead><tr><th>${t("th_path")}</th><th>${t("th_moderator")}</th><th>${t("th_mm_index")}</th>`;
+  if (hasBoot) html += `<th>${t("th_stdev")}</th><th>${t("th_t_stat")}</th><th>${t("th_p_value")}</th><th>${t("th_significance")}</th>`;
+  html += `</tr></thead><tbody>`;
+  for (const r of rows) {
+    html += `<tr><td>${r.path_names.map(escapeHtml).join(" → ")}</td><td>${escapeHtml(r.moderator_name)}</td><td>${fmt(r.index)}</td>`;
+    if (hasBoot) {
+      html += `<td>${fmt(r.bootstrap_std)}</td><td>${fmt(r.t_stat)}</td><td>${fmt(r.p_value)}</td><td>${sigBadge(r.significant)}</td>`;
+    }
+    html += "</tr>";
+  }
+  html += "</tbody>";
+  document.getElementById(tableId).innerHTML = html;
+}
+
 function f2Label(v) {
   if (v === null || v === undefined) return t("lbl_dash");
   if (v < 0.02) return t("lbl_f2_none");
@@ -1930,6 +1960,7 @@ function renderCbsemResults(data) {
   renderCbsemPathTable(data);
   renderTotalEffectsTable(data, "cbsemTotalEffectsTable");
   renderSpecificIndirectTable(data, "cbsemSpecificIndirectTable");
+  renderModeratedMediationTable(data, "cbsemModeratedMediationSection", "cbsemModeratedMediationTable");
   renderCbsemR2Table(data, idToName);
   renderCmbTable(data.common_method_bias, idToName, "cbsemCmbHint", "cbsemCmbTable");
   renderSimpleSlopes(data, "cbsemSimpleSlopesSection", "cbsemSimpleSlopesGrid");

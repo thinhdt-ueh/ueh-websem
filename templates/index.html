@@ -203,6 +203,11 @@
           <p class="hint" data-i18n="s3_specific_indirect_hint">Mỗi dòng là một đường đi trung gian cụ thể — khác với bảng Total &amp; Indirect Effects vốn cộng gộp tất cả đường đi giữa một cặp construct. Nếu đã bootstrap, ý nghĩa thống kê được kiểm định trực tiếp trên tích của đúng lần lấy mẫu lại đó.</p>
           <div class="table-scroll"><table id="specificIndirectTable"></table></div>
         </div>
+        <div class="panel-card hidden" id="moderatedMediationSection">
+          <h2 data-i18n="s3_moderated_mediation_title">Index of Moderated Mediation (Hayes, 2015)</h2>
+          <p class="hint" data-i18n="s3_moderated_mediation_hint">Chỉ số đo hiệu ứng gián tiếp thay đổi bao nhiêu khi biến điều tiết tăng 1 đơn vị — cho các đường trung gian có đúng một đoạn (edge) bị điều tiết. Nếu đã bootstrap, ý nghĩa thống kê được kiểm định trực tiếp trên chỉ số này qua từng lần lấy mẫu lại.</p>
+          <div class="table-scroll"><table id="moderatedMediationTable"></table></div>
+        </div>
         <div class="panel-card">
           <h2 data-i18n="s3_r2q2_title">R² &amp; Q² của biến nội sinh (Predictive Relevance)</h2>
           <div class="table-scroll"><table id="r2Table"></table></div>
@@ -282,6 +287,7 @@
               <ul>
                 <li><strong>Total &amp; Indirect Effects:</strong> hiệu ứng gián tiếp = tổng tích các path coefficient dọc theo <em>mọi</em> đường đi qua biến trung gian, giữa một cặp construct; hiệu ứng tổng = trực tiếp + gián tiếp.</li>
                 <li><strong>Specific Indirect Effects:</strong> tách riêng <em>từng</em> đường đi trung gian cụ thể (thay vì cộng gộp như bảng trên) — nếu đã bootstrap, mỗi đường đi cũng được kiểm định ý nghĩa thống kê riêng, dựa trên đúng tích số của các hệ số trong cùng một lần lấy mẫu lại.</li>
+                <li><strong>Index of Moderated Mediation (Hayes, 2015):</strong> chỉ xuất hiện khi mô hình vừa có mediator vừa có moderator tác động lên đúng một đoạn của đường trung gian đó (Model 7/14 của PROCESS). Chỉ số này là <em>độ dốc</em> của hiệu ứng gián tiếp theo biến điều tiết — hiệu ứng gián tiếp thay đổi bao nhiêu khi biến điều tiết tăng 1 đơn vị. Nếu khoảng tin cậy 95% của chỉ số không chứa 0 → mức độ điều tiết lên hiệu ứng gián tiếp có ý nghĩa thống kê, một kiểm định chặt chẽ hơn việc chỉ so sánh "có ý nghĩa ở nhóm này nhưng không ở nhóm kia".</li>
               </ul>
             </div>
           </details>
@@ -373,6 +379,11 @@
           <h2 data-i18n="s3_specific_indirect_title">Hiệu ứng gián tiếp cụ thể (Specific Indirect Effects)</h2>
           <p class="hint" data-i18n="s3_specific_indirect_hint">Mỗi dòng là một đường đi trung gian cụ thể — khác với bảng Total &amp; Indirect Effects vốn cộng gộp tất cả đường đi giữa một cặp construct. Nếu đã bootstrap, ý nghĩa thống kê được kiểm định trực tiếp trên tích của đúng lần lấy mẫu lại đó.</p>
           <div class="table-scroll"><table id="cbsemSpecificIndirectTable"></table></div>
+        </div>
+        <div class="panel-card hidden" id="cbsemModeratedMediationSection">
+          <h2 data-i18n="s3_moderated_mediation_title">Index of Moderated Mediation (Hayes, 2015)</h2>
+          <p class="hint" data-i18n="s3_moderated_mediation_hint_cbsem">Chỉ số đo hiệu ứng gián tiếp thay đổi bao nhiêu khi biến điều tiết tăng 1 đơn vị — cho các đường trung gian có đúng một đoạn (edge) bị điều tiết. Ở CB-SEM đây là điểm ước lượng, chưa có kiểm định ý nghĩa thống kê riêng cho chỉ số này.</p>
+          <div class="table-scroll"><table id="cbsemModeratedMediationTable"></table></div>
         </div>
         <div class="panel-card">
           <h2 data-i18n="cbsem_r2_title">R² của biến nội sinh</h2>

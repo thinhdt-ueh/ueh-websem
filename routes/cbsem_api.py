@@ -10,7 +10,7 @@ from cbsem.metrics import compute_all_cbsem_metrics
 from cbsem.moderation import run_cbsem_with_moderation
 from cbsem.report import build_excel_report, build_word_report
 from i18n import get_lang, t
-from pls.effects import specific_indirect_effects, total_effects
+from pls.effects import moderated_mediation_indices, specific_indirect_effects, total_effects
 from pls.metrics import CMB_VIF_THRESHOLD
 from pls.model import Model, ModelError
 from pls.source_transparency import cbsem_sections
@@ -102,6 +102,22 @@ def analyze_cbsem():
         }
         for row in specific_indirect_effects(model, coef)
     ]
+    moderated_mediation_list = [
+        {
+            "route": row.route,
+            "moderated_index": row.moderated_index,
+            "interaction_id": row.interaction_id,
+            "interaction_name": model.constructs[row.interaction_id].name,
+            "moderator_id": row.moderator_id,
+            "moderator_name": model.constructs[row.moderator_id].name,
+            "focal_id": row.route[row.moderated_index],
+            "focal_name": model.constructs[row.route[row.moderated_index]].name,
+            "path_names": [model.constructs[row.interaction_id].name]
+            + [model.constructs[cid].name for cid in row.route[row.moderated_index + 1:]],
+            "index": round(row.index, 6),
+        }
+        for row in moderated_mediation_indices(model, coef)
+    ]
 
     response = {
         "method": "cbsem",
@@ -138,6 +154,7 @@ def analyze_cbsem():
             "paths": paths,
             "total_effects": total_effects_list,
             "specific_indirect_effects": specific_indirect_list,
+            "moderated_mediation": moderated_mediation_list,
             "r_squared": series_to_dict(result.r_squared),
         },
         "common_method_bias": {
