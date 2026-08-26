@@ -637,7 +637,8 @@ document.getElementById("exportExcelBtn").addEventListener("click", () => export
 document.getElementById("exportWordBtn").addEventListener("click", () => exportReport("word"));
 document.getElementById("sensitivityBtn").addEventListener("click", () => openSensitivityModal("pls"));
 document.getElementById("cbsemSensitivityBtn").addEventListener("click", () => openSensitivityModal("cbsem"));
-document.getElementById("powerAnalysisBtn").addEventListener("click", openPowerAnalysisModal);
+document.getElementById("powerAnalysisBtn").addEventListener("click", () => openPowerAnalysisModal("pls"));
+document.getElementById("cbsemPowerAnalysisBtn").addEventListener("click", () => openPowerAnalysisModal("cbsem"));
 document.getElementById("plspredictBtn").addEventListener("click", runPlspredict);
 document.getElementById("ipmaBtn").addEventListener("click", openIpmaModal);
 
@@ -913,7 +914,8 @@ function openSensitivityModal(method) {
   document.getElementById("sensStep").focus();
 }
 
-function openPowerAnalysisModal() {
+function openPowerAnalysisModal(method) {
+  const isCbsem = method === "cbsem";
   const modelPayload = editor.serialize();
   const root = document.getElementById("modalRoot");
 
@@ -936,11 +938,23 @@ function openPowerAnalysisModal() {
   const idToName = {};
   modelPayload.constructs.forEach((c) => (idToName[c.id] = c.name));
 
-  const lastPaths = (lastAnalysisResult && lastAnalysisResult.structural && lastAnalysisResult.structural.paths) || [];
+  // Prefill from the last analysis of the matching engine — PLS-SEM's
+  // /api/analyze response shapes this differently than CB-SEM's
+  // /api/analyze_cbsem (coefficient vs. std, a loadings dict vs. an array).
+  const lastResult = isCbsem ? lastCbsemResult : lastAnalysisResult;
   const coefByPath = {};
-  lastPaths.forEach((p) => { coefByPath[`${p.source}->${p.target}`] = p.coefficient; });
+  ((lastResult && lastResult.structural && lastResult.structural.paths) || []).forEach((p) => {
+    coefByPath[`${p.source}->${p.target}`] = isCbsem ? p.std : p.coefficient;
+  });
 
-  const lastLoadings = (lastAnalysisResult && lastAnalysisResult.measurement && lastAnalysisResult.measurement.outer_loadings) || {};
+  const lastLoadings = {};
+  if (isCbsem) {
+    ((lastResult && lastResult.measurement && lastResult.measurement.loadings) || []).forEach((row) => {
+      lastLoadings[row.indicator] = row.std;
+    });
+  } else {
+    Object.assign(lastLoadings, (lastResult && lastResult.measurement && lastResult.measurement.outer_loadings) || {});
+  }
   const avgLoadingByConstruct = {};
   modelPayload.constructs.forEach((c) => {
     const vals = (c.indicators || []).map((ind) => lastLoadings[ind]).filter((v) => v !== undefined && v !== null);
@@ -951,6 +965,7 @@ function openPowerAnalysisModal() {
   const suggestedFrom = Math.max(50, Math.round((nRows * 0.5) / 10) * 10);
   const suggestedTo = Math.max(suggestedFrom + 100, Math.round((nRows * 1.5) / 10) * 10);
   const suggestedStep = Math.max(10, Math.round((suggestedTo - suggestedFrom) / 5 / 10) * 10);
+  const defaultNMc = isCbsem ? 100 : 30;
 
   const pathRows = modelPayload.paths
     .map((p) => {
@@ -986,8 +1001,8 @@ function openPowerAnalysisModal() {
         </div>
         <details>
           <summary>${t("power_modal_advanced")}</summary>
-          <label>${t("power_modal_n_mc")}<input type="number" id="powerNMc" min="20" max="500" value="30"></label>
-          <label>${t("power_modal_n_boot")}<input type="number" id="powerNBoot" min="100" max="300" value="100"></label>
+          <label>${t("power_modal_n_mc")}<input type="number" id="powerNMc" min="20" max="500" value="${defaultNMc}"></label>
+          ${isCbsem ? "" : `<label>${t("power_modal_n_boot")}<input type="number" id="powerNBoot" min="100" max="300" value="100"></label>`}
           <p class="hint" style="margin:2px 0 0">${t("power_modal_n_mc_hint")}</p>
         </details>
         <p class="hint" id="powerEstimateText"></p>
@@ -1011,23 +1026,29 @@ function openPowerAnalysisModal() {
 
   function updateEstimate() {
     const points = computePoints();
-    const nMc = parseInt(document.getElementById("powerNMc").value, 10) || 30;
-    const nBoot = parseInt(document.getElementById("powerNBoot").value, 10) || 100;
+    const nMc = parseInt(document.getElementById("powerNMc").value, 10) || defaultNMc;
     const text = document.getElementById("powerEstimateText");
     if (!points) {
       text.textContent = "";
       return;
     }
-    // Rough client-side estimate only, based on a sustained ~7.7ms per
-    // inner PLS fit measured on this app's own sample model (see
-    // MAX_TOTAL_FITS's comment in pls/power_analysis.py) — each replicate
-    // costs (1 + n_boot_inner) fits. The server enforces the real budget
-    // cap regardless of this guess.
-    const SEC_PER_FIT = 0.0077;
-    const estSec = Math.round(points.length * nMc * (1 + nBoot) * SEC_PER_FIT);
+    // Rough client-side estimate only — the server enforces the real
+    // budget cap regardless of this guess. PLS-SEM pays for n_boot_inner
+    // extra fits per replicate (see MAX_TOTAL_FITS's comment in
+    // pls/power_analysis.py, ~7.7ms/fit); CB-SEM has no bootstrap step, so
+    // each replicate is just one ~44ms ML fit (cbsem/power_analysis.py).
+    let estSec;
+    if (isCbsem) {
+      const SEC_PER_REPLICATE_CBSEM = 0.044;
+      estSec = Math.round(points.length * nMc * SEC_PER_REPLICATE_CBSEM);
+    } else {
+      const nBoot = parseInt(document.getElementById("powerNBoot").value, 10) || 100;
+      const SEC_PER_FIT = 0.0077;
+      estSec = Math.round(points.length * nMc * (1 + nBoot) * SEC_PER_FIT);
+    }
     text.textContent = t("power_modal_estimate", { sec: estSec, points: points.length, mc: nMc });
   }
-  ["powerNFrom", "powerNTo", "powerNStep", "powerNMc", "powerNBoot"].forEach((id) => {
+  ["powerNFrom", "powerNTo", "powerNStep", "powerNMc"].concat(isCbsem ? [] : ["powerNBoot"]).forEach((id) => {
     document.getElementById(id).addEventListener("input", updateEstimate);
   });
   updateEstimate();
@@ -1037,8 +1058,8 @@ function openPowerAnalysisModal() {
     const errBox = document.getElementById("powerModalError");
     const points = computePoints();
     const nMc = parseInt(document.getElementById("powerNMc").value, 10);
-    const nBoot = parseInt(document.getElementById("powerNBoot").value, 10);
-    let valid = !!points && Number.isInteger(nMc) && nMc >= 1 && Number.isInteger(nBoot) && nBoot >= 1;
+    const nBoot = isCbsem ? null : parseInt(document.getElementById("powerNBoot").value, 10);
+    let valid = !!points && Number.isInteger(nMc) && nMc >= 1 && (isCbsem || (Number.isInteger(nBoot) && nBoot >= 1));
 
     const pathValues = {};
     root.querySelectorAll("input[data-path]").forEach((inp) => {
@@ -1058,12 +1079,15 @@ function openPowerAnalysisModal() {
       errBox.classList.remove("hidden");
       return;
     }
-    sessionStorage.setItem("websem_power_job", JSON.stringify({
+    const job = {
+      method: isCbsem ? "cbsem" : "pls",
       model: modelPayload, path_values: pathValues, loading_values: loadingValues,
       n_from: points[0], n_to: points[points.length - 1],
       n_step: parseInt(document.getElementById("powerNStep").value, 10),
-      n_mc: nMc, n_boot_inner: nBoot, lang: getLang(),
-    }));
+      n_mc: nMc, lang: getLang(),
+    };
+    if (!isCbsem) job.n_boot_inner = nBoot;
+    sessionStorage.setItem("websem_power_job", JSON.stringify(job));
     root.innerHTML = "";
     window.open("/power_analysis", "_blank");
   };

@@ -120,12 +120,16 @@ class PowerPoint:
     mean_estimate: float | None
 
 
-def _validate_population_model(
+def validate_population_model(
     model: Model,
     path_values: dict[tuple[str, str], float],
     loading_values: dict[str, float],
     lang: str,
 ) -> None:
+    """Shared by both engines' power analysis (see cbsem/power_analysis.py) —
+    the population-model requirements (reflective-only, no interactions,
+    every path/construct covered) don't depend on which estimator will fit
+    the synthetic data afterwards."""
     if model.has_interactions():
         raise ValueError(t("err_power_no_interactions", lang))
     for c in model.constructs.values():
@@ -151,7 +155,7 @@ def run_power_analysis(
     seed: int | None = None,
     lang: str = DEFAULT_LANG,
 ) -> list[PowerPoint]:
-    _validate_population_model(model, path_values, loading_values, lang)
+    validate_population_model(model, path_values, loading_values, lang)
 
     n_mc = max(MIN_MC_REPLICATES, min(MAX_MC_REPLICATES, int(n_mc)))
     n_boot_inner = max(MIN_BOOT_INNER, min(MAX_BOOT_INNER, int(n_boot_inner)))

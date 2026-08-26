@@ -187,7 +187,8 @@ const I18N = {
     power_failed: "Power Analysis thất bại.",
     power_summary_title: "Tổng quan",
     power_method_hint: "Mỗi điểm mô phỏng: sinh dữ liệu tổng hợp từ mô hình quần thể đã khai báo (path coefficient & loading kỳ vọng), chạy PLS-SEM + Bootstrap, rồi tính tỉ lệ số lần path có ý nghĩa thống kê (p < 0.05) trên tổng số lần lặp hội tụ. Giả định các construct ngoại sinh độc lập nhau (Aguirre-Urreta & Rönkkö, 2015).",
-    power_summary_text: "{nPaths} đường dẫn · {nSizes} cỡ mẫu được kiểm tra · {nMc} lần lặp Monte Carlo/cỡ mẫu · {nBoot} lần bootstrap/lần lặp · Cỡ mẫu tối thiểu đạt lũy thừa 80%: {minN}.",
+    power_summary_text_pls: "{nPaths} đường dẫn · {nSizes} cỡ mẫu được kiểm tra · {nMc} lần lặp Monte Carlo/cỡ mẫu · {nBoot} lần bootstrap/lần lặp · Cỡ mẫu tối thiểu đạt lũy thừa 80%: {minN}.",
+    power_summary_text_cbsem: "{nPaths} đường dẫn · {nSizes} cỡ mẫu được kiểm tra · {nMc} lần lặp Monte Carlo/cỡ mẫu · ý nghĩa thống kê tính trực tiếp (z-test, không cần bootstrap) · Cỡ mẫu tối thiểu đạt lũy thừa 80%: {minN}.",
     power_chart_title: "Đường cong lũy thừa (Power) theo cỡ mẫu",
     power_chart_hint: "Di chuột vào biểu đồ để xem giá trị chính xác. Đường nét đứt ngang = ngưỡng 80% (quy ước thông thường). Bấm vào chú thích để ẩn/hiện từng đường.",
     power_table_title: "Bảng số liệu chi tiết",
@@ -220,6 +221,7 @@ const I18N = {
     power_guide_what_body:
       "<p>Power Analysis (dưới giả thuyết H₁) trả lời câu hỏi: <strong>\"Nếu hiệu ứng thật trong quần thể đúng bằng giá trị tôi kỳ vọng, thì với cỡ mẫu n, xác suất tôi phát hiện được hiệu ứng đó là bao nhiêu?\"</strong> Đây là công cụ dùng <strong>trước khi</strong> thu thập dữ liệu, để ước tính cỡ mẫu tối thiểu cần khảo sát — khác với hầu hết phân tích PLS-SEM khác vốn chỉ áp dụng sau khi đã có dữ liệu thật.</p>" +
       "<p>Vì PLS-SEM không có công thức power dạng đóng (closed-form), công cụ này dùng mô phỏng Monte Carlo: sinh nhiều bộ dữ liệu giả lập từ mô hình quần thể bạn khai báo, chạy PLS-SEM + Bootstrap thật trên từng bộ, rồi đếm tỉ lệ phát hiện được hiệu ứng.</p>" +
+      "<p>Trang này dùng chung cho cả PLS-SEM và CB-SEM. Với <strong>CB-SEM</strong>, ý nghĩa thống kê được tính trực tiếp bằng z-test (Wald test) từ ước lượng Maximum Likelihood — không cần bootstrap — nên mỗi lần lặp chỉ cần một lượt fit, nhanh hơn nhiều so với PLS-SEM (vốn cần thêm một vòng bootstrap bên trong mỗi lần lặp).</p>" +
       "<p><strong>Khác với Sample Size Sensitivity:</strong> Sensitivity lấy lại dữ liệu thật đã thu thập và bỏ bớt quan sát dần — trả lời \"kết quả hiện tại ổn định đến đâu nếu tôi có ít dữ liệu hơn\". Power Analysis mô phỏng dữ liệu hoàn toàn mới từ một mô hình quần thể giả định — trả lời \"tôi cần thu thập bao nhiêu mẫu\". Hai công cụ bổ trợ nhau, không thay thế nhau.</p>",
     power_guide_read_summary: "Cách đọc biểu đồ & bảng số liệu",
     power_guide_read_body:
@@ -637,7 +639,8 @@ const I18N = {
     power_failed: "Power analysis failed.",
     power_summary_title: "Overview",
     power_method_hint: "Each simulated point: generate a synthetic dataset from the declared population model (expected path coefficients & loadings), fit PLS-SEM + Bootstrap, then compute the fraction of converged replicates where the path came out significant (p < 0.05). Assumes exogenous constructs are mutually independent (Aguirre-Urreta & Rönkkö, 2015).",
-    power_summary_text: "{nPaths} paths · {nSizes} sample sizes tested · {nMc} Monte Carlo replicates/size · {nBoot} bootstrap resamples/replicate · Minimum n reaching 80% power: {minN}.",
+    power_summary_text_pls: "{nPaths} paths · {nSizes} sample sizes tested · {nMc} Monte Carlo replicates/size · {nBoot} bootstrap resamples/replicate · Minimum n reaching 80% power: {minN}.",
+    power_summary_text_cbsem: "{nPaths} paths · {nSizes} sample sizes tested · {nMc} Monte Carlo replicates/size · significance computed directly (z-test, no bootstrap needed) · Minimum n reaching 80% power: {minN}.",
     power_chart_title: "Power curve by sample size",
     power_chart_hint: "Hover the chart for exact values. The dashed horizontal line marks the conventional 80% threshold. Click a legend entry to show/hide that line.",
     power_table_title: "Detailed data table",
@@ -670,6 +673,7 @@ const I18N = {
     power_guide_what_body:
       "<p>Power Analysis (under H₁) answers: <strong>\"If the true population effect equals what I expect, what's the probability that a sample of size n would let me detect it?\"</strong> It's meant to be used <strong>before</strong> collecting data, to estimate the minimum sample size worth surveying — unlike most other PLS-SEM analyses, which only apply once you already have real data.</p>" +
       "<p>Because PLS-SEM has no closed-form power formula, this tool uses Monte Carlo simulation: it generates many synthetic datasets from the population model you declare, runs a real PLS-SEM + Bootstrap fit on each one, and counts how often the effect comes out detected.</p>" +
+      "<p>This page is shared by both PLS-SEM and CB-SEM. For <strong>CB-SEM</strong>, significance is computed directly via a z-test (Wald test) from the Maximum Likelihood estimate — no bootstrap needed — so each replicate costs just one fit, much faster than PLS-SEM (which needs an extra bootstrap loop inside every replicate).</p>" +
       "<p><strong>How this differs from Sample Size Sensitivity:</strong> Sensitivity takes your real, already-collected data and progressively drops observations — answering \"how stable are my current results if I'd had less data?\" Power Analysis simulates entirely new data from a hypothesized population model — answering \"how much data do I need to collect?\" The two tools complement each other rather than replace one another.</p>",
     power_guide_read_summary: "How to read the chart & table",
     power_guide_read_body:

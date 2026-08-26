@@ -1,12 +1,19 @@
 """Monte Carlo power analysis endpoint — purely simulation-driven, so unlike
 every other analysis endpoint in this app it never reads the uploaded
 dataset (no file_id needed), only the model structure plus the population
-parameters (expected path coefficients / loadings) the user declares."""
+parameters (expected path coefficients / loadings) the user declares.
+
+Dispatches on `method` ("pls" or "cbsem", default "pls") to the matching
+engine — pls.power_analysis (bootstrap-based significance, needs
+n_boot_inner) or cbsem.power_analysis (analytic ML significance, no
+bootstrap, no n_boot_inner) — mirroring the same method-dispatch pattern
+already used by routes/sensitivity_api.py."""
 
 from __future__ import annotations
 
 from flask import Blueprint, jsonify, request
 
+from cbsem.power_analysis import run_power_analysis as run_power_analysis_cbsem
 from i18n import get_lang, t
 from pls.model import Model, ModelError
 from pls.power_analysis import (
@@ -15,12 +22,13 @@ from pls.power_analysis import (
     MAX_MC_REPLICATES,
     MIN_BOOT_INNER,
     MIN_MC_REPLICATES,
-    run_power_analysis,
+    run_power_analysis as run_power_analysis_pls,
 )
 
 power_api = Blueprint("power_api", __name__, url_prefix="/api")
 
-DEFAULT_N_MC = 30
+DEFAULT_N_MC_PLS = 30
+DEFAULT_N_MC_CBSEM = 100
 DEFAULT_N_BOOT_INNER = 100
 
 
@@ -35,6 +43,7 @@ def _parse_int(payload: dict, key: str, default: int) -> int | None:
 def power_analysis():
     payload = request.get_json(force=True, silent=True) or {}
     lang = get_lang(payload)
+    method = payload.get("method") if payload.get("method") in ("pls", "cbsem") else "pls"
     model_payload = payload.get("model") or {}
 
     try:
@@ -52,10 +61,14 @@ def power_analysis():
     if len(sample_sizes) > MAX_SAMPLE_SIZE_POINTS:
         return jsonify(error=t("err_power_too_many_points", lang, max=MAX_SAMPLE_SIZE_POINTS)), 400
 
-    n_mc = _parse_int(payload, "n_mc", DEFAULT_N_MC) or DEFAULT_N_MC
-    n_boot_inner = _parse_int(payload, "n_boot_inner", DEFAULT_N_BOOT_INNER) or DEFAULT_N_BOOT_INNER
+    default_n_mc = DEFAULT_N_MC_CBSEM if method == "cbsem" else DEFAULT_N_MC_PLS
+    n_mc = _parse_int(payload, "n_mc", default_n_mc) or default_n_mc
     n_mc = max(MIN_MC_REPLICATES, min(MAX_MC_REPLICATES, n_mc))
-    n_boot_inner = max(MIN_BOOT_INNER, min(MAX_BOOT_INNER, n_boot_inner))
+
+    n_boot_inner = None
+    if method == "pls":
+        n_boot_inner = _parse_int(payload, "n_boot_inner", DEFAULT_N_BOOT_INNER) or DEFAULT_N_BOOT_INNER
+        n_boot_inner = max(MIN_BOOT_INNER, min(MAX_BOOT_INNER, n_boot_inner))
 
     raw_path_values = payload.get("path_values") or {}
     path_values: dict[tuple[str, str], float] = {}
@@ -77,17 +90,24 @@ def power_analysis():
             return jsonify(error=t("err_power_missing_loading", lang, name=cid)), 400
 
     try:
-        points = run_power_analysis(
-            model, path_values, loading_values, sample_sizes,
-            n_mc=n_mc, n_boot_inner=n_boot_inner, seed=42, lang=lang,
-        )
+        if method == "cbsem":
+            points = run_power_analysis_cbsem(
+                model, path_values, loading_values, sample_sizes, n_mc=n_mc, seed=42, lang=lang,
+            )
+        else:
+            points = run_power_analysis_pls(
+                model, path_values, loading_values, sample_sizes,
+                n_mc=n_mc, n_boot_inner=n_boot_inner, seed=42, lang=lang,
+            )
     except ValueError as exc:
         return jsonify(error=str(exc)), 400
     except Exception as exc:  # noqa: BLE001
-        return jsonify(error=t("err_pls_run_error", lang, exc=exc)), 500
+        err_key = "err_cbsem_run_error" if method == "cbsem" else "err_pls_run_error"
+        return jsonify(error=t(err_key, lang, exc=exc)), 500
 
     id_to_name = {c.id: c.name for c in model.constructs.values()}
     return jsonify(
+        method=method,
         n_mc=n_mc,
         n_boot_inner=n_boot_inner,
         sample_sizes=sample_sizes,

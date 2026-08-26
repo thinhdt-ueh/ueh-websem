@@ -127,13 +127,16 @@ function renderAll(data) {
     const hit = byPath[k].rows.find((r) => r.power >= POWER_THRESHOLD);
     return hit ? String(hit.n) : t("power_not_reached");
   });
-  document.getElementById("powerSummary").textContent = t("power_summary_text", {
-    nPaths: pathKeys.length,
-    nSizes: data.sample_sizes.length,
-    nMc: data.n_mc,
-    nBoot: data.n_boot_inner,
-    minN: minNFor80.join(", "),
-  });
+  document.getElementById("powerSummary").textContent = t(
+    data.method === "cbsem" ? "power_summary_text_cbsem" : "power_summary_text_pls",
+    {
+      nPaths: pathKeys.length,
+      nSizes: data.sample_sizes.length,
+      nMc: data.n_mc,
+      nBoot: data.n_boot_inner,
+      minN: minNFor80.join(", "),
+    }
+  );
 
   const series = pathKeys.map((k, i) => ({
     id: k,
