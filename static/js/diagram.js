@@ -139,8 +139,13 @@ class PathDiagram {
     for (const c of this.constructs) { c.x += offX; c.y += offY; }
     for (const b of boxes) { b.x += offX; b.y += offY; }
 
-    this.canvas.width = Math.ceil(maxX - minX + PAD * 2);
-    this.canvas.height = Math.ceil(maxY - minY + PAD * 2);
+    // The diagram's own content determines its *shape* (aspect ratio) —
+    // still stretched up to fill the panel's actual CSS width by
+    // _syncCanvasResolution() below, exactly like the CSS `width:100%`
+    // rule used to do, but via a sharp re-render at the target size
+    // instead of the browser blurrily upscaling a small raster.
+    this._naturalWidth = Math.ceil(maxX - minX + PAD * 2);
+    this._naturalHeight = Math.ceil(maxY - minY + PAD * 2);
     this.render();
   }
 
@@ -205,10 +210,17 @@ class PathDiagram {
   }
 
   // ---------- geometry ----------
+  // Maps a pointer event to *logical* drawing coordinates — i.e. the same
+  // space render()'s draw calls use, which since _syncCanvasResolution()
+  // is DPR-scaled no longer equals `this.canvas.width`/`height` (those are
+  // now the physical raster size). rect.width/height is normally identical
+  // to logicalWidth/logicalHeight (both are the CSS-rendered size), but
+  // going through the ratio rather than assuming 1:1 keeps this correct
+  // under a CSS zoom/transform on the canvas too.
   _canvasPoint(evt) {
     const rect = this.canvas.getBoundingClientRect();
-    const scaleX = this.canvas.width / rect.width;
-    const scaleY = this.canvas.height / rect.height;
+    const scaleX = (this._logicalWidth || this.canvas.width) / rect.width;
+    const scaleY = (this._logicalHeight || this.canvas.height) / rect.height;
     return {
       x: (evt.clientX - rect.left) * scaleX,
       y: (evt.clientY - rect.top) * scaleY,
@@ -329,8 +341,9 @@ class PathDiagram {
 
   _pointerMove(pt) {
     if (!this.dragging) return;
-    this.dragging.x = Math.max(this.RADIUS_X, Math.min(this.canvas.width - this.RADIUS_X, pt.x));
-    this.dragging.y = Math.max(this.RADIUS_Y, Math.min(this.canvas.height - this.RADIUS_Y, pt.y));
+    const w = this._logicalWidth || this.canvas.width, h = this._logicalHeight || this.canvas.height;
+    this.dragging.x = Math.max(this.RADIUS_X, Math.min(w - this.RADIUS_X, pt.x));
+    this.dragging.y = Math.max(this.RADIUS_Y, Math.min(h - this.RADIUS_Y, pt.y));
     this.dragMoved = true;
     this.render();
   }
@@ -355,9 +368,51 @@ class PathDiagram {
   }
 
   // ---------- rendering ----------
+  // Syncs the canvas's raster resolution to its actual CSS-rendered size
+  // (times devicePixelRatio, so text/lines are crisp instead of the
+  // browser blurrily upscaling a fixed-resolution buffer to fill a wider
+  // container) and establishes the transform that lets every draw call
+  // below keep using plain "logical" coordinates unchanged.
+  //
+  // Two modes, both converging on the same _logicalWidth/_logicalHeight +
+  // transform setup:
+  //  - Editable model builder (no _naturalWidth set): logical space is
+  //    simply the canvas's current CSS size (clientWidth/clientHeight, per
+  //    the `canvas{width:100%}` rule) — matches the pre-fix behavior where
+  //    canvas.width/height directly WAS that CSS size, just now sharp.
+  //  - Read-only results diagram (_naturalWidth set by
+  //    renderWithMeasurement): logical space is the diagram's own content
+  //    layout, uniformly scaled up to fill the panel's actual CSS width —
+  //    same visual stretch CSS used to do, done as a sharp re-render
+  //    instead of a blurry bitmap upscale.
+  _syncCanvasResolution() {
+    const dpr = window.devicePixelRatio || 1;
+    const naturalW = this._naturalWidth || this.canvas.clientWidth || this.canvas.width;
+    const naturalH = this._naturalHeight || this.canvas.clientHeight || this.canvas.height;
+    const cssWidth = this._naturalWidth ? (this.canvas.clientWidth || naturalW) : naturalW;
+    const stretch = this._naturalWidth ? cssWidth / naturalW : 1;
+    const cssHeight = naturalH * stretch;
+
+    if (this._naturalWidth) {
+      // Pin height explicitly (width already fills via `canvas{width:100%}`)
+      // so the browser's own layout doesn't fight the aspect ratio we want.
+      this.canvas.style.height = cssHeight + "px";
+    }
+    const rasterW = Math.max(1, Math.round(cssWidth * dpr));
+    const rasterH = Math.max(1, Math.round(cssHeight * dpr));
+    if (this.canvas.width !== rasterW || this.canvas.height !== rasterH) {
+      this.canvas.width = rasterW;
+      this.canvas.height = rasterH;
+    }
+    this._logicalWidth = naturalW;
+    this._logicalHeight = naturalH;
+    this.ctx.setTransform(dpr * stretch, 0, 0, dpr * stretch, 0, 0);
+  }
+
   render() {
+    this._syncCanvasResolution();
     const ctx = this.ctx;
-    const W = this.canvas.width, H = this.canvas.height;
+    const W = this._logicalWidth, H = this._logicalHeight;
     ctx.clearRect(0, 0, W, H);
 
     // edges

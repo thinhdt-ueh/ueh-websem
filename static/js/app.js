@@ -207,6 +207,22 @@ function initEditor() {
   renderModelSummary();
 }
 
+// Path diagrams size their raster to the canvas's current CSS-rendered
+// width each render() (see diagram.js's _syncCanvasResolution) — which
+// covers every user interaction, but a plain browser-window resize with no
+// other interaction wouldn't otherwise trigger a re-render, leaving the
+// canvas at its old resolution/proportions until the next click. Debounced
+// so a drag-resize doesn't re-render on every intermediate frame.
+let diagramResizeTimer = null;
+window.addEventListener("resize", () => {
+  clearTimeout(diagramResizeTimer);
+  diagramResizeTimer = setTimeout(() => {
+    if (editor) editor.render();
+    if (resultDiagram) resultDiagram.render();
+    if (cbsemResultDiagram) cbsemResultDiagram.render();
+  }, 200);
+});
+
 function onEditorChange(evt) {
   if (evt && evt.requestAddConstruct) {
     openAddConstructModal(evt.requestAddConstruct);
