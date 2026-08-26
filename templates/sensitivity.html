@@ -54,6 +54,40 @@
       <h2 data-i18n="sens_table_title">Bảng số liệu chi tiết</h2>
       <div class="table-scroll"><table id="sensTable"></table></div>
     </div>
+
+    <div class="panel-card">
+      <h2 data-i18n="sens_guide_section_title">Hướng dẫn đọc &amp; Ý nghĩa các chỉ số</h2>
+      <div class="reading-guide">
+        <details>
+          <summary data-i18n="sens_guide_what_summary">Sample Size Sensitivity là gì?</summary>
+          <div class="reading-guide-body" data-i18n-html="sens_guide_what_body">
+            <p>Kiểm tra độ ổn định của các ước lượng (R², path coefficient) khi cỡ mẫu <strong>thật</strong> giảm dần — bằng cách lấy ngẫu nhiên bớt quan sát từ chính dữ liệu bạn đã upload rồi chạy lại mô hình nhiều lần. Trả lời câu hỏi: <strong>"Nếu tôi có ít dữ liệu hơn, kết quả có còn ổn định/hội tụ không?"</strong></p>
+            <p>Công cụ này hữu ích để đánh giá độ nhạy của kết quả hiện tại với cỡ mẫu — <strong>không phải</strong> để tính xác suất phát hiện hiệu ứng hay xác định cỡ mẫu cần thu thập trước khi khảo sát (đó là việc của <em>Power Analysis</em>, một công cụ mô phỏng dữ liệu hoàn toàn mới từ mô hình quần thể giả định, khác về bản chất với việc bớt dần dữ liệu thật ở đây).</p>
+          </div>
+        </details>
+        <details>
+          <summary data-i18n="sens_guide_read_summary">Cách đọc biểu đồ &amp; bảng số liệu</summary>
+          <div class="reading-guide-body" data-i18n-html="sens_guide_read_body">
+            <ul>
+              <li><strong>Trục hoành (n):</strong> cỡ mẫu tại mỗi bước, giảm dần từ tổng số quan sát ban đầu.</li>
+              <li><strong>Biểu đồ R²:</strong> R² của từng biến nội sinh thay đổi thế nào khi cỡ mẫu giảm.</li>
+              <li><strong>Biểu đồ Path Coefficients:</strong> từng hệ số đường dẫn thay đổi ra sao khi cỡ mẫu giảm.</li>
+              <li><strong>Điểm viền đỏ:</strong> mô hình không hội tụ ở cỡ mẫu đó — dấu hiệu cỡ mẫu đã quá nhỏ để ước lượng ổn định.</li>
+              <li><strong>Bảng chi tiết:</strong> liệt kê từng cỡ mẫu đã chạy, có hội tụ hay không, cùng R² và path coefficient tương ứng tại điểm đó.</li>
+            </ul>
+          </div>
+        </details>
+        <details>
+          <summary data-i18n="sens_guide_limits_summary">Giới hạn</summary>
+          <div class="reading-guide-body" data-i18n-html="sens_guide_limits_body">
+            <ul>
+              <li>Mỗi cỡ mẫu chỉ được lấy mẫu con <strong>một lần</strong> (không lặp lại nhiều lần như mô phỏng Monte Carlo), nên một phần dao động giữa các điểm liền kề đến từ nhiễu ngẫu nhiên của riêng lần lấy mẫu đó, không hẳn phản ánh một xu hướng thật đang diễn ra.</li>
+              <li>Đây là phân tích trên dữ liệu đã có sẵn — không cho biết cỡ mẫu bạn <strong>nên</strong> thu thập nếu chưa khảo sát; muốn trả lời câu hỏi đó, dùng Power Analysis ở trang kết quả.</li>
+            </ul>
+          </div>
+        </details>
+      </div>
+    </div>
   </div>
 </main>
 

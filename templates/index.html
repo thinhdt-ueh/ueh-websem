@@ -243,6 +243,77 @@
         <p class="hint" data-i18n="src_transparency_hint">Mã nguồn Python thật sự đã chạy để tính ra các kết quả ở trên, lấy trực tiếp từ mã đang chạy trên server (không phải bản sao chép tay).</p>
         <div id="sourceTransparency" class="source-transparency"></div>
       </div>
+      <div class="panel-card">
+        <h2 data-i18n="results_guide_section_title">Hướng dẫn đọc &amp; Ý nghĩa các chỉ số</h2>
+        <div class="reading-guide">
+          <details>
+            <summary data-i18n="results_guide_measurement_summary">Mô hình đo lường (Outer Model)</summary>
+            <div class="reading-guide-body" data-i18n-html="results_guide_measurement_body">
+              <ul>
+                <li><strong>Outer Loadings:</strong> tương quan giữa mỗi indicator và construct chứa nó. Với construct reflective, nên ≥0.7; 0.4–0.7 có thể cân nhắc loại bỏ nếu việc loại không làm giảm AVE/độ tin cậy. <strong>Cross Loadings</strong> cho thấy mỗi indicator nên tải cao nhất lên đúng construct của chính nó, không phải construct khác.</li>
+                <li><strong>Cronbach's Alpha, rho_A, Composite Reliability (CR):</strong> đo độ tin cậy nhất quán nội bộ — thường xem ≥0.7 là chấp nhận được (0.6–0.7 có thể chấp nhận ở nghiên cứu khám phá).</li>
+                <li><strong>AVE (Average Variance Extracted):</strong> đo giá trị hội tụ — nên ≥0.5 (construct giải thích được ít nhất 50% phương sai của các indicator của nó).</li>
+              </ul>
+            </div>
+          </details>
+          <details>
+            <summary data-i18n="results_guide_discriminant_summary">Giá trị phân biệt (Discriminant Validity)</summary>
+            <div class="reading-guide-body" data-i18n-html="results_guide_discriminant_body">
+              <ul>
+                <li><strong>Fornell-Larcker:</strong> căn bậc hai AVE trên đường chéo nên lớn hơn tương quan giữa construct đó với bất kỳ construct nào khác.</li>
+                <li><strong>HTMT (Heterotrait-Monotrait Ratio):</strong> nên &lt;0.85 (khắt khe) hoặc &lt;0.90 (khi các construct gần nhau về khái niệm) theo Henseler et al. (2015); ≥0.90 là dấu hiệu vi phạm giá trị phân biệt.</li>
+              </ul>
+            </div>
+          </details>
+          <details>
+            <summary data-i18n="results_guide_structural_summary">Mô hình cấu trúc — Path Coefficients</summary>
+            <div class="reading-guide-body" data-i18n-html="results_guide_structural_body">
+              <ul>
+                <li><strong>Path coefficient (β chuẩn hoá):</strong> dấu (+/−) và độ lớn thể hiện chiều và cường độ quan hệ giữa hai construct.</li>
+                <li>Nếu đã bật <strong>Bootstrapping</strong>: các cột STDEV / T-Statistics / P-Values / Ý nghĩa cho biết path có ý nghĩa thống kê khi p &lt; 0.05 (tương đương |T| &gt; 1.96 với kiểm định 2 đuôi).</li>
+                <li><strong>f² (effect size):</strong> &lt;0.02 không đáng kể, 0.02–0.15 nhỏ, 0.15–0.35 vừa, ≥0.35 lớn (Cohen, 1988). Riêng path từ biến điều tiết (interaction) dùng ngưỡng nhỏ hơn nhiều: 0.005/0.01/0.025 (Kenny 2018; Aguinis et al. 2005).</li>
+              </ul>
+            </div>
+          </details>
+          <details>
+            <summary data-i18n="results_guide_mediation_summary">Hiệu ứng trung gian (Mediation)</summary>
+            <div class="reading-guide-body" data-i18n-html="results_guide_mediation_body">
+              <ul>
+                <li><strong>Total &amp; Indirect Effects:</strong> hiệu ứng gián tiếp = tổng tích các path coefficient dọc theo <em>mọi</em> đường đi qua biến trung gian, giữa một cặp construct; hiệu ứng tổng = trực tiếp + gián tiếp.</li>
+                <li><strong>Specific Indirect Effects:</strong> tách riêng <em>từng</em> đường đi trung gian cụ thể (thay vì cộng gộp như bảng trên) — nếu đã bootstrap, mỗi đường đi cũng được kiểm định ý nghĩa thống kê riêng, dựa trên đúng tích số của các hệ số trong cùng một lần lấy mẫu lại.</li>
+              </ul>
+            </div>
+          </details>
+          <details>
+            <summary data-i18n="results_guide_predictive_summary">R², Q² &amp; Đa cộng tuyến (VIF)</summary>
+            <div class="reading-guide-body" data-i18n-html="results_guide_predictive_body">
+              <ul>
+                <li><strong>R²:</strong> 0.19 yếu, 0.33 trung bình, 0.67 mạnh (Chin, 1998) — chỉ là ngưỡng tham khảo, tùy lĩnh vực nghiên cứu.</li>
+                <li><strong>Q² (Predictive Relevance, từ Blindfolding):</strong> &gt;0 nghĩa là mô hình có khả năng dự báo ngoài mẫu cho construct đó; ≤0 nghĩa là không.</li>
+                <li><strong>VIF (Inner/Outer):</strong> nên &lt;3.3 (hoặc &lt;5 nếu nới lỏng hơn) để tránh đa cộng tuyến làm méo các hệ số ước lượng.</li>
+              </ul>
+            </div>
+          </details>
+          <details>
+            <summary data-i18n="results_guide_cmb_summary">Common Method Bias</summary>
+            <div class="reading-guide-body" data-i18n-html="results_guide_cmb_body">
+              <p>Full collinearity VIF (Kock, 2015): mỗi construct được hồi quy trên <strong>tất cả</strong> construct còn lại trong mô hình, không chỉ predictor trực tiếp của nó. VIF ≤ ngưỡng (mặc định 3.3) nghĩa là không có dấu hiệu common method bias đáng kể.</p>
+            </div>
+          </details>
+          <details>
+            <summary data-i18n="results_guide_slopes_summary">Simple Slopes (khi có biến điều tiết)</summary>
+            <div class="reading-guide-body" data-i18n-html="results_guide_slopes_body">
+              <p>Ba đường tại −1SD / Trung bình / +1SD của biến điều tiết cho thấy quan hệ giữa biến độc lập và biến kết quả thay đổi ra sao theo mức độ của biến điều tiết (Aiken &amp; West, 1991). Ba đường càng tách xa nhau (không song song) → tương tác càng mạnh; ba đường gần như song song → tương tác yếu, dù hệ số path của interaction có ý nghĩa thống kê hay không.</p>
+            </div>
+          </details>
+          <details>
+            <summary data-i18n="results_guide_bootstrap_dist_summary">Phân phối Bootstrap (khi đã bật Bootstrapping)</summary>
+            <div class="reading-guide-body" data-i18n-html="results_guide_bootstrap_dist_body">
+              <p>Mỗi biểu đồ là phân phối của một hệ số path qua toàn bộ số lần lấy mẫu lại (resample). Vạch xanh liền = giá trị ước lượng gốc; vạch đỏ đứt = khoảng tin cậy 95% (percentile). Nếu khoảng tin cậy 95% không chứa 0, path đó có ý nghĩa thống kê.</p>
+            </div>
+          </details>
+        </div>
+      </div>
       <button class="btn ghost" id="backToModelBtn" data-i18n="s3_back_to_model">← Quay lại chỉnh sửa mô hình</button>
     </div>
 
@@ -321,6 +392,74 @@
         <h2 data-i18n="src_transparency_title">Minh bạch tính toán (Computation Transparency)</h2>
         <p class="hint" data-i18n="src_transparency_hint">Mã nguồn Python thật sự đã chạy để tính ra các kết quả ở trên, lấy trực tiếp từ mã đang chạy trên server (không phải bản sao chép tay).</p>
         <div id="cbsemSourceTransparency" class="source-transparency"></div>
+      </div>
+      <div class="panel-card">
+        <h2 data-i18n="results_guide_section_title">Hướng dẫn đọc &amp; Ý nghĩa các chỉ số</h2>
+        <div class="reading-guide">
+          <details>
+            <summary data-i18n="cbsem_guide_fit_summary">Model Fit</summary>
+            <div class="reading-guide-body" data-i18n-html="cbsem_guide_fit_body">
+              <ul>
+                <li><strong>Chi-square / df:</strong> càng nhỏ càng tốt — thường χ²/df &lt; 3 được xem là chấp nhận được.</li>
+                <li><strong>CFI, TLI:</strong> ≥0.90 chấp nhận được, ≥0.95 tốt.</li>
+                <li><strong>RMSEA:</strong> ≤0.08 chấp nhận được, ≤0.05 tốt.</li>
+                <li><strong>SRMR:</strong> ≤0.08 chấp nhận được.</li>
+                <li>Đây chỉ là ngưỡng tham khảo — nên xem xét nhiều chỉ số cùng lúc, không dựa hoàn toàn vào một chỉ số riêng lẻ.</li>
+              </ul>
+            </div>
+          </details>
+          <details>
+            <summary data-i18n="results_guide_measurement_summary">Mô hình đo lường (Outer Model)</summary>
+            <div class="reading-guide-body" data-i18n-html="cbsem_guide_measurement_body">
+              <ul>
+                <li><strong>Cronbach's Alpha, Composite Reliability (CR), AVE:</strong> ngưỡng tham khảo giống PLS-SEM — CR ≥0.7, AVE ≥0.5.</li>
+                <li><strong>Factor Loadings:</strong> cột Unstd./Std./SE/z/p — ý nghĩa thống kê dựa trên kiểm định z (Wald test) từ ước lượng Maximum Likelihood, khác với PLS-SEM (vốn luôn cần Bootstrap vì không có công thức sai số chuẩn dạng đóng).</li>
+              </ul>
+            </div>
+          </details>
+          <details>
+            <summary data-i18n="results_guide_discriminant_summary">Giá trị phân biệt (Discriminant Validity)</summary>
+            <div class="reading-guide-body" data-i18n-html="results_guide_discriminant_body">
+              <ul>
+                <li><strong>Fornell-Larcker:</strong> căn bậc hai AVE trên đường chéo nên lớn hơn tương quan giữa construct đó với bất kỳ construct nào khác.</li>
+                <li><strong>HTMT (Heterotrait-Monotrait Ratio):</strong> nên &lt;0.85 (khắt khe) hoặc &lt;0.90 (khi các construct gần nhau về khái niệm) theo Henseler et al. (2015); ≥0.90 là dấu hiệu vi phạm giá trị phân biệt.</li>
+              </ul>
+            </div>
+          </details>
+          <details>
+            <summary data-i18n="results_guide_structural_summary">Mô hình cấu trúc — Path Coefficients</summary>
+            <div class="reading-guide-body" data-i18n-html="cbsem_guide_structural_body">
+              <ul>
+                <li><strong>Unstd. (B):</strong> hệ số hồi quy chưa chuẩn hoá, theo đơn vị gốc của thang đo. <strong>Std. (β):</strong> hệ số đã chuẩn hoá, so sánh được giữa các path.</li>
+                <li><strong>SE, z, p:</strong> ý nghĩa thống kê được kiểm định bằng z-test (Wald test) trực tiếp từ ma trận hiệp phương sai ước lượng của Maximum Likelihood — không cần chạy Bootstrap như PLS-SEM. Path có ý nghĩa khi p &lt; 0.05.</li>
+              </ul>
+            </div>
+          </details>
+          <details>
+            <summary data-i18n="results_guide_mediation_summary">Hiệu ứng trung gian (Mediation)</summary>
+            <div class="reading-guide-body" data-i18n-html="cbsem_guide_mediation_body">
+              <ul>
+                <li><strong>Total &amp; Indirect Effects:</strong> hiệu ứng gián tiếp = tổng tích các path coefficient dọc theo <em>mọi</em> đường đi qua biến trung gian, giữa một cặp construct; hiệu ứng tổng = trực tiếp + gián tiếp.</li>
+                <li><strong>Specific Indirect Effects:</strong> tách riêng <em>từng</em> đường đi trung gian cụ thể — ở CB-SEM đây chỉ là điểm ước lượng (point estimate), <strong>chưa</strong> có kiểm định ý nghĩa thống kê riêng cho từng đường đi (cần một phương pháp riêng, ví dụ delta method/Sobel test, để suy ra sai số chuẩn của một tích số).</li>
+              </ul>
+            </div>
+          </details>
+          <details>
+            <summary data-i18n="cbsem_guide_r2cmb_summary">R² &amp; Common Method Bias</summary>
+            <div class="reading-guide-body" data-i18n-html="cbsem_guide_r2cmb_body">
+              <ul>
+                <li><strong>R²:</strong> 0.19 yếu, 0.33 trung bình, 0.67 mạnh (Chin, 1998) — R² của CB-SEM thường cao hơn PLS-SEM trên cùng dữ liệu vì đã hiệu chỉnh sai lệch đo lường.</li>
+                <li><strong>Common Method Bias (Full collinearity VIF, Kock 2015):</strong> mỗi construct được hồi quy trên tất cả construct còn lại; VIF ≤ ngưỡng (mặc định 3.3) nghĩa là không có dấu hiệu common method bias đáng kể.</li>
+              </ul>
+            </div>
+          </details>
+          <details>
+            <summary data-i18n="results_guide_slopes_summary">Simple Slopes (khi có biến điều tiết)</summary>
+            <div class="reading-guide-body" data-i18n-html="results_guide_slopes_body">
+              <p>Ba đường tại −1SD / Trung bình / +1SD của biến điều tiết cho thấy quan hệ giữa biến độc lập và biến kết quả thay đổi ra sao theo mức độ của biến điều tiết (Aiken &amp; West, 1991). Ba đường càng tách xa nhau (không song song) → tương tác càng mạnh; ba đường gần như song song → tương tác yếu, dù hệ số path của interaction có ý nghĩa thống kê hay không.</p>
+            </div>
+          </details>
+        </div>
       </div>
       <button class="btn ghost" id="cbsemBackToModelBtn" data-i18n="s3_back_to_model">← Quay lại chỉnh sửa mô hình</button>
     </div>

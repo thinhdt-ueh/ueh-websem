@@ -301,6 +301,38 @@ canvas { width: 100%; border: 1px solid var(--border); border-radius: 10px; back
   white-space: pre;
 }
 
+/* Reading guide / glossary at the bottom of a results-style page — same
+ * collapsible details/summary chevron pattern as .source-transparency,
+ * but a plain-prose body instead of a code block. */
+.reading-guide { display: flex; flex-direction: column; gap: 8px; }
+.reading-guide details {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+}
+.reading-guide summary {
+  cursor: pointer;
+  padding: 10px 14px;
+  font-weight: 600;
+  font-size: 13.5px;
+  color: var(--text);
+  list-style: none;
+}
+.reading-guide summary::-webkit-details-marker { display: none; }
+.reading-guide summary::before { content: "▸ "; color: var(--muted); }
+.reading-guide details[open] summary::before { content: "▾ "; }
+.reading-guide-body {
+  padding: 2px 14px 14px;
+  border-top: 1px solid var(--border);
+  font-size: 13px;
+  line-height: 1.65;
+  color: var(--text);
+}
+.reading-guide-body p { margin: 8px 0; }
+.reading-guide-body ul { margin: 6px 0; padding-left: 20px; }
+.reading-guide-body li { margin: 4px 0; }
+.reading-guide-body strong { color: var(--text); }
+
 /* HTMT heatmap: color follows the value against fixed discriminant-validity
  * thresholds (Henseler et al. 2015: <.85 good, .85-.90 borderline, >=.90
  * poor) — status colors, not a series hue, so they stay off the app's main

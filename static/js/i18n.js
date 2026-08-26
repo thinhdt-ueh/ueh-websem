@@ -158,6 +158,26 @@ const I18N = {
     sens_axis_n: "n",
     sens_axis_coef: "Hệ số",
     sens_not_converged_short: "không hội tụ",
+    sens_guide_section_title: "Hướng dẫn đọc & Ý nghĩa các chỉ số",
+    sens_guide_what_summary: "Sample Size Sensitivity là gì?",
+    sens_guide_what_body:
+      "<p>Kiểm tra độ ổn định của các ước lượng (R², path coefficient) khi cỡ mẫu <strong>thật</strong> giảm dần — bằng cách lấy ngẫu nhiên bớt quan sát từ chính dữ liệu bạn đã upload rồi chạy lại mô hình nhiều lần. Trả lời câu hỏi: <strong>\"Nếu tôi có ít dữ liệu hơn, kết quả có còn ổn định/hội tụ không?\"</strong></p>" +
+      "<p>Công cụ này hữu ích để đánh giá độ nhạy của kết quả hiện tại với cỡ mẫu — <strong>không phải</strong> để tính xác suất phát hiện hiệu ứng hay xác định cỡ mẫu cần thu thập trước khi khảo sát (đó là việc của <em>Power Analysis</em>, một công cụ mô phỏng dữ liệu hoàn toàn mới từ mô hình quần thể giả định, khác về bản chất với việc bớt dần dữ liệu thật ở đây).</p>",
+    sens_guide_read_summary: "Cách đọc biểu đồ & bảng số liệu",
+    sens_guide_read_body:
+      "<ul>" +
+      "<li><strong>Trục hoành (n):</strong> cỡ mẫu tại mỗi bước, giảm dần từ tổng số quan sát ban đầu.</li>" +
+      "<li><strong>Biểu đồ R²:</strong> R² của từng biến nội sinh thay đổi thế nào khi cỡ mẫu giảm.</li>" +
+      "<li><strong>Biểu đồ Path Coefficients:</strong> từng hệ số đường dẫn thay đổi ra sao khi cỡ mẫu giảm.</li>" +
+      "<li><strong>Điểm viền đỏ:</strong> mô hình không hội tụ ở cỡ mẫu đó — dấu hiệu cỡ mẫu đã quá nhỏ để ước lượng ổn định.</li>" +
+      "<li><strong>Bảng chi tiết:</strong> liệt kê từng cỡ mẫu đã chạy, có hội tụ hay không, cùng R² và path coefficient tương ứng tại điểm đó.</li>" +
+      "</ul>",
+    sens_guide_limits_summary: "Giới hạn",
+    sens_guide_limits_body:
+      "<ul>" +
+      "<li>Mỗi cỡ mẫu chỉ được lấy mẫu con <strong>một lần</strong> (không lặp lại nhiều lần như mô phỏng Monte Carlo), nên một phần dao động giữa các điểm liền kề đến từ nhiễu ngẫu nhiên của riêng lần lấy mẫu đó, không hẳn phản ánh một xu hướng thật đang diễn ra.</li>" +
+      "<li>Đây là phân tích trên dữ liệu đã có sẵn — không cho biết cỡ mẫu bạn <strong>nên</strong> thu thập nếu chưa khảo sát; muốn trả lời câu hỏi đó, dùng Power Analysis ở trang kết quả.</li>" +
+      "</ul>",
 
     // --- power_analysis.html (opens in a new tab) ---
     power_page_title: "Phân tích lũy thừa thống kê (Power Analysis)",
@@ -194,6 +214,31 @@ const I18N = {
     power_modal_run: "Chạy mô phỏng",
     power_modal_invalid: "Vui lòng kiểm tra lại các giá trị đã nhập (số dương, khoảng cỡ mẫu hợp lệ).",
     power_btn_disabled_hint: "Power Analysis chỉ hỗ trợ mô hình reflective (Mode A), không có biến điều tiết.",
+    power_guide_section_title: "Hướng dẫn đọc & Ý nghĩa các chỉ số",
+    power_guide_what_summary: "Power Analysis là gì và khi nào nên dùng?",
+    power_guide_what_body:
+      "<p>Power Analysis (dưới giả thuyết H₁) trả lời câu hỏi: <strong>\"Nếu hiệu ứng thật trong quần thể đúng bằng giá trị tôi kỳ vọng, thì với cỡ mẫu n, xác suất tôi phát hiện được hiệu ứng đó là bao nhiêu?\"</strong> Đây là công cụ dùng <strong>trước khi</strong> thu thập dữ liệu, để ước tính cỡ mẫu tối thiểu cần khảo sát — khác với hầu hết phân tích PLS-SEM khác vốn chỉ áp dụng sau khi đã có dữ liệu thật.</p>" +
+      "<p>Vì PLS-SEM không có công thức power dạng đóng (closed-form), công cụ này dùng mô phỏng Monte Carlo: sinh nhiều bộ dữ liệu giả lập từ mô hình quần thể bạn khai báo, chạy PLS-SEM + Bootstrap thật trên từng bộ, rồi đếm tỉ lệ phát hiện được hiệu ứng.</p>" +
+      "<p><strong>Khác với Sample Size Sensitivity:</strong> Sensitivity lấy lại dữ liệu thật đã thu thập và bỏ bớt quan sát dần — trả lời \"kết quả hiện tại ổn định đến đâu nếu tôi có ít dữ liệu hơn\". Power Analysis mô phỏng dữ liệu hoàn toàn mới từ một mô hình quần thể giả định — trả lời \"tôi cần thu thập bao nhiêu mẫu\". Hai công cụ bổ trợ nhau, không thay thế nhau.</p>",
+    power_guide_read_summary: "Cách đọc biểu đồ & bảng số liệu",
+    power_guide_read_body:
+      "<ul>" +
+      "<li><strong>Trục hoành (n):</strong> cỡ mẫu được kiểm tra.</li>" +
+      "<li><strong>Trục tung (Power %):</strong> tỉ lệ % số lần mô phỏng mà path đó có ý nghĩa thống kê (p &lt; 0.05), trên tổng số lần PLS hội tụ ở cỡ mẫu đó.</li>" +
+      "<li><strong>Đường nét đứt ngang ở 80%:</strong> ngưỡng quy ước (Cohen, 1988) coi là \"đủ mạnh\" — cỡ mẫu nơi đường cong của một path vượt qua ngưỡng này là gợi ý cỡ mẫu tối thiểu nên thu thập cho path đó.</li>" +
+      "<li>Mỗi đường trong biểu đồ ứng với 1 đường dẫn cấu trúc — bấm vào chú thích (legend) để ẩn/hiện từng đường.</li>" +
+      "<li><strong>Cột \"Hội tụ / Tổng lần lặp\":</strong> số lần PLS hội tụ trên tổng số lần mô phỏng ở cỡ mẫu đó. Tỉ lệ hội tụ thấp bất thường (thường ở n rất nhỏ) nghĩa là power ước lượng tại điểm đó kém tin cậy hơn.</li>" +
+      "<li><strong>Cột \"Hệ số ước lượng TB\":</strong> trung bình path coefficient ước lượng được qua các lần mô phỏng hội tụ — nên gần với giá trị bạn khai báo làm quần thể; nếu lệch đáng kể, có thể do PLS có xu hướng làm suy giảm (attenuate) hệ số path khi số indicator/block ít.</li>" +
+      "</ul>",
+    power_guide_limits_summary: "Giả định & giới hạn",
+    power_guide_limits_body:
+      "<ul>" +
+      "<li>Chỉ hỗ trợ construct reflective (Mode A); chưa hỗ trợ formative (Mode B) hoặc mô hình có biến điều tiết (moderation/interaction).</li>" +
+      "<li>Giả định các construct ngoại sinh độc lập với nhau (Aguirre-Urreta & Rönkkö, 2015) — nếu quần thể thật có tương quan mạnh giữa các biến ngoại sinh, kết quả có thể lệch.</li>" +
+      "<li>Mỗi construct dùng một giá trị loading trung bình áp cho tất cả indicator của nó, thay vì khai báo riêng từng indicator.</li>" +
+      "<li>Kết quả phụ thuộc hoàn toàn vào giá trị path coefficient/loading kỳ vọng bạn khai báo — đây là mô phỏng dựa trên giả định của bạn, không phải \"sự thật\". Nên thử vài kịch bản khác nhau (lạc quan/thận trọng) để có bức tranh đầy đủ hơn.</li>" +
+      "<li>Số lần lặp Monte Carlo càng thấp, đường cong càng nhiễu (dao động ngẫu nhiên do lấy mẫu) — tăng lên nếu cần đường cong mượt hơn, đổi lại thời gian chạy lâu hơn.</li>" +
+      "</ul>",
     s3_export_failed: "Xuất báo cáo thất bại.",
     s3_loading_pls_boot: "Đang ước lượng mô hình và chạy Bootstrapping ({n} lần lặp — có thể mất vài chục giây)…",
     s3_loading_pls: "Đang ước lượng mô hình…",
@@ -307,6 +352,82 @@ const I18N = {
     src_section_moderation: "Biến điều tiết (Moderation)",
     src_section_bootstrap: "Bootstrapping (kiểm định ý nghĩa thống kê)",
     src_section_blindfolding: "Blindfolding (Q² — predictive relevance)",
+
+    // --- results reading guide (bottom of PLS-SEM / CB-SEM results pages) ---
+    results_guide_section_title: "Hướng dẫn đọc & Ý nghĩa các chỉ số",
+    results_guide_measurement_summary: "Mô hình đo lường (Outer Model)",
+    results_guide_measurement_body:
+      "<ul>" +
+      "<li><strong>Outer Loadings:</strong> tương quan giữa mỗi indicator và construct chứa nó. Với construct reflective, nên ≥0.7; 0.4–0.7 có thể cân nhắc loại bỏ nếu việc loại không làm giảm AVE/độ tin cậy. <strong>Cross Loadings</strong> cho thấy mỗi indicator nên tải cao nhất lên đúng construct của chính nó, không phải construct khác.</li>" +
+      "<li><strong>Cronbach's Alpha, rho_A, Composite Reliability (CR):</strong> đo độ tin cậy nhất quán nội bộ — thường xem ≥0.7 là chấp nhận được (0.6–0.7 có thể chấp nhận ở nghiên cứu khám phá).</li>" +
+      "<li><strong>AVE (Average Variance Extracted):</strong> đo giá trị hội tụ — nên ≥0.5 (construct giải thích được ít nhất 50% phương sai của các indicator của nó).</li>" +
+      "</ul>",
+    results_guide_discriminant_summary: "Giá trị phân biệt (Discriminant Validity)",
+    results_guide_discriminant_body:
+      "<ul>" +
+      "<li><strong>Fornell-Larcker:</strong> căn bậc hai AVE trên đường chéo nên lớn hơn tương quan giữa construct đó với bất kỳ construct nào khác.</li>" +
+      "<li><strong>HTMT (Heterotrait-Monotrait Ratio):</strong> nên &lt;0.85 (khắt khe) hoặc &lt;0.90 (khi các construct gần nhau về khái niệm) theo Henseler et al. (2015); ≥0.90 là dấu hiệu vi phạm giá trị phân biệt.</li>" +
+      "</ul>",
+    results_guide_structural_summary: "Mô hình cấu trúc — Path Coefficients",
+    results_guide_structural_body:
+      "<ul>" +
+      "<li><strong>Path coefficient (β chuẩn hoá):</strong> dấu (+/−) và độ lớn thể hiện chiều và cường độ quan hệ giữa hai construct.</li>" +
+      "<li>Nếu đã bật <strong>Bootstrapping</strong>: các cột STDEV / T-Statistics / P-Values / Ý nghĩa cho biết path có ý nghĩa thống kê khi p &lt; 0.05 (tương đương |T| &gt; 1.96 với kiểm định 2 đuôi).</li>" +
+      "<li><strong>f² (effect size):</strong> &lt;0.02 không đáng kể, 0.02–0.15 nhỏ, 0.15–0.35 vừa, ≥0.35 lớn (Cohen, 1988). Riêng path từ biến điều tiết (interaction) dùng ngưỡng nhỏ hơn nhiều: 0.005/0.01/0.025 (Kenny 2018; Aguinis et al. 2005).</li>" +
+      "</ul>",
+    results_guide_mediation_summary: "Hiệu ứng trung gian (Mediation)",
+    results_guide_mediation_body:
+      "<ul>" +
+      "<li><strong>Total &amp; Indirect Effects:</strong> hiệu ứng gián tiếp = tổng tích các path coefficient dọc theo <em>mọi</em> đường đi qua biến trung gian, giữa một cặp construct; hiệu ứng tổng = trực tiếp + gián tiếp.</li>" +
+      "<li><strong>Specific Indirect Effects:</strong> tách riêng <em>từng</em> đường đi trung gian cụ thể (thay vì cộng gộp như bảng trên) — nếu đã bootstrap, mỗi đường đi cũng được kiểm định ý nghĩa thống kê riêng, dựa trên đúng tích số của các hệ số trong cùng một lần lấy mẫu lại.</li>" +
+      "</ul>",
+    results_guide_predictive_summary: "R², Q² & Đa cộng tuyến (VIF)",
+    results_guide_predictive_body:
+      "<ul>" +
+      "<li><strong>R²:</strong> 0.19 yếu, 0.33 trung bình, 0.67 mạnh (Chin, 1998) — chỉ là ngưỡng tham khảo, tùy lĩnh vực nghiên cứu.</li>" +
+      "<li><strong>Q² (Predictive Relevance, từ Blindfolding):</strong> &gt;0 nghĩa là mô hình có khả năng dự báo ngoài mẫu cho construct đó; ≤0 nghĩa là không.</li>" +
+      "<li><strong>VIF (Inner/Outer):</strong> nên &lt;3.3 (hoặc &lt;5 nếu nới lỏng hơn) để tránh đa cộng tuyến làm méo các hệ số ước lượng.</li>" +
+      "</ul>",
+    results_guide_cmb_summary: "Common Method Bias",
+    results_guide_cmb_body:
+      "<p>Full collinearity VIF (Kock, 2015): mỗi construct được hồi quy trên <strong>tất cả</strong> construct còn lại trong mô hình, không chỉ predictor trực tiếp của nó. VIF ≤ ngưỡng (mặc định 3.3) nghĩa là không có dấu hiệu common method bias đáng kể.</p>",
+    results_guide_slopes_summary: "Simple Slopes (khi có biến điều tiết)",
+    results_guide_slopes_body:
+      "<p>Ba đường tại −1SD / Trung bình / +1SD của biến điều tiết cho thấy quan hệ giữa biến độc lập và biến kết quả thay đổi ra sao theo mức độ của biến điều tiết (Aiken &amp; West, 1991). Ba đường càng tách xa nhau (không song song) → tương tác càng mạnh; ba đường gần như song song → tương tác yếu, dù hệ số path của interaction có ý nghĩa thống kê hay không.</p>",
+    results_guide_bootstrap_dist_summary: "Phân phối Bootstrap (khi đã bật Bootstrapping)",
+    results_guide_bootstrap_dist_body:
+      "<p>Mỗi biểu đồ là phân phối của một hệ số path qua toàn bộ số lần lấy mẫu lại (resample). Vạch xanh liền = giá trị ước lượng gốc; vạch đỏ đứt = khoảng tin cậy 95% (percentile). Nếu khoảng tin cậy 95% không chứa 0, path đó có ý nghĩa thống kê.</p>",
+    cbsem_guide_fit_summary: "Model Fit",
+    cbsem_guide_fit_body:
+      "<ul>" +
+      "<li><strong>Chi-square / df:</strong> càng nhỏ càng tốt — thường χ²/df &lt; 3 được xem là chấp nhận được.</li>" +
+      "<li><strong>CFI, TLI:</strong> ≥0.90 chấp nhận được, ≥0.95 tốt.</li>" +
+      "<li><strong>RMSEA:</strong> ≤0.08 chấp nhận được, ≤0.05 tốt.</li>" +
+      "<li><strong>SRMR:</strong> ≤0.08 chấp nhận được.</li>" +
+      "<li>Đây chỉ là ngưỡng tham khảo — nên xem xét nhiều chỉ số cùng lúc, không dựa hoàn toàn vào một chỉ số riêng lẻ.</li>" +
+      "</ul>",
+    cbsem_guide_measurement_body:
+      "<ul>" +
+      "<li><strong>Cronbach's Alpha, Composite Reliability (CR), AVE:</strong> ngưỡng tham khảo giống PLS-SEM — CR ≥0.7, AVE ≥0.5.</li>" +
+      "<li><strong>Factor Loadings:</strong> cột Unstd./Std./SE/z/p — ý nghĩa thống kê dựa trên kiểm định z (Wald test) từ ước lượng Maximum Likelihood, khác với PLS-SEM (vốn luôn cần Bootstrap vì không có công thức sai số chuẩn dạng đóng).</li>" +
+      "</ul>",
+    cbsem_guide_structural_body:
+      "<ul>" +
+      "<li><strong>Unstd. (B):</strong> hệ số hồi quy chưa chuẩn hoá, theo đơn vị gốc của thang đo. <strong>Std. (β):</strong> hệ số đã chuẩn hoá, so sánh được giữa các path.</li>" +
+      "<li><strong>SE, z, p:</strong> ý nghĩa thống kê được kiểm định bằng z-test (Wald test) trực tiếp từ ma trận hiệp phương sai ước lượng của Maximum Likelihood — không cần chạy Bootstrap như PLS-SEM. Path có ý nghĩa khi p &lt; 0.05.</li>" +
+      "</ul>",
+    cbsem_guide_mediation_body:
+      "<ul>" +
+      "<li><strong>Total &amp; Indirect Effects:</strong> hiệu ứng gián tiếp = tổng tích các path coefficient dọc theo <em>mọi</em> đường đi qua biến trung gian, giữa một cặp construct; hiệu ứng tổng = trực tiếp + gián tiếp.</li>" +
+      "<li><strong>Specific Indirect Effects:</strong> tách riêng <em>từng</em> đường đi trung gian cụ thể — ở CB-SEM đây chỉ là điểm ước lượng (point estimate), <strong>chưa</strong> có kiểm định ý nghĩa thống kê riêng cho từng đường đi (cần một phương pháp riêng, ví dụ delta method/Sobel test, để suy ra sai số chuẩn của một tích số).</li>" +
+      "</ul>",
+    cbsem_guide_r2cmb_summary: "R² & Common Method Bias",
+    cbsem_guide_r2cmb_body:
+      "<ul>" +
+      "<li><strong>R²:</strong> 0.19 yếu, 0.33 trung bình, 0.67 mạnh (Chin, 1998) — R² của CB-SEM thường cao hơn PLS-SEM trên cùng dữ liệu vì đã hiệu chỉnh sai lệch đo lường.</li>" +
+      "<li><strong>Common Method Bias (Full collinearity VIF, Kock 2015):</strong> mỗi construct được hồi quy trên tất cả construct còn lại; VIF ≤ ngưỡng (mặc định 3.3) nghĩa là không có dấu hiệu common method bias đáng kể.</li>" +
+      "</ul>",
+
     lbl_q2_none: "Không có ý nghĩa dự báo",
     lbl_significant: "p < 0.05",
     lbl_not_significant: "Không ý nghĩa",
@@ -486,6 +607,26 @@ const I18N = {
     sens_axis_n: "n",
     sens_axis_coef: "Coefficient",
     sens_not_converged_short: "not converged",
+    sens_guide_section_title: "Reading Guide & What the Numbers Mean",
+    sens_guide_what_summary: "What is Sample Size Sensitivity?",
+    sens_guide_what_body:
+      "<p>Checks how stable the estimates (R², path coefficients) are as the <strong>real</strong> sample size shrinks — by randomly dropping observations from the data you actually uploaded and re-running the model repeatedly. It answers: <strong>\"If I had less data, would my results still be stable / would the model still converge?\"</strong></p>" +
+      "<p>This tool is useful for gauging how sensitive your current results are to sample size — <strong>not</strong> for computing the probability of detecting an effect or determining how much data to collect before surveying (that's what <em>Power Analysis</em> is for — it simulates entirely new data from a hypothesized population model, fundamentally different from progressively dropping real data here).</p>",
+    sens_guide_read_summary: "How to read the chart & table",
+    sens_guide_read_body:
+      "<ul>" +
+      "<li><strong>X-axis (n):</strong> the sample size at each step, decreasing from the original total observation count.</li>" +
+      "<li><strong>R² chart:</strong> how each endogenous construct's R² changes as sample size shrinks.</li>" +
+      "<li><strong>Path Coefficients chart:</strong> how each structural path coefficient changes as sample size shrinks.</li>" +
+      "<li><strong>Red-ringed points:</strong> the model didn't converge at that sample size — a sign the sample has become too small for stable estimation.</li>" +
+      "<li><strong>Detailed table:</strong> every sample size tested, whether it converged, and the corresponding R² and path coefficients at that point.</li>" +
+      "</ul>",
+    sens_guide_limits_summary: "Limitations",
+    sens_guide_limits_body:
+      "<ul>" +
+      "<li>Each sample size is subsampled just <strong>once</strong> (not repeated many times like a Monte Carlo simulation), so some of the fluctuation between neighboring points comes from that single draw's own sampling noise rather than a genuine trend.</li>" +
+      "<li>This analyzes data you already have — it doesn't tell you how much data you <strong>should</strong> collect before surveying; for that, use Power Analysis on the results page.</li>" +
+      "</ul>",
 
     // --- power_analysis.html (opens in a new tab) ---
     power_page_title: "Statistical Power Analysis",
@@ -522,6 +663,31 @@ const I18N = {
     power_modal_run: "Run simulation",
     power_modal_invalid: "Please check the values entered (positive numbers, a valid sample-size range).",
     power_btn_disabled_hint: "Power Analysis only supports reflective (Mode A) models with no moderation/interaction construct.",
+    power_guide_section_title: "Reading Guide & What the Numbers Mean",
+    power_guide_what_summary: "What is Power Analysis, and when should I use it?",
+    power_guide_what_body:
+      "<p>Power Analysis (under H₁) answers: <strong>\"If the true population effect equals what I expect, what's the probability that a sample of size n would let me detect it?\"</strong> It's meant to be used <strong>before</strong> collecting data, to estimate the minimum sample size worth surveying — unlike most other PLS-SEM analyses, which only apply once you already have real data.</p>" +
+      "<p>Because PLS-SEM has no closed-form power formula, this tool uses Monte Carlo simulation: it generates many synthetic datasets from the population model you declare, runs a real PLS-SEM + Bootstrap fit on each one, and counts how often the effect comes out detected.</p>" +
+      "<p><strong>How this differs from Sample Size Sensitivity:</strong> Sensitivity takes your real, already-collected data and progressively drops observations — answering \"how stable are my current results if I'd had less data?\" Power Analysis simulates entirely new data from a hypothesized population model — answering \"how much data do I need to collect?\" The two tools complement each other rather than replace one another.</p>",
+    power_guide_read_summary: "How to read the chart & table",
+    power_guide_read_body:
+      "<ul>" +
+      "<li><strong>X-axis (n):</strong> the sample size being tested.</li>" +
+      "<li><strong>Y-axis (Power %):</strong> the percentage of simulation replicates in which that path came out statistically significant (p &lt; 0.05), out of every replicate where PLS converged at that sample size.</li>" +
+      "<li><strong>The dashed horizontal line at 80%:</strong> the conventional \"adequately powered\" threshold (Cohen, 1988) — the sample size where a path's curve crosses this line is a reasonable minimum to collect for that path.</li>" +
+      "<li>Each line in the chart is one structural path — click a legend entry to show/hide it.</li>" +
+      "<li><strong>\"Converged / Total replicates\":</strong> how many replicates converged out of the total simulated at that sample size. An unusually low convergence rate (typically at very small n) means the power estimate at that point is less reliable.</li>" +
+      "<li><strong>\"Mean estimated coefficient\":</strong> the average estimated path coefficient across converged replicates — it should sit close to the population value you declared; a large gap can reflect PLS's known tendency to attenuate path coefficients with few indicators per block.</li>" +
+      "</ul>",
+    power_guide_limits_summary: "Assumptions & limitations",
+    power_guide_limits_body:
+      "<ul>" +
+      "<li>Only supports reflective (Mode A) constructs; formative (Mode B) constructs and models with a moderation/interaction construct aren't supported yet.</li>" +
+      "<li>Assumes exogenous constructs are mutually independent (Aguirre-Urreta & Rönkkö, 2015) — if the real population has strongly correlated exogenous variables, results can be biased.</li>" +
+      "<li>Each construct uses a single average loading applied to all of its indicators, rather than a value per indicator.</li>" +
+      "<li>Results depend entirely on the expected path coefficients/loadings you declare — this is a simulation under your assumptions, not \"the truth\". Try a few scenarios (optimistic/conservative) for a fuller picture.</li>" +
+      "<li>Fewer Monte Carlo replicates means a noisier curve (more random sampling fluctuation) — raise the count for a smoother curve at the cost of a longer run.</li>" +
+      "</ul>",
     s3_export_failed: "Failed to export the report.",
     s3_loading_pls_boot: "Estimating the model and running Bootstrapping ({n} resamples — may take up to a minute)…",
     s3_loading_pls: "Estimating the model…",
@@ -630,6 +796,82 @@ const I18N = {
     src_section_moderation: "Moderation",
     src_section_bootstrap: "Bootstrapping (significance testing)",
     src_section_blindfolding: "Blindfolding (Q² — predictive relevance)",
+
+    // --- results reading guide (bottom of PLS-SEM / CB-SEM results pages) ---
+    results_guide_section_title: "Reading Guide & What the Numbers Mean",
+    results_guide_measurement_summary: "Measurement Model (Outer Model)",
+    results_guide_measurement_body:
+      "<ul>" +
+      "<li><strong>Outer Loadings:</strong> the correlation between each indicator and the construct it belongs to. For reflective constructs, aim for ≥0.7; 0.4–0.7 can be considered for removal if dropping it doesn't hurt AVE/reliability. <strong>Cross Loadings</strong> should show each indicator loading highest on its own construct, not another one.</li>" +
+      "<li><strong>Cronbach's Alpha, rho_A, Composite Reliability (CR):</strong> internal consistency reliability — ≥0.7 is generally considered acceptable (0.6–0.7 can be acceptable in exploratory research).</li>" +
+      "<li><strong>AVE (Average Variance Extracted):</strong> convergent validity — should be ≥0.5 (the construct explains at least 50% of the variance of its own indicators).</li>" +
+      "</ul>",
+    results_guide_discriminant_summary: "Discriminant Validity",
+    results_guide_discriminant_body:
+      "<ul>" +
+      "<li><strong>Fornell-Larcker:</strong> the square root of AVE on the diagonal should exceed that construct's correlation with any other construct.</li>" +
+      "<li><strong>HTMT (Heterotrait-Monotrait Ratio):</strong> should be &lt;0.85 (stricter) or &lt;0.90 (when constructs are conceptually close), per Henseler et al. (2015); ≥0.90 signals a discriminant validity violation.</li>" +
+      "</ul>",
+    results_guide_structural_summary: "Structural Model — Path Coefficients",
+    results_guide_structural_body:
+      "<ul>" +
+      "<li><strong>Path coefficient (standardized β):</strong> its sign (+/−) and magnitude show the direction and strength of the relationship between two constructs.</li>" +
+      "<li>If <strong>Bootstrapping</strong> was enabled: the STDEV / T-Statistics / P-Values / Significance columns show a path is statistically significant when p &lt; 0.05 (equivalent to |T| &gt; 1.96 for a two-tailed test).</li>" +
+      "<li><strong>f² (effect size):</strong> &lt;0.02 negligible, 0.02–0.15 small, 0.15–0.35 medium, ≥0.35 large (Cohen, 1988). A path from a moderation (interaction) construct uses much smaller thresholds instead: 0.005/0.01/0.025 (Kenny 2018; Aguinis et al. 2005).</li>" +
+      "</ul>",
+    results_guide_mediation_summary: "Mediation Effects",
+    results_guide_mediation_body:
+      "<ul>" +
+      "<li><strong>Total &amp; Indirect Effects:</strong> the indirect effect is the sum of the products of path coefficients along <em>every</em> route through a mediator between a pair of constructs; the total effect is direct + indirect.</li>" +
+      "<li><strong>Specific Indirect Effects:</strong> breaks out <em>each individual</em> mediated route (instead of summing them as in the table above) — when bootstrapped, each route also gets its own significance test, based on that route's product within the same resample.</li>" +
+      "</ul>",
+    results_guide_predictive_summary: "R², Q² & Collinearity (VIF)",
+    results_guide_predictive_body:
+      "<ul>" +
+      "<li><strong>R²:</strong> 0.19 weak, 0.33 moderate, 0.67 substantial (Chin, 1998) — reference thresholds only, field-dependent.</li>" +
+      "<li><strong>Q² (Predictive Relevance, from Blindfolding):</strong> &gt;0 means the model has out-of-sample predictive power for that construct; ≤0 means it doesn't.</li>" +
+      "<li><strong>VIF (Inner/Outer):</strong> should be &lt;3.3 (or &lt;5 under a more lenient rule) to avoid collinearity distorting the estimated coefficients.</li>" +
+      "</ul>",
+    results_guide_cmb_summary: "Common Method Bias",
+    results_guide_cmb_body:
+      "<p>Full collinearity VIF (Kock, 2015): each construct is regressed on <strong>every</strong> other construct in the model, not just its direct predictors. VIF ≤ threshold (default 3.3) means no meaningful sign of common method bias.</p>",
+    results_guide_slopes_summary: "Simple Slopes (when a moderator is present)",
+    results_guide_slopes_body:
+      "<p>Three lines at −1SD / Mean / +1SD of the moderator show how the relationship between the independent variable and the outcome changes across levels of the moderator (Aiken &amp; West, 1991). The more the three lines fan apart (non-parallel), the stronger the interaction; near-parallel lines mean a weak interaction, regardless of whether the interaction path itself is statistically significant.</p>",
+    results_guide_bootstrap_dist_summary: "Bootstrap Distributions (when Bootstrapping was enabled)",
+    results_guide_bootstrap_dist_body:
+      "<p>Each chart is the distribution of one path coefficient across every bootstrap resample. The solid blue line is the original estimate; the dashed red lines mark the 95% (percentile) confidence interval. If the 95% CI doesn't contain 0, that path is statistically significant.</p>",
+    cbsem_guide_fit_summary: "Model Fit",
+    cbsem_guide_fit_body:
+      "<ul>" +
+      "<li><strong>Chi-square / df:</strong> lower is better — χ²/df &lt; 3 is generally considered acceptable.</li>" +
+      "<li><strong>CFI, TLI:</strong> ≥0.90 acceptable, ≥0.95 good.</li>" +
+      "<li><strong>RMSEA:</strong> ≤0.08 acceptable, ≤0.05 good.</li>" +
+      "<li><strong>SRMR:</strong> ≤0.08 acceptable.</li>" +
+      "<li>These are reference thresholds only — consider several indices together rather than relying on any single one.</li>" +
+      "</ul>",
+    cbsem_guide_measurement_body:
+      "<ul>" +
+      "<li><strong>Cronbach's Alpha, Composite Reliability (CR), AVE:</strong> same reference thresholds as PLS-SEM — CR ≥0.7, AVE ≥0.5.</li>" +
+      "<li><strong>Factor Loadings:</strong> the Unstd./Std./SE/z/p columns — significance is tested via a z-test (Wald test) from the Maximum Likelihood estimate, unlike PLS-SEM (which always needs Bootstrap since it has no closed-form standard error).</li>" +
+      "</ul>",
+    cbsem_guide_structural_body:
+      "<ul>" +
+      "<li><strong>Unstd. (B):</strong> the unstandardized regression coefficient, in the original scale of the measure. <strong>Std. (β):</strong> the standardized coefficient, comparable across paths.</li>" +
+      "<li><strong>SE, z, p:</strong> significance is tested via a z-test (Wald test) directly from the Maximum Likelihood estimated covariance matrix — no Bootstrap needed, unlike PLS-SEM. A path is significant when p &lt; 0.05.</li>" +
+      "</ul>",
+    cbsem_guide_mediation_body:
+      "<ul>" +
+      "<li><strong>Total &amp; Indirect Effects:</strong> the indirect effect is the sum of the products of path coefficients along <em>every</em> route through a mediator between a pair of constructs; the total effect is direct + indirect.</li>" +
+      "<li><strong>Specific Indirect Effects:</strong> breaks out <em>each individual</em> mediated route — for CB-SEM this is a point estimate only, <strong>without</strong> its own significance test yet (that needs a dedicated method, e.g. the delta method/Sobel test, to derive a product's standard error).</li>" +
+      "</ul>",
+    cbsem_guide_r2cmb_summary: "R² & Common Method Bias",
+    cbsem_guide_r2cmb_body:
+      "<ul>" +
+      "<li><strong>R²:</strong> 0.19 weak, 0.33 moderate, 0.67 substantial (Chin, 1998) — CB-SEM's R² is usually higher than PLS-SEM's on the same data, since it corrects for measurement error.</li>" +
+      "<li><strong>Common Method Bias (Full collinearity VIF, Kock 2015):</strong> each construct is regressed on every other construct; VIF ≤ threshold (default 3.3) means no meaningful sign of common method bias.</li>" +
+      "</ul>",
+
     lbl_q2_none: "No predictive relevance",
     lbl_significant: "p < 0.05",
     lbl_not_significant: "Not significant",

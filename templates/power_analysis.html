@@ -45,6 +45,45 @@
       <h2 data-i18n="power_table_title">Bảng số liệu chi tiết</h2>
       <div class="table-scroll"><table id="powerTable"></table></div>
     </div>
+
+    <div class="panel-card">
+      <h2 data-i18n="power_guide_section_title">Hướng dẫn đọc &amp; Ý nghĩa các chỉ số</h2>
+      <div class="reading-guide">
+        <details>
+          <summary data-i18n="power_guide_what_summary">Power Analysis là gì và khi nào nên dùng?</summary>
+          <div class="reading-guide-body" data-i18n-html="power_guide_what_body">
+            <p>Power Analysis (dưới giả thuyết H₁) trả lời câu hỏi: <strong>"Nếu hiệu ứng thật trong quần thể đúng bằng giá trị tôi kỳ vọng, thì với cỡ mẫu n, xác suất tôi phát hiện được hiệu ứng đó là bao nhiêu?"</strong> Đây là công cụ dùng <strong>trước khi</strong> thu thập dữ liệu, để ước tính cỡ mẫu tối thiểu cần khảo sát — khác với hầu hết phân tích PLS-SEM khác vốn chỉ áp dụng sau khi đã có dữ liệu thật.</p>
+            <p>Vì PLS-SEM không có công thức power dạng đóng (closed-form), công cụ này dùng mô phỏng Monte Carlo: sinh nhiều bộ dữ liệu giả lập từ mô hình quần thể bạn khai báo, chạy PLS-SEM + Bootstrap thật trên từng bộ, rồi đếm tỉ lệ phát hiện được hiệu ứng.</p>
+            <p><strong>Khác với Sample Size Sensitivity:</strong> Sensitivity lấy lại dữ liệu thật đã thu thập và bỏ bớt quan sát dần — trả lời "kết quả hiện tại ổn định đến đâu nếu tôi có ít dữ liệu hơn". Power Analysis mô phỏng dữ liệu hoàn toàn mới từ một mô hình quần thể giả định — trả lời "tôi cần thu thập bao nhiêu mẫu". Hai công cụ bổ trợ nhau, không thay thế nhau.</p>
+          </div>
+        </details>
+        <details>
+          <summary data-i18n="power_guide_read_summary">Cách đọc biểu đồ &amp; bảng số liệu</summary>
+          <div class="reading-guide-body" data-i18n-html="power_guide_read_body">
+            <ul>
+              <li><strong>Trục hoành (n):</strong> cỡ mẫu được kiểm tra.</li>
+              <li><strong>Trục tung (Power %):</strong> tỉ lệ % số lần mô phỏng mà path đó có ý nghĩa thống kê (p &lt; 0.05), trên tổng số lần PLS hội tụ ở cỡ mẫu đó.</li>
+              <li><strong>Đường nét đứt ngang ở 80%:</strong> ngưỡng quy ước (Cohen, 1988) coi là "đủ mạnh" — cỡ mẫu nơi đường cong của một path vượt qua ngưỡng này là gợi ý cỡ mẫu tối thiểu nên thu thập cho path đó.</li>
+              <li>Mỗi đường trong biểu đồ ứng với 1 đường dẫn cấu trúc — bấm vào chú thích (legend) để ẩn/hiện từng đường.</li>
+              <li><strong>Cột "Hội tụ / Tổng lần lặp":</strong> số lần PLS hội tụ trên tổng số lần mô phỏng ở cỡ mẫu đó. Tỉ lệ hội tụ thấp bất thường (thường ở n rất nhỏ) nghĩa là power ước lượng tại điểm đó kém tin cậy hơn.</li>
+              <li><strong>Cột "Hệ số ước lượng TB":</strong> trung bình path coefficient ước lượng được qua các lần mô phỏng hội tụ — nên gần với giá trị bạn khai báo làm quần thể; nếu lệch đáng kể, có thể do PLS có xu hướng làm suy giảm (attenuate) hệ số path khi số indicator/block ít.</li>
+            </ul>
+          </div>
+        </details>
+        <details>
+          <summary data-i18n="power_guide_limits_summary">Giả định &amp; giới hạn</summary>
+          <div class="reading-guide-body" data-i18n-html="power_guide_limits_body">
+            <ul>
+              <li>Chỉ hỗ trợ construct reflective (Mode A); chưa hỗ trợ formative (Mode B) hoặc mô hình có biến điều tiết (moderation/interaction).</li>
+              <li>Giả định các construct ngoại sinh độc lập với nhau (Aguirre-Urreta &amp; Rönkkö, 2015) — nếu quần thể thật có tương quan mạnh giữa các biến ngoại sinh, kết quả có thể lệch.</li>
+              <li>Mỗi construct dùng một giá trị loading trung bình áp cho tất cả indicator của nó, thay vì khai báo riêng từng indicator.</li>
+              <li>Kết quả phụ thuộc hoàn toàn vào giá trị path coefficient/loading kỳ vọng bạn khai báo — đây là mô phỏng dựa trên giả định của bạn, không phải "sự thật". Nên thử vài kịch bản khác nhau (lạc quan/thận trọng) để có bức tranh đầy đủ hơn.</li>
+              <li>Số lần lặp Monte Carlo càng thấp, đường cong càng nhiễu (dao động ngẫu nhiên do lấy mẫu) — tăng lên nếu cần đường cong mượt hơn, đổi lại thời gian chạy lâu hơn.</li>
+            </ul>
+          </div>
+        </details>
+      </div>
+    </div>
   </div>
 </main>
 
