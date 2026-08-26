@@ -387,9 +387,35 @@ class PathDiagram {
   //    instead of a blurry bitmap upscale.
   _syncCanvasResolution() {
     const dpr = window.devicePixelRatio || 1;
-    const naturalW = this._naturalWidth || this.canvas.clientWidth || this.canvas.width;
-    const naturalH = this._naturalHeight || this.canvas.clientHeight || this.canvas.height;
-    const cssWidth = this._naturalWidth ? (this.canvas.clientWidth || naturalW) : naturalW;
+    const clientW = this.canvas.clientWidth;
+    const clientH = this.canvas.clientHeight;
+    // A hidden ancestor (`.step-panel` not yet `.active`, a results
+    // section still `.hidden`, ...) collapses clientWidth/clientHeight to
+    // 0. There's nothing usable to size against in that state, and — since
+    // the editable case's fallback used to be "whatever canvas.width
+    // already holds" — re-syncing anyway would read back the *previous*
+    // sync's already-DPR-multiplied raster width as if it were fresh CSS
+    // pixels and multiply by dpr again, compounding on every render that
+    // fires while hidden (e.g. a language switch while sitting on a
+    // different step). Bail out and keep whatever was last correctly
+    // computed; every real call site re-renders once its container is
+    // actually visible, which then syncs properly.
+    if (!clientW || !clientH) {
+      if (this._logicalWidth === undefined) {
+        // Truly the first-ever render, before this canvas has been shown
+        // even once — seed from its pristine HTML attributes so drawing
+        // math has something sane to work with; harmless since nothing is
+        // visible yet, and gets replaced the moment it's actually shown.
+        this._logicalWidth = this.canvas.width || 1000;
+        this._logicalHeight = this.canvas.height || 560;
+        this.ctx.setTransform(1, 0, 0, 1, 0, 0);
+      }
+      return;
+    }
+
+    const naturalW = this._naturalWidth || clientW;
+    const naturalH = this._naturalHeight || clientH;
+    const cssWidth = this._naturalWidth ? clientW : naturalW;
     const stretch = this._naturalWidth ? cssWidth / naturalW : 1;
     const cssHeight = naturalH * stretch;
 

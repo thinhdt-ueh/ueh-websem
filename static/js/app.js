@@ -147,9 +147,15 @@ async function loadSample(dataset) {
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || t("msg_sample_failed"));
     applyUploadResult(data);
-    buildModelFromJson(data.model);
+    // Switch to step 2 (and thus lay out #panel-2's canvas) *before*
+    // building the model: PathDiagram sizes its raster off the canvas's
+    // actual rendered width (see diagram.js's _syncCanvasResolution), and
+    // that reads as 0 while .step-panel is still `display:none`, which
+    // drew the diagram undersized until some later render happened to
+    // fire after the panel was already visible.
     goToStep2Enable();
     goToStep(2);
+    buildModelFromJson(data.model);
   } catch (err) {
     errBox.textContent = err.message;
     errBox.classList.remove("hidden");
@@ -192,8 +198,10 @@ function goToStep2Enable() {
 }
 
 document.getElementById("toStep2Btn").addEventListener("click", () => {
-  if (!editor) initEditor();
+  // Same ordering as loadSample(): make #panel-2 visible before the
+  // canvas's very first render() ever measures its own width.
   goToStep(2);
+  if (!editor) initEditor();
 });
 
 // ---------------- Step 2: Model builder ----------------
