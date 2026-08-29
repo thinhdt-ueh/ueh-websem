@@ -361,6 +361,7 @@ const I18N = {
     ai_generated_from: "Tạo từ:",
     ai_your_prompt: "Yêu cầu của bạn:",
     ai_image_path_diagram: "Sơ đồ đường dẫn (Path Diagram)",
+    ai_image_simple_slopes: "Biểu đồ độ dốc đơn giản (Simple Slopes)",
     ai_image_power_chart: "Biểu đồ Power theo cỡ mẫu",
     ai_image_ml_chart: "Biểu đồ so sánh — {target}",
 
@@ -946,6 +947,7 @@ const I18N = {
     ai_generated_from: "Generated from:",
     ai_your_prompt: "Your prompt:",
     ai_image_path_diagram: "Path Diagram",
+    ai_image_simple_slopes: "Simple Slopes chart",
     ai_image_power_chart: "Power curve chart",
     ai_image_ml_chart: "Comparison chart — {target}",
 

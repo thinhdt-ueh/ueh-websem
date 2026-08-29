@@ -1335,7 +1335,118 @@ function buildSemReportContext(data, method) {
     lines.push(`chi-square = ${fmt(fi.chi_square)} (df = ${fi.df}, p = ${fmt(fi.chi_square_p_value, 4)}), CFI = ${fmt(fi.cfi)}, TLI = ${fmt(fi.tli)}, RMSEA = ${fmt(fi.rmsea)}, SRMR = ${fmt(fi.srmr)}, GFI = ${fmt(fi.gfi)}, AGFI = ${fmt(fi.agfi)}, NFI = ${fmt(fi.nfi)}, AIC = ${fmt(fi.aic)}, BIC = ${fmt(fi.bic)}`);
   }
 
+  const dv = data.discriminant_validity;
+  if (dv && dv.fornell_larcker) {
+    const flIds = Object.keys(dv.fornell_larcker);
+    lines.push("");
+    lines.push("## Discriminant Validity — Fornell-Larcker Criterion");
+    lines.push("Diagonal = sqrt(AVE); should exceed this construct's correlation with every other construct (off-diagonal, same row/column).");
+    lines.push(`| | ${flIds.map((id) => idToName[id]).join(" | ")} |`);
+    lines.push(`|---|${flIds.map(() => "---").join("|")}|`);
+    flIds.forEach((rid) => lines.push(`| ${idToName[rid]} | ${flIds.map((cid) => fmt(dv.fornell_larcker[cid][rid])).join(" | ")} |`));
+  }
+  if (dv && dv.htmt) {
+    const htmtIds = Object.keys(dv.htmt);
+    lines.push("");
+    lines.push("## Discriminant Validity — HTMT (Heterotrait-Monotrait Ratio)");
+    lines.push("Should stay below 0.85 (strict) or 0.90 (lenient) for every construct pair.");
+    lines.push(`| | ${htmtIds.map((id) => idToName[id]).join(" | ")} |`);
+    lines.push(`|---|${htmtIds.map(() => "---").join("|")}|`);
+    htmtIds.forEach((rid) => lines.push(`| ${idToName[rid]} | ${htmtIds.map((cid) => fmt(dv.htmt[cid][rid])).join(" | ")} |`));
+  }
+
+  if (method === "pls" && data.structural.inner_vif) {
+    const vifRows = [];
+    Object.entries(data.structural.inner_vif).forEach(([targetId, preds]) => {
+      Object.entries(preds || {}).forEach(([predId, v]) => {
+        if (v !== null && v !== undefined) vifRows.push([idToName[predId], idToName[targetId], v]);
+      });
+    });
+    if (vifRows.length) {
+      lines.push("");
+      lines.push("## Structural Multicollinearity (Inner VIF)");
+      lines.push("Should stay below 3.3-5; higher values suggest problematic collinearity among a target's predictors.");
+      lines.push("| Predictor | Target | VIF |");
+      lines.push("|---|---|---|");
+      vifRows.forEach(([p, tt, v]) => lines.push(`| ${p} | ${tt} | ${fmt(v)} |`));
+    }
+  }
+
+  const cmb = data.common_method_bias;
+  if (cmb && cmb.vif) {
+    lines.push("");
+    lines.push("## Common Method Bias — Full Collinearity Test (Kock, 2015)");
+    lines.push(`Every construct regressed on all others (not just its structural predictors); threshold = ${fmt(cmb.threshold, 1)} -- a VIF above this on ANY construct suggests a single latent "method" factor may be inflating variances.`);
+    lines.push("| Construct | Full collinearity VIF | Assessment |");
+    lines.push("|---|---|---|");
+    Object.entries(cmb.vif).forEach(([cid, v]) => {
+      const assessment = v !== null && v !== undefined && v > cmb.threshold ? "Possible CMB concern" : "OK";
+      lines.push(`| ${idToName[cid]} | ${fmt(v)} | ${assessment} |`);
+    });
+  }
+
+  const slopeCards = buildSimpleSlopesCards(data, method, idToName);
+  if (slopeCards.length) {
+    lines.push("");
+    lines.push("## Simple Slopes (moderation interpretation, Aiken & West 1991)");
+    lines.push("Slope of the focal predictor on the target at three levels of the moderator (mean ± 1 SD); a chart per interaction is attached above.");
+    slopeCards.forEach((c) => {
+      lines.push("");
+      lines.push(`### ${c.modName} × ${c.focalName} → ${c.targetName}`);
+      lines.push("| Moderator level | Simple slope (β) |");
+      lines.push("|---|---|");
+      lines.push(`| ${c.modName} at −1 SD | ${fmt(c.slopeLow)} |`);
+      lines.push(`| ${c.modName} at Mean | ${fmt(c.slopeMean)} |`);
+      lines.push(`| ${c.modName} at +1 SD | ${fmt(c.slopeHigh)} |`);
+    });
+  }
+
   return lines.join("\n");
+}
+
+// Shared between buildSemReportContext (text) and captureSimpleSlopesImages
+// (chart PNGs) so the two stay in sync -- same focal/moderator orientation
+// (unswapped default) and same b_focal*x + b_mod*z + b_int*x*z model as
+// renderSimpleSlopes/drawSimpleSlopesChart use for the on-screen chart.
+function buildSimpleSlopesCards(data, method, idToName) {
+  const interactions = data.constructs.filter((c) => c.mode === "I" && c.interaction_of);
+  const coefOf = {};
+  data.structural.paths.forEach((p) => {
+    coefOf[`${p.source}->${p.target}`] = method === "cbsem" ? p.std : p.coefficient;
+  });
+  return interactions
+    .map((ic) => {
+      const targetPath = data.structural.paths.find((p) => p.source === ic.id);
+      if (!targetPath) return null;
+      const targetId = targetPath.target;
+      const [a, b] = ic.interaction_of;
+      const focalId = b, modId = a; // matches renderSimpleSlopes' default (unswapped) orientation
+      const bFocal = coefOf[`${focalId}->${targetId}`] || 0;
+      const bMod = coefOf[`${modId}->${targetId}`] || 0;
+      const bInt = coefOf[`${ic.id}->${targetId}`] || 0;
+      return {
+        focalName: idToName[focalId], modName: idToName[modId], targetName: idToName[targetId],
+        slopeLow: bFocal - bInt, slopeMean: bFocal, slopeHigh: bFocal + bInt,
+      };
+    })
+    .filter(Boolean);
+}
+
+function captureSimpleSlopesImages(data, gridId) {
+  const interactions = data.constructs.filter((c) => c.mode === "I" && c.interaction_of);
+  const cards = interactions
+    .map((ic) => data.structural.paths.find((p) => p.source === ic.id))
+    .filter(Boolean);
+  const idToName = {};
+  data.constructs.forEach((c) => (idToName[c.id] = c.name));
+  return cards
+    .map((_, i) => {
+      const canvas = document.getElementById(`${gridId}Chart${i}`);
+      if (!canvas || !canvas.width || !canvas.height) return null;
+      const title = document.getElementById(`${gridId}Title${i}`);
+      return { label: title ? title.textContent : t("ai_image_simple_slopes"), dataUrl: canvas.toDataURL("image/png") };
+    })
+    .filter(Boolean);
 }
 
 function openSemAiReportModal(method) {
@@ -1345,6 +1456,8 @@ function openSemAiReportModal(method) {
   const sourceLabel = `${method === "cbsem" ? "CB-SEM" : "PLS-SEM"} — n = ${data.n_obs}`;
   const diagram = method === "cbsem" ? cbsemResultDiagram : resultDiagram;
   const images = diagram ? [{ label: t("ai_image_path_diagram"), dataUrl: diagram.canvas.toDataURL("image/png") }] : [];
+  const slopesGridId = method === "cbsem" ? "cbsemSimpleSlopesGrid" : "simpleSlopesGrid";
+  images.push(...captureSimpleSlopesImages(data, slopesGridId));
   openAiReportModal({
     context,
     sourceLabel,
