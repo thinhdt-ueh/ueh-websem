@@ -101,21 +101,26 @@
     <a href="#mediator">4. Biến trung gian (Mediator)</a>
     <a class="sub" href="#mediator-example">Ví dụ minh hoạ (dữ liệu thật)</a>
     <a class="sub" href="#mediator-read">Đọc bảng Total &amp; Indirect Effects</a>
-    <a href="#moderator">5. Biến điều tiết (Moderator)</a>
+    <a href="#specific-indirect">5. Hiệu ứng gián tiếp cụ thể (Specific Indirect Effects)</a>
+    <a href="#moderator">6. Biến điều tiết (Moderator)</a>
     <a class="sub" href="#moderator-create">Tạo biến tương tác trên canvas</a>
     <a class="sub" href="#moderator-example">Ví dụ minh hoạ (dữ liệu thật)</a>
     <a class="sub" href="#moderator-f2">Ngưỡng f² cho moderation</a>
-    <a href="#reading">6. Cách đọc từng bảng kết quả</a>
+    <a href="#moderated-mediation">7. Index of Moderated Mediation</a>
+    <a href="#reading">8. Cách đọc từng bảng kết quả</a>
     <a class="sub" href="#read-measurement">Mô hình đo lường</a>
     <a class="sub" href="#read-discriminant">Giá trị phân biệt</a>
     <a class="sub" href="#read-structural">Mô hình cấu trúc</a>
     <a class="sub" href="#read-cmb">Common Method Bias</a>
-    <a href="#plspredict">7. PLSpredict — dự báo ngoài mẫu</a>
-    <a href="#ipma">8. IPMA — bản đồ Importance-Performance</a>
-    <a href="#sensitivity">9. Phân tích độ nhạy theo cỡ mẫu</a>
-    <a href="#cbsem">10. Các chỉ số fit của CB-SEM</a>
-    <a href="#export">11. Xuất báo cáo</a>
-    <a href="#faq">12. Xử lý sự cố thường gặp</a>
+    <a href="#plspredict">9. PLSpredict — dự báo ngoài mẫu</a>
+    <a href="#ipma">10. IPMA — bản đồ Importance-Performance</a>
+    <a href="#sensitivity">11. Phân tích độ nhạy theo cỡ mẫu</a>
+    <a class="sub" href="#sensitivity-pvalue">Quỹ đạo p-value</a>
+    <a href="#power">12. Power Analysis (mô phỏng Monte Carlo)</a>
+    <a href="#mlcompare">13. So sánh Machine Learning</a>
+    <a href="#cbsem">14. Các chỉ số fit của CB-SEM</a>
+    <a href="#export">15. Xuất báo cáo</a>
+    <a href="#faq">16. Xử lý sự cố thường gặp</a>
   </aside>
 
   <main class="doc">
@@ -191,12 +196,31 @@ Thái độ (ATT)                 <span class="arrow">──▶</span> Ý địn
       <li><strong>Cả hai khác 0 và cùng dấu</strong> (như PU → Ý định) cho thấy <em>mediation bổ trợ</em>: biến trung gian củng cố thêm cho hiệu ứng trực tiếp.</li>
       <li><strong>Cả hai khác 0 nhưng trái dấu</strong> sẽ cho thấy <em>mediation cạnh tranh</em> (hiệu ứng suppression/ức chế) — không có path nào trong mô hình mẫu rơi vào trường hợp này, nhưng cần chú ý khi phân tích mô hình của riêng bạn.</li>
     </ul>
-    <div class="callout warn">
-      <strong class="label">Giới hạn hiện tại</strong>
-      Bảng Total &amp; Indirect Effects chỉ báo cáo giá trị ước lượng điểm (point estimate). Kiểm định ý nghĩa thống kê chính thức cho một hiệu ứng gián tiếp <em>cụ thể</em> (khoảng tin cậy bootstrap cho chính tích a × b) chưa được tự động hoá. Trong lúc chờ tính năng này, cách kiểm tra thực tế có sẵn ngay hôm nay là nguyên tắc causal-steps kinh điển: nếu mọi đoạn path riêng lẻ trong chuỗi (mỗi path “a” và “b”) đều có ý nghĩa trong kết quả bootstrap — như cả năm path trong ví dụ này — thì đường đi gián tiếp là bằng chứng tốt cho mediation.
+    <div class="callout tip">
+      <strong class="label">Muốn kiểm định ý nghĩa cho một đường đi cụ thể?</strong>
+      Bảng Total &amp; Indirect Effects ở trên cộng gộp <em>toàn bộ</em> đường đi giữa một cặp construct, nên không cho biết một chuỗi cụ thể nào đó có ý nghĩa thống kê hay không. <a href="#specific-indirect">Mục 5, Hiệu ứng gián tiếp cụ thể</a> tách khoản tổng đó trở lại thành từng đường đi riêng lẻ, mỗi đường có t-statistic, p-value và khoảng tin cậy bootstrap riêng — tính trực tiếp trên chính tích a × b (× c…) của đường đó, qua cùng các lần lấy mẫu lại, thay cho cách kiểm tra causal-steps không chính thức mà hướng dẫn này từng khuyến nghị.
     </div>
 
-    <h2 id="moderator">5. Biến điều tiết (Moderator / biến tương tác)</h2>
+    <h2 id="specific-indirect">5. Hiệu ứng gián tiếp cụ thể (Specific Indirect Effects)</h2>
+    <p>Khi hai construct được nối bằng nhiều hơn một đường đi trung gian — như PEOU và Ý định hành vi trong mô hình TAM, qua PU, qua Thái độ, và qua cả hai — bảng Total &amp; Indirect Effects chỉ cho biết <em>tổng</em> của chúng. <strong>Hiệu ứng gián tiếp cụ thể</strong> báo cáo từng đường đi riêng biệt, mỗi đường có kiểm định ý nghĩa bootstrap của riêng nó, để biết chính xác chuỗi nào đang tạo ra phần lớn hiệu ứng gián tiếp tổng.</p>
+    <p>Chạy PLS-SEM có bootstrapping (2.000 lần lặp lại mẫu) trên dữ liệu mẫu TAM cho ra:</p>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Đường đi</th><th class="num">Hiệu ứng gián tiếp</th><th class="num">t</th><th class="num">p</th><th>KTC 95%</th><th>Có ý nghĩa</th></tr></thead>
+      <tbody>
+        <tr><td>PEOU → PU → Thái độ</td><td class="num">0.153</td><td class="num">4.78</td><td class="num">&lt; .001</td><td class="num">[0.093, 0.222]</td><td><span class="badge ok">có</span></td></tr>
+        <tr><td>PEOU → PU → Ý định</td><td class="num">0.167</td><td class="num">5.56</td><td class="num">&lt; .001</td><td class="num">[0.114, 0.230]</td><td><span class="badge ok">có</span></td></tr>
+        <tr><td>PEOU → Thái độ → Ý định</td><td class="num">0.074</td><td class="num">2.97</td><td class="num">.003</td><td class="num">[0.026, 0.125]</td><td><span class="badge ok">có</span></td></tr>
+        <tr><td>PEOU → PU → Thái độ → Ý định</td><td class="num">0.055</td><td class="num">3.84</td><td class="num">&lt; .001</td><td class="num">[0.029, 0.087]</td><td><span class="badge ok">có</span></td></tr>
+        <tr><td>PU → Thái độ → Ý định</td><td class="num">0.119</td><td class="num">4.07</td><td class="num">&lt; .001</td><td class="num">[0.066, 0.181]</td><td><span class="badge ok">có</span></td></tr>
+      </tbody>
+    </table></div>
+    <p>Ba đường đi từ PEOU đến Ý định — PEOU→PU→Ý định (0.167), PEOU→Thái độ→Ý định (0.074), và PEOU→PU→Thái độ→Ý định (0.055) — cộng lại bằng 0.296, khớp (sai lệch nhỏ do biến động ngẫu nhiên của bootstrap) với hiệu ứng Gián tiếp tổng 0.293 đã thấy cho PEOU → Ý định ở mục 4. Cùng một phép tính; ở đây chỉ là tách theo từng đường đi thay vì cộng gộp, và mỗi đường đi được kiểm định ý nghĩa riêng.</p>
+    <div class="callout">
+      <strong class="label">Cả năm đường đi ở đây đều có ý nghĩa — có phải lúc nào cũng vậy?</strong>
+      Không — với một chuỗi yếu hơn hoặc gián tiếp hơn, việc đường đi tổng hợp (Total &amp; Indirect Effects) có ý nghĩa trong khi một đường đi cụ thể dài hơn của nó lại không có ý nghĩa (hoặc ngược lại) là chuyện thường gặp. Đó chính là loại sắc thái bảng này được thiết kế để làm rõ.
+    </div>
+
+    <h2 id="moderator">6. Biến điều tiết (Moderator / biến tương tác)</h2>
     <p><strong>Moderator (biến điều tiết)</strong> làm thay đổi <em>độ mạnh</em> của mối quan hệ giữa hai construct khác, thay vì nằm trên một chuỗi nhân quả như mediator. UEH-WebSEM kiểm định moderation bằng phương pháp chuẩn <strong>Two-Stage Approach</strong> (Henseler &amp; Chin, 2010; Henseler &amp; Fassott, 2010):</p>
     <ol>
       <li><strong>Giai đoạn 1</strong> — ước lượng mô hình gốc (chưa có biến tương tác) để lấy điểm số construct đã chuẩn hoá.</li>
@@ -245,7 +269,38 @@ Thái độ (ATT)                 <span class="arrow">──▶</span> Ý địn
       Blindfolding (dùng để tính Q²) lược bỏ và dự đoán lại giá trị indicator gốc một cách có hệ thống, nhưng biến tương tác không có indicator riêng — nó là tích số được suy ra từ điểm số của hai construct khác. Vì vậy, Q² sẽ tự động bị bỏ qua (kèm ghi chú giải thích) với bất kỳ mô hình nào chứa biến tương tác; mọi kết quả khác (path coefficient, R², f², bootstrapping) không bị ảnh hưởng.
     </div>
 
-    <h2 id="reading">6. Cách đọc từng bảng kết quả</h2>
+    <h2 id="moderated-mediation">7. Index of Moderated Mediation (Hayes, 2015)</h2>
+    <p>Mediator (biến trung gian) giải thích <em>vì sao</em> hoặc <em>bằng cách nào</em> X tác động đến Y; moderator (biến điều tiết) giải thích <em>khi nào</em> hoặc <em>với ai</em> một mối quan hệ mạnh hơn hay yếu hơn. <strong>Moderated mediation (trung gian có điều tiết)</strong> kết hợp cả hai câu hỏi: liệu độ mạnh của một hiệu ứng <em>gián tiếp</em> có phụ thuộc vào một biến điều tiết hay không? UEH-WebSEM tự động phát hiện trường hợp này bất cứ khi nào mô hình có một đường đi trung gian (X → M → Y) mà đúng một đoạn (edge) của nó là đích của một biến tương tác, và báo cáo <strong>Index of Moderated Mediation</strong> của Hayes (2015) — độ dốc của hiệu ứng gián tiếp theo biến điều tiết, tức là hiệu ứng gián tiếp thay đổi bao nhiêu khi biến điều tiết tăng thêm 1 đơn vị.</p>
+    <p>Chỉ số này chỉ áp dụng cho đường đi có <em>đúng một</em> đoạn bị điều tiết. Nếu cả đoạn a lẫn đoạn b của một đường đi cùng bị điều tiết, hiệu ứng gián tiếp trở thành hàm song tuyến tính (bilinear), không còn tuyến tính theo hai biến điều tiết nữa, và Hayes không định nghĩa một chỉ số vô hướng (scalar) duy nhất cho trường hợp đó — chính macro PROCESS của Hayes cũng xử lý trường hợp này theo cách tương tự, bằng hiệu ứng gián tiếp có điều kiện (conditional indirect effects) tính tại các giá trị được chọn của biến điều tiết, thay vì một chỉ số duy nhất.</p>
+    <h3>Ví dụ minh hoạ</h3>
+    <p>Dùng đúng ký hiệu của Hayes — X (biến dự báo), W (biến điều tiết), M (biến trung gian), Y (biến kết quả) — một mô hình nhỏ với các path <code>X → M</code>, <code>W → M</code>, <code>X × W → M</code> (biến tương tác điều tiết đoạn a), và <code>M → Y</code> cho kết quả:</p>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Path</th><th class="num">β</th><th class="num">p</th></tr></thead>
+      <tbody>
+        <tr><td>X → M</td><td class="num">0.247</td><td class="num">&lt; .001</td></tr>
+        <tr><td>W → M</td><td class="num">0.125</td><td class="num">.003</td></tr>
+        <tr><td>X × W → M</td><td class="num">0.170</td><td class="num">&lt; .001</td></tr>
+        <tr><td>M → Y</td><td class="num">0.342</td><td class="num">&lt; .001</td></tr>
+      </tbody>
+    </table></div>
+    <p>Đường đi W → M → Y là một chuỗi trung gian mà đoạn đầu (a), W → M, chính nó lại bị điều tiết bởi X. PLS-SEM (bootstrap, n = 2.000) báo cáo:</p>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Đường đi</th><th>Biến điều tiết</th><th class="num">Index</th><th class="num">t</th><th class="num">p</th><th>KTC 95%</th><th>Có ý nghĩa</th></tr></thead>
+      <tbody>
+        <tr><td>X × W → M → Y</td><td>X</td><td class="num">0.058</td><td class="num">3.00</td><td class="num">.003</td><td class="num">[0.022, 0.099]</td><td><span class="badge ok">có</span></td></tr>
+      </tbody>
+    </table></div>
+    <p>CB-SEM (Maximum Likelihood) báo cáo cùng chỉ số này chỉ dưới dạng giá trị ước lượng điểm: <strong>0.056</strong> — chưa có kiểm định ý nghĩa thống kê riêng cho chỉ số này ở CB-SEM.</p>
+    <div class="callout">
+      <strong class="label">Cách đọc chỉ số</strong>
+      0.058 nghĩa là: mỗi khi X tăng thêm 1 đơn vị, hiệu ứng gián tiếp của W lên Y (qua M) tăng thêm 0.058. Vì khoảng tin cậy 95% [0.022, 0.099] không chứa 0, việc X điều tiết đường đi trung gian này có ý nghĩa thống kê — không chỉ riêng từng path a/b, mà cả hiệu ứng điều tiết của X lên toàn bộ chuỗi trung gian.
+    </div>
+    <div class="callout warn">
+      <strong class="label">Phạm vi áp dụng</strong>
+      Chỉ những đường đi có đúng một đoạn bị điều tiết mới được báo cáo, như giải thích ở trên. Với mô hình bị điều tiết ở cả hai đoạn (both-stage moderation), hãy đọc trực tiếp Path Coefficients và Simple Slopes tại các giá trị cụ thể của biến điều tiết.
+    </div>
+
+    <h2 id="reading">8. Cách đọc từng bảng kết quả</h2>
     <p>Các con số trong phần này lấy từ đúng lần chạy PLS-SEM ở trên (dữ liệu mẫu TAM, n = 250, có kèm biến tương tác PU × Thái độ).</p>
 
     <h3 id="read-measurement">Mô hình đo lường</h3>
@@ -290,7 +345,7 @@ Thái độ (ATT)                 <span class="arrow">──▶</span> Ý địn
     </table></div>
     <p>Mọi giá trị đều thấp hơn nhiều so với 3.3, nên bộ dữ liệu này không cho thấy dấu hiệu của common method bias.</p>
 
-    <h2 id="plspredict">7. PLSpredict — Đánh giá khả năng dự báo ngoài mẫu</h2>
+    <h2 id="plspredict">9. PLSpredict — Đánh giá khả năng dự báo ngoài mẫu</h2>
     <p>R² cho biết mô hình khớp <em>dữ liệu hiện có</em> tốt đến đâu, nhưng không nói lên được liệu mô hình có <em>dự báo tốt cho người trả lời mới</em> hay không — hai câu hỏi này có thể cho câu trả lời khác nhau. <strong>PLSpredict</strong> (Shmueli, Ringle &amp; Sarstedt, 2016) trả lời câu hỏi thứ hai bằng k-fold cross-validation (mặc định k = 10):</p>
     <ol>
       <li>Chia dữ liệu thành 10 phần; lần lượt giữ lại 1 phần làm tập kiểm tra, huấn luyện mô hình trên 9 phần còn lại.</li>
@@ -322,7 +377,7 @@ Thái độ (ATT)                 <span class="arrow">──▶</span> Ý địn
       PLSpredict hiện chưa hỗ trợ mô hình có biến tương tác (moderator) — ứng dụng sẽ báo lỗi rõ ràng nếu bạn thử chạy trên mô hình như vậy.
     </div>
 
-    <h2 id="ipma">8. IPMA — Bản đồ Importance-Performance</h2>
+    <h2 id="ipma">10. IPMA — Bản đồ Importance-Performance</h2>
     <p><strong>IPMA</strong> (Importance-Performance Map Analysis; Ringle &amp; Sarstedt, 2016) trả lời câu hỏi thực tiễn: "nên ưu tiên cải thiện construct nào trước?" Với một construct <strong>mục tiêu</strong> do bạn chọn, mỗi construct tiền đề (antecedent) của nó được đặt lên biểu đồ theo hai trục:</p>
     <ul>
       <li><strong>Importance (trục ngang)</strong> — hiệu ứng tổng (total effect) chuẩn hoá lên construct mục tiêu, đúng con số đã thấy ở bảng Total &amp; Indirect Effects (mục 4).</li>
@@ -343,7 +398,7 @@ Thái độ (ATT)                 <span class="arrow">──▶</span> Ý địn
       Vì thang 0–100 được quy đổi theo min/max <em>quan sát được</em> trong bộ dữ liệu này, không phải theo thang lý thuyết cố định (ví dụ Likert 1–7). Điều này có nghĩa performance chỉ có ý nghĩa <em>so sánh tương đối</em> giữa các construct trong cùng một lần chạy, không nên so trực tiếp giữa hai bộ dữ liệu khác nhau.
     </div>
 
-    <h2 id="sensitivity">9. Phân tích độ nhạy theo cỡ mẫu</h2>
+    <h2 id="sensitivity">11. Phân tích độ nhạy theo cỡ mẫu</h2>
     <p>Câu hỏi "cỡ mẫu bao nhiêu là đủ?" thường được trả lời bằng công thức power analysis <em>trước khi</em> thu thập dữ liệu. Tính năng <strong>Phân tích độ nhạy theo cỡ mẫu</strong> tiếp cận câu hỏi này theo hướng ngược lại, <em>sau khi</em> đã có dữ liệu: chạy lại mô hình nhiều lần trên các mẫu con ngẫu nhiên ngày càng nhỏ, để xem kết quả chính (R², path coefficient) bắt đầu dao động mạnh từ cỡ mẫu nào.</p>
     <p>Bấm <strong>"📉 Phân tích độ nhạy cỡ mẫu"</strong>, nhập N (số quan sát bớt thêm mỗi bước), trang kết quả sẽ <strong>mở ở tab mới</strong>. Với N = 20 trên dữ liệu mẫu TAM (n gốc = 250, chạy đến khi còn khoảng 20 quan sát):</p>
     <div class="table-wrap"><table>
@@ -357,12 +412,94 @@ Thái độ (ATT)                 <span class="arrow">──▶</span> Ý địn
       </tbody>
     </table></div>
     <p>Ở n = 230 (gần với cỡ mẫu gốc), R² của Thái độ là 0.220; xuống n = 30, cùng chỉ số này dao động lên tới 0.384 — biến động ngày càng rõ khi mẫu càng nhỏ, đúng như kỳ vọng thống kê (ước lượng trên mẫu nhỏ có sai số chuẩn lớn hơn). Trang kết quả vẽ toàn bộ quỹ đạo này trên biểu đồ, kèm bảng số liệu chi tiết và điểm đánh dấu riêng cho các cỡ mẫu mô hình không hội tụ được.</p>
+
+    <h3 id="sensitivity-pvalue">Tuỳ chọn: quỹ đạo ý nghĩa thống kê (p-value)</h3>
+    <p>Với CB-SEM, việc ước lượng Maximum Likelihood đã cho sẵn p-value cho mọi path ở mọi bước — miễn phí, tự động hiển thị. PLS-SEM không có kiểm định ý nghĩa dạng công thức đóng, nên quỹ đạo p-value của nó là <em>tuỳ chọn</em>: cần chạy thêm một lượt bootstrap ở từng bước, nên hãy bật <strong>"Kiểm định ý nghĩa thống kê"</strong> trong hộp thoại và chọn số lần lặp lại mẫu nếu muốn dùng. Với 200 lần lặp lại mỗi bước trên cùng lượt chạy N = 20:</p>
+    <div class="table-wrap"><table>
+      <thead><tr><th class="num">n</th><th class="num">p (PEOU → Thái độ)</th><th>Có ý nghĩa (95%)</th></tr></thead>
+      <tbody>
+        <tr><td class="num">230</td><td class="num">.001</td><td><span class="badge ok">có</span></td></tr>
+        <tr><td class="num">170</td><td class="num">.002</td><td><span class="badge ok">có</span></td></tr>
+        <tr><td class="num">110</td><td class="num">.045</td><td><span class="badge ok">có (ranh giới)</span></td></tr>
+        <tr><td class="num">70</td><td class="num">&lt; .001</td><td><span class="badge ok">có</span></td></tr>
+        <tr><td class="num">30</td><td class="num">.332</td><td><span class="badge warn">không</span></td></tr>
+      </tbody>
+    </table></div>
+    <p>Ở n = 30, cùng path PEOU → Thái độ — có ý nghĩa ở mọi cỡ mẫu lớn hơn được thử nghiệm ở đây — không còn ý nghĩa thống kê nữa (p = .332): với quá ít quan sát còn lại, sai số chuẩn bootstrap lớn đến mức không còn phân biệt được hệ số này với 0, dù giá trị ước lượng điểm vẫn ở mức tương tự. Đây chính là loại bất ổn định mà biểu đồ p-value được thiết kế để làm rõ, bên cạnh biểu đồ R².</p>
     <div class="callout warn">
       <strong class="label">Đây không phải power analysis chính thức</strong>
-      Đây là công cụ khám phá thực nghiệm ("bao nhiêu là đủ, dựa trên chính dữ liệu này"), không thay thế cho một phân tích power (ví dụ G*Power) thực hiện trước khi thu thập dữ liệu để xác định cỡ mẫu tối thiểu cần thiết.
+      Đây là công cụ khám phá thực nghiệm ("bao nhiêu là đủ, dựa trên chính dữ liệu này"), không thay thế cho một phân tích power a-priori thực hiện <em>trước</em> khi thu thập dữ liệu để xác định cỡ mẫu tối thiểu cần thiết — xem mục 12, Power Analysis (mô phỏng Monte Carlo).
     </div>
 
-    <h2 id="cbsem">10. Các chỉ số fit của CB-SEM</h2>
+    <h2 id="power">12. Power Analysis (mô phỏng Monte Carlo)</h2>
+    <p>Phân tích độ nhạy theo cỡ mẫu (mục 11) đi ngược từ dữ liệu đã có sẵn. <strong>Power Analysis</strong> đi xuôi, trước khi thu thập dữ liệu: với một mô hình quần thể (population model) <em>giả định</em> — hệ số path và loading trung bình kỳ vọng — và một cỡ mẫu ứng viên, xác suất phát hiện đúng từng hiệu ứng ở mức ý nghĩa thống kê là bao nhiêu? Không phần mềm PLS-SEM nào có công thức đóng cho việc này — PLS không có sai số chuẩn kiểu maximum-likelihood để đưa vào công thức — nên UEH-WebSEM trả lời bằng cách nghiêm ngặt duy nhất hiện có: mô phỏng Monte Carlo.</p>
+    <p>Với mỗi cỡ mẫu ứng viên n, lặp lại nhiều lần (n_mc lần mô phỏng):</p>
+    <ol>
+      <li>Sinh một bộ dữ liệu tổng hợp cỡ n từ các hệ số path và loading trung bình bạn khai báo (chỉ áp dụng cho indicator reflective).</li>
+      <li>Ước lượng bằng chính công cụ thật — PLS-SEM hoặc CB-SEM — trên dữ liệu tổng hợp đó, y hệt như khi chạy trên dữ liệu thật.</li>
+      <li>Kiểm định ý nghĩa cho từng path: PLS-SEM qua một lượt bootstrap nội bộ; CB-SEM qua kiểm định Wald phân tích (analytic), không cần bootstrap.</li>
+    </ol>
+    <p>Power tại cỡ mẫu đó = tỉ lệ số lần mô phỏng mà một path cho ra kết quả có ý nghĩa (p &lt; .05).</p>
+    <div class="callout warn">
+      <strong class="label">Phạm vi áp dụng</strong>
+      Chỉ hỗ trợ construct reflective (Mode A) — không có construct formative (Mode B) và không có biến tương tác/điều tiết (Mode I). Cả hai trường hợp cần một cơ chế sinh dữ liệu tổng hợp khác về bản chất, chưa được cài đặt; nút bấm sẽ bị vô hiệu hoá kèm giải thích nếu mô hình hiện tại có một trong hai loại construct này.
+    </div>
+    <h3>Ví dụ minh hoạ</h3>
+    <p>Khai báo đúng các hệ số path quan sát được từ dữ liệu mẫu TAM (PEOU→PU = 0.462, PEOU→Thái độ = 0.206, PU→Thái độ = 0.331, PU→Ý định = 0.354, Thái độ→Ý định = 0.359) và loading trung bình 0.86 cho mọi construct, tại n = 100 / 150 / 200:</p>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Path</th><th class="num">β khai báo</th><th class="num">Power @ n=100</th><th class="num">Power @ n=150</th><th class="num">Power @ n=200</th></tr></thead>
+      <tbody>
+        <tr><td>PEOU → PU</td><td class="num">0.462</td><td class="num">1.000</td><td class="num">1.000</td><td class="num">1.000</td></tr>
+        <tr><td>PEOU → Thái độ</td><td class="num">0.206</td><td class="num">0.567</td><td class="num">0.600</td><td class="num">0.800</td></tr>
+        <tr><td>PU → Thái độ</td><td class="num">0.331</td><td class="num">0.933</td><td class="num">0.967</td><td class="num">1.000</td></tr>
+        <tr><td>PU → Ý định</td><td class="num">0.354</td><td class="num">1.000</td><td class="num">1.000</td><td class="num">1.000</td></tr>
+        <tr><td>Thái độ → Ý định</td><td class="num">0.359</td><td class="num">0.933</td><td class="num">0.967</td><td class="num">1.000</td></tr>
+      </tbody>
+    </table></div>
+    <p>Path yếu nhất được khai báo (PEOU → Thái độ, β = 0.206) chính là path có power rõ ràng thấp hơn ở mọi cỡ mẫu — chỉ 57% tại n = 100, vẫn chỉ 80% tại n = 200 — trong khi mọi path mạnh hơn đã gần đạt 100% power ngay từ n = 100. Đây chính là giá trị thực tiễn của power analysis: nó cho biết chính xác mối quan hệ nào trong mô hình thực sự cần cỡ mẫu lớn hơn, thay vì coi "n" là một con số chung cho cả mô hình.</p>
+    <div class="callout tip">
+      <strong class="label">CB-SEM mô phỏng rẻ hơn nhiều</strong>
+      Ước lượng Maximum Likelihood của CB-SEM cho ra kiểm định ý nghĩa của mọi path bằng công thức phân tích, không cần vòng lặp bootstrap nội bộ — rẻ hơn khoảng 20 lần mỗi lượt mô phỏng so với PLS-SEM. Vì vậy nút CB-SEM mặc định dùng số lần mô phỏng Monte Carlo nhiều hơn hẳn (100 so với 30 của PLS-SEM) trong cùng ngân sách thời gian, cho ước lượng power mượt hơn.
+    </div>
+    <div class="callout warn">
+      <strong class="label">Có thể mất một lúc</strong>
+      Một lượt chạy đầy đủ có thể từ vài giây đến vài phút, tuỳ số điểm cỡ mẫu, số lần mô phỏng, và (với PLS-SEM) số lần lặp lại mẫu bootstrap nội bộ bạn chọn — hộp thoại cấu hình hiển thị ước lượng thời gian trực tiếp khi bạn điều chỉnh các thông số này, và tab kết quả hiển thị đồng hồ đếm ngược khi bắt đầu chạy.
+    </div>
+
+    <h2 id="mlcompare">13. So sánh Machine Learning</h2>
+    <p>Hệ số path của SEM đến từ một mô hình <em>khẳng định (confirmatory)</em>, được xác định trước theo lý thuyết. <strong>So sánh Machine Learning</strong> cung cấp một góc kiểm tra chéo độc lập, hoàn toàn <em>hướng theo dữ liệu (data-driven)</em>: với mỗi construct nội sinh, các construct tiền đề trực tiếp của nó — đúng bộ biến dự báo mà mô hình cấu trúc đang dùng — được đưa vào làm biến đầu vào cho nhiều thuật toán Machine Learning (Hồi quy tuyến tính, Hồi quy Logistic, Cây quyết định, Random Forest, SVM, Gradient Boosting/GBM, XGBoost, LightGBM, CatBoost), mỗi thuật toán được đánh giá bằng k-fold cross-validation, và <strong>feature importance</strong> thu được được so sánh trực tiếp với hệ số path SEM cho đúng cặp biến tiền đề → biến mục tiêu đó.</p>
+    <p>Chỉ số importance duy nhất dùng để so sánh trực tiếp này là <strong>permutation importance</strong>, tính theo cùng một cách cho mọi thuật toán bất kể loại (hệ số hồi quy tuyến tính, mức phân tách của cây quyết định, hay biên độ của SVM) — thước đo công bằng duy nhất có thể áp dụng chung cho các mô hình khác nhau như vậy. Mục chi tiết của từng thuật toán còn hiển thị thêm importance "gốc" của chính thuật toán đó (hệ số hồi quy, hoặc <code>feature_importances_</code> với mô hình cây/boosting) bên cạnh permutation importance.</p>
+    <div class="callout">
+      <strong class="label">Vì sao Logistic Regression báo cáo Accuracy/AUC thay vì R²?</strong>
+      Mọi điểm số construct trong SEM đều là biến liên tục, nhưng Logistic Regression là một thuật toán phân loại. Để đưa được thuật toán này vào so sánh, mỗi biến mục tiêu được chia đôi tại trung vị (median) của <em>tập huấn luyện trong từng fold</em> thành hai nhóm "Cao"/"Thấp" — tính riêng cho từng fold để tránh rò rỉ thông tin từ tập kiểm tra — rồi Logistic Regression dự báo một quan sát thuộc nhóm nào. Vì bài toán đã đổi từ hồi quy sang phân loại, chỉ số đánh giá cũng đổi theo: Accuracy và AUC thay vì R²/RMSE.
+    </div>
+    <h3>Ví dụ minh hoạ</h3>
+    <p>Chạy bốn thuật toán — Hồi quy tuyến tính, Hồi quy Logistic, Random Forest, XGBoost — với k = 5 trên biến mục tiêu Thái độ (dự báo từ Nhận thức dễ sử dụng và Nhận thức hữu ích, đúng như trong mô hình cấu trúc) trên dữ liệu mẫu TAM:</p>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Biến tiền đề</th><th class="num">SEM β</th><th class="num">Hồi quy TT</th><th class="num">Hồi quy Logistic</th><th class="num">Random Forest</th><th class="num">XGBoost</th></tr></thead>
+      <tbody>
+        <tr><td>Nhận thức dễ sử dụng</td><td class="num">0.206</td><td class="num">0.072</td><td class="num">0.014</td><td class="num">−0.059</td><td class="num">−0.064</td></tr>
+        <tr><td>Nhận thức hữu ích</td><td class="num">0.331</td><td class="num">0.217</td><td class="num">0.060</td><td class="num">0.181</td><td class="num">0.131</td></tr>
+      </tbody>
+    </table></div>
+    <p>(Các cột ngoài SEM β đều là permutation importance của từng thuật toán.) Cả bốn thuật toán đều thống nhất với hệ số path SEM về <em>thứ hạng</em>: Nhận thức hữu ích quan trọng hơn Nhận thức dễ sử dụng trong việc dự báo Thái độ, khớp với 0.331 &gt; 0.206 trong mô hình cấu trúc — một xác nhận độc lập, hướng theo dữ liệu, cho cùng một thứ tự quan trọng.</p>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Thuật toán</th><th>Chỉ số phù hợp 1</th><th>Chỉ số phù hợp 2</th></tr></thead>
+      <tbody>
+        <tr><td>Hồi quy tuyến tính</td><td class="num">R² = 0.192</td><td class="num">RMSE = 0.891</td></tr>
+        <tr><td>Hồi quy Logistic</td><td class="num">Accuracy = 0.620</td><td class="num">AUC = 0.693</td></tr>
+        <tr><td>Random Forest</td><td class="num">R² = −0.114</td><td class="num">RMSE = 1.043</td></tr>
+        <tr><td>XGBoost</td><td class="num">R² = −0.436</td><td class="num">RMSE = 1.188</td></tr>
+      </tbody>
+    </table></div>
+    <div class="callout warn">
+      <strong class="label">R² âm với cỡ mẫu nhỏ là bình thường, không phải lỗi</strong>
+      Random Forest và XGBoost cho R² <em>âm</em> ở đây trên tập kiểm tra — tệ hơn cả việc chỉ dự báo bằng giá trị trung bình. Với chỉ 250 quan sát và 2 biến dự báo, các thuật toán linh hoạt hơn này bị overfit trên tập huấn luyện và tổng quát hoá kém, trong khi Hồi quy tuyến tính đơn giản hơn nhiều vẫn cho R² dương ở mức khiêm tốn. Đây tự nó là một thông tin hữu ích: dấu hiệu cho thấy quan hệ thực sự ở đây gần như tuyến tính, và một mô hình phức tạp hơn không mang lại lợi ích gì so với mô hình đơn giản cho construct cụ thể này.
+    </div>
+    <p>Đầu vào là điểm số construct, không phải câu hỏi khảo sát gốc — nên "feature importance" ở đây nằm ở cùng cấp độ với hệ số path SEM, không phải cấp độ từng câu hỏi riêng lẻ. Sự đồng thuận giữa hai cách tiếp cận củng cố thêm độ tin cậy của phát hiện; sự khác biệt là gợi ý để xem xét thêm, không phải bằng chứng SEM sai — phía Machine Learning chỉ tối ưu khả năng dự báo, không kiểm định giả thuyết, nên đây không phải là kiểm định thống kê thay thế SEM.</p>
+    <p>Mỗi lượt chạy còn có mục <strong>Minh bạch tính toán</strong> hiển thị mã nguồn thật đang chạy trên máy chủ cho vòng lặp k-fold/permutation importance và cho đúng những thuật toán bạn đã chọn, và cả bảng so sánh gộp lẫn kết quả chi tiết từng thuật toán đều có thể xuất ra Excel/Word (mục 15).</p>
+
+    <h2 id="cbsem">14. Các chỉ số fit của CB-SEM</h2>
     <p>Chạy đúng mô hình đó (kèm biến tương tác) bằng CB-SEM (Maximum Likelihood) cho ra các chỉ số phù hợp mô hình toàn cục kinh điển mà PLS-SEM không báo cáo:</p>
     <div class="table-wrap"><table>
       <thead><tr><th>Chỉ số</th><th class="num">Giá trị</th><th>Ngưỡng fit tốt</th><th>Đánh giá</th></tr></thead>
@@ -381,18 +518,21 @@ Thái độ (ATT)                 <span class="arrow">──▶</span> Ý địn
     </table></div>
     <p>Mọi chỉ số fit thực dụng (CFI, TLI, RMSEA, SRMR, GFI, AGFI, NFI) đều vượt ngưỡng fit tốt; chỉ riêng kiểm định χ² là ở mức ranh giới, điều này bình thường và dễ hiểu — χ² gần như luôn bác bỏ với mẫu lớn hoặc không chuẩn ngay cả khi mô hình fit tốt, đó chính là lý do các chỉ số khác tồn tại.</p>
 
-    <h2 id="export">11. Xuất báo cáo</h2>
-    <p>Cả bản xuất Excel (.xlsx) và Word (.docx) đều dựng lại toàn bộ bảng hiển thị trên màn hình — bao gồm Total &amp; Indirect Effects và, khi có, các dòng biến tương tác cùng nhãn f² dành riêng cho moderation — trực tiếp từ lần phân tích bạn vừa chạy (không ước lượng lại, nên xuất file diễn ra ngay lập tức). Ngôn ngữ của báo cáo luôn theo ngôn ngữ (VI/EN) đang chọn trên giao diện <em>tại thời điểm xuất file</em>, không phụ thuộc vào ngôn ngữ lúc bạn chạy phân tích ban đầu.</p>
+    <h2 id="export">15. Xuất báo cáo</h2>
+    <p>Cả bản xuất Excel (.xlsx) và Word (.docx) trên trang kết quả chính đều dựng lại toàn bộ bảng hiển thị trên màn hình — bao gồm Total &amp; Indirect Effects, Hiệu ứng gián tiếp cụ thể, Index of Moderated Mediation, và (khi có) các dòng biến tương tác cùng nhãn f² dành riêng cho moderation — trực tiếp từ lần phân tích bạn vừa chạy (không ước lượng lại, nên xuất file diễn ra ngay lập tức). Trang <strong>So sánh Machine Learning</strong> (mục 13) có nút xuất Excel/Word riêng, dựng lại bảng so sánh và kết quả chi tiết từng thuật toán theo cùng cách. Trong cả hai trường hợp, ngôn ngữ của báo cáo luôn theo ngôn ngữ (VI/EN) đang chọn trên giao diện <em>tại thời điểm xuất file</em>, không phụ thuộc vào ngôn ngữ lúc bạn chạy phân tích ban đầu.</p>
 
-    <h2 id="faq">12. Xử lý sự cố thường gặp</h2>
+    <h2 id="faq">16. Xử lý sự cố thường gặp</h2>
     <ul>
       <li><strong>"Biến tương tác 'X' dự báo 'Y', nên 'Z' cũng cần có đường dẫn hiệu ứng chính trực tiếp đến 'Y'."</strong> — Vẽ thêm path trực tiếp còn thiếu từ construct nguồn được nêu tên đến construct bị điều tiết, rồi chạy lại. Cả hai thành phần nhân của biến tương tác đều phải có hiệu ứng chính riêng lên biến kết quả.</li>
       <li><strong>"Cần ít nhất 2 construct khác đã tồn tại để tạo biến tương tác."</strong> — Thêm và cấu hình ít nhất hai construct thông thường (không phải biến tương tác) trước khi chuyển loại đo lường của một construct thành "Biến tương tác / điều tiết".</li>
-      <li><strong>Q² hiển thị thông báo bỏ qua thay vì một giá trị</strong> — đây là điều bình thường bất cứ khi nào mô hình chứa biến tương tác (xem mục 5); không phải là lỗi.</li>
+      <li><strong>Q² hiển thị thông báo bỏ qua thay vì một giá trị</strong> — đây là điều bình thường bất cứ khi nào mô hình chứa biến tương tác (xem mục 6); không phải là lỗi.</li>
       <li><strong>CB-SEM từ chối một construct formative</strong> — CB-SEM (Maximum Likelihood) chỉ hỗ trợ đo lường reflective (Mode A); hãy chuyển sang PLS-SEM, hoặc đổi loại đo lường của construct đó nếu phù hợp về mặt học thuật.</li>
       <li><strong>File tải lên bị từ chối vì quá nhiều dòng</strong> — công cụ giới hạn tối đa 5.000 dòng mỗi lần tải lên; hãy tổng hợp hoặc lấy mẫu bớt dữ liệu trước.</li>
       <li><strong>"PLSpredict chưa hỗ trợ mô hình có biến điều tiết"</strong> — đúng như thông báo, tính năng này hiện chưa xử lý được construct kiểu Interaction; hãy tạm bỏ biến tương tác ra khỏi mô hình (hoặc kiểm tra trên phiên bản mô hình không có moderator) nếu muốn chạy PLSpredict.</li>
       <li><strong>Nút IPMA không cho chọn construct nào cả</strong> — IPMA cần ít nhất một construct nội sinh (có path đi vào); nếu mô hình của bạn chỉ có construct ngoại sinh, hãy vẽ thêm path cấu trúc trước.</li>
+      <li><strong>Nút "⚡ Power Analysis" bị vô hiệu hoá</strong> — Power Analysis (mục 12) chỉ hỗ trợ mô hình reflective (Mode A), không có construct formative hay tương tác/điều tiết; cơ chế sinh dữ liệu tổng hợp chưa xử lý được hai trường hợp này. Di chuột vào nút bị vô hiệu hoá sẽ hiện lý do cụ thể.</li>
+      <li><strong>"Cấu hình chạy quá lâu" trong So sánh Machine Learning</strong> — số biến mục tiêu nội sinh × số thuật toán đã chọn × số fold (k) vượt quá ngân sách thời gian cho phép; hãy chọn ít thuật toán hơn (Random Forest và CatBoost là hai thuật toán chậm nhất) hoặc giảm k, rồi thử lại.</li>
+      <li><strong>Một thuật toán hiện "(chưa khả dụng)" trong hộp thoại So sánh Machine Learning</strong> — thư viện của thuật toán đó chưa được cài trên máy chủ đang chạy. Mọi thuật toán đều đã được cài sẵn trong file .exe chính thức, nên trường hợp này thường chỉ xảy ra khi tự triển khai (self-hosted) theo cách tuỳ chỉnh.</li>
     </ul>
   </main>
 </div>

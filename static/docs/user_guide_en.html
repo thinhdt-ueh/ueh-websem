@@ -101,21 +101,26 @@
     <a href="#mediator">4. Mediator constructs</a>
     <a class="sub" href="#mediator-example">Worked example (real data)</a>
     <a class="sub" href="#mediator-read">Reading Total &amp; Indirect Effects</a>
-    <a href="#moderator">5. Moderator constructs</a>
+    <a href="#specific-indirect">5. Specific Indirect Effects</a>
+    <a href="#moderator">6. Moderator constructs</a>
     <a class="sub" href="#moderator-create">Creating an interaction term</a>
     <a class="sub" href="#moderator-example">Worked example (real data)</a>
     <a class="sub" href="#moderator-f2">Moderation f² thresholds</a>
-    <a href="#reading">6. Reading every output table</a>
+    <a href="#moderated-mediation">7. Index of Moderated Mediation</a>
+    <a href="#reading">8. Reading every output table</a>
     <a class="sub" href="#read-measurement">Measurement model</a>
     <a class="sub" href="#read-discriminant">Discriminant validity</a>
     <a class="sub" href="#read-structural">Structural model</a>
     <a class="sub" href="#read-cmb">Common Method Bias</a>
-    <a href="#plspredict">7. PLSpredict — out-of-sample prediction</a>
-    <a href="#ipma">8. IPMA — Importance-Performance Map</a>
-    <a href="#sensitivity">9. Sample Size Sensitivity</a>
-    <a href="#cbsem">10. CB-SEM fit indices</a>
-    <a href="#export">11. Exporting reports</a>
-    <a href="#faq">12. Troubleshooting</a>
+    <a href="#plspredict">9. PLSpredict — out-of-sample prediction</a>
+    <a href="#ipma">10. IPMA — Importance-Performance Map</a>
+    <a href="#sensitivity">11. Sample Size Sensitivity</a>
+    <a class="sub" href="#sensitivity-pvalue">Significance (p-value) trajectory</a>
+    <a href="#power">12. Monte Carlo Power Analysis</a>
+    <a href="#mlcompare">13. Machine Learning Comparison</a>
+    <a href="#cbsem">14. CB-SEM fit indices</a>
+    <a href="#export">15. Exporting reports</a>
+    <a href="#faq">16. Troubleshooting</a>
   </aside>
 
   <main class="doc">
@@ -191,12 +196,31 @@ Attitude (ATT)                <span class="arrow">──▶</span> Behavioral In
       <li><strong>Both non-zero and the same sign</strong> (like PU → Intention) signals <em>complementary mediation</em>: the mediator reinforces the direct effect.</li>
       <li><strong>Both non-zero with opposite signs</strong> would signal <em>competitive mediation</em> (a suppression effect) — none of the sample paths show this, but watch for it in your own models.</li>
     </ul>
-    <div class="callout warn">
-      <strong class="label">Current limitation</strong>
-      The Total &amp; Indirect Effects table reports point estimates only. Formal significance testing of a <em>specific</em> indirect effect (a bootstrapped confidence interval on the a × b product itself) is not yet automated. In the meantime, the practical check available today is the classic causal-steps heuristic: if every individual segment of the chain (each “a” and “b” path) is significant in the bootstrap results — as all five paths are in this example — the indirect route is good evidence of mediation.
+    <div class="callout tip">
+      <strong class="label">Want significance on one specific route?</strong>
+      The Total &amp; Indirect Effects table above sums <em>every</em> route between a pair of constructs, so it can't tell you whether any one specific chain is itself statistically significant. <a href="#specific-indirect">§5, Specific Indirect Effects</a> breaks that sum back down into its individual routes, each with its own bootstrap t-statistic, p-value, and confidence interval — computed directly on that route's own a × b (× c …) product, across the same resamples, rather than the informal causal-steps check this guide used to recommend.
     </div>
 
-    <h2 id="moderator">5. Moderator constructs (interaction terms)</h2>
+    <h2 id="specific-indirect">5. Specific Indirect Effects</h2>
+    <p>When two constructs are connected by more than one mediated route — as PEOU and Behavioral Intention are in the TAM model, via PU alone, via Attitude alone, and via both together — the Total &amp; Indirect Effects table only shows their <em>sum</em>. <strong>Specific Indirect Effects</strong> reports each route separately, with its own bootstrap significance test, so you can tell exactly which chain is driving the overall indirect effect.</p>
+    <p>Running PLS-SEM with bootstrapping (2,000 resamples) on the TAM sample produces:</p>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Route</th><th class="num">Indirect effect</th><th class="num">t</th><th class="num">p</th><th>95% CI</th><th>Significant</th></tr></thead>
+      <tbody>
+        <tr><td>PEOU → PU → Attitude</td><td class="num">0.153</td><td class="num">4.78</td><td class="num">&lt; .001</td><td class="num">[0.093, 0.222]</td><td><span class="badge ok">yes</span></td></tr>
+        <tr><td>PEOU → PU → Intention</td><td class="num">0.167</td><td class="num">5.56</td><td class="num">&lt; .001</td><td class="num">[0.114, 0.230]</td><td><span class="badge ok">yes</span></td></tr>
+        <tr><td>PEOU → Attitude → Intention</td><td class="num">0.074</td><td class="num">2.97</td><td class="num">.003</td><td class="num">[0.026, 0.125]</td><td><span class="badge ok">yes</span></td></tr>
+        <tr><td>PEOU → PU → Attitude → Intention</td><td class="num">0.055</td><td class="num">3.84</td><td class="num">&lt; .001</td><td class="num">[0.029, 0.087]</td><td><span class="badge ok">yes</span></td></tr>
+        <tr><td>PU → Attitude → Intention</td><td class="num">0.119</td><td class="num">4.07</td><td class="num">&lt; .001</td><td class="num">[0.066, 0.181]</td><td><span class="badge ok">yes</span></td></tr>
+      </tbody>
+    </table></div>
+    <p>The three routes reaching Intention from PEOU — PEOU→PU→Intention (0.167), PEOU→Attitude→Intention (0.074), and PEOU→PU→Attitude→Intention (0.055) — sum to 0.296, matching (up to ordinary bootstrap resampling variation) the 0.293 total Indirect effect already shown for PEOU → Intention back in §4. Same underlying arithmetic; here it's decomposed per route instead of summed, and every route gets tested for significance on its own.</p>
+    <div class="callout">
+      <strong class="label">All five routes are significant here — is that always expected?</strong>
+      No — with a weaker or more indirect chain, it's common for the aggregate (Total &amp; Indirect Effects) route to be significant while one of its longer specific routes isn't, or vice versa. That's exactly the kind of nuance this table is for.
+    </div>
+
+    <h2 id="moderator">6. Moderator constructs (interaction terms)</h2>
     <p>A <strong>moderator</strong> changes the <em>strength</em> of a relationship between two other constructs, rather than sitting on a causal chain like a mediator. UEH-WebSEM tests moderation with the standard <strong>two-stage approach</strong> (Henseler &amp; Chin, 2010; Henseler &amp; Fassott, 2010):</p>
     <ol>
       <li><strong>Stage 1</strong> — the base model (without the interaction) is estimated to obtain standardized construct scores.</li>
@@ -245,7 +269,38 @@ Attitude (ATT)                <span class="arrow">──▶</span> Behavioral In
       Blindfolding (used to compute Q²) systematically omits and re-predicts raw indicator values, but an interaction term has no indicators of its own — it is a derived product of two other constructs' scores. Because of this, Q² is automatically skipped (with an explanatory note) for any model containing an interaction term; every other output (path coefficients, R², f², bootstrapping) is unaffected.
     </div>
 
-    <h2 id="reading">6. Reading every output table</h2>
+    <h2 id="moderated-mediation">7. Index of Moderated Mediation (Hayes, 2015)</h2>
+    <p>A mediator explains <em>why</em> or <em>how</em> X affects Y; a moderator explains <em>when</em> or <em>for whom</em> a relationship is stronger or weaker. <strong>Moderated mediation</strong> combines both questions: does the strength of an <em>indirect</em> effect itself depend on a moderator? UEH-WebSEM detects this automatically whenever a model contains a mediated route (X → M → Y) in which exactly one edge is the target of an interaction term, and reports Hayes' (2015) <strong>Index of Moderated Mediation</strong> — the slope of the indirect effect with respect to the moderator, i.e. how much the indirect effect changes per one-unit increase in the moderator.</p>
+    <p>This is scoped to routes with <em>exactly one</em> moderated edge. If both the a-path and the b-path of a route are moderated at once, the indirect effect becomes a bilinear (not linear) function of the two moderators, and Hayes doesn't define a single scalar index for that case — Hayes' own PROCESS macro handles it the same way, via conditional indirect effects evaluated at chosen moderator values instead of one index.</p>
+    <h3>Worked example</h3>
+    <p>Using Hayes' own notation — X (predictor), W (moderator), M (mediator), Y (outcome) — a small model with paths <code>X → M</code>, <code>W → M</code>, <code>X × W → M</code> (an interaction moderating the a-path), and <code>M → Y</code> gives:</p>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Path</th><th class="num">β</th><th class="num">p</th></tr></thead>
+      <tbody>
+        <tr><td>X → M</td><td class="num">0.247</td><td class="num">&lt; .001</td></tr>
+        <tr><td>W → M</td><td class="num">0.125</td><td class="num">.003</td></tr>
+        <tr><td>X × W → M</td><td class="num">0.170</td><td class="num">&lt; .001</td></tr>
+        <tr><td>M → Y</td><td class="num">0.342</td><td class="num">&lt; .001</td></tr>
+      </tbody>
+    </table></div>
+    <p>The route W → M → Y is a mediated path whose first (a) edge, W → M, is itself moderated by X. PLS-SEM (bootstrap, n = 2,000) reports:</p>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Route</th><th>Moderator</th><th class="num">Index</th><th class="num">t</th><th class="num">p</th><th>95% CI</th><th>Significant</th></tr></thead>
+      <tbody>
+        <tr><td>X × W → M → Y</td><td>X</td><td class="num">0.058</td><td class="num">3.00</td><td class="num">.003</td><td class="num">[0.022, 0.099]</td><td><span class="badge ok">yes</span></td></tr>
+      </tbody>
+    </table></div>
+    <p>CB-SEM (Maximum Likelihood) reports the same index as a point estimate only: <strong>0.056</strong> — no separate significance test for this specific index is available under CB-SEM yet.</p>
+    <div class="callout">
+      <strong class="label">Reading the index</strong>
+      0.058 means: for every one-unit increase in X, the indirect effect of W on Y (via M) grows by 0.058. Because its 95% confidence interval [0.022, 0.099] excludes zero, the moderation of this mediated path is itself statistically significant — not just the individual a/b paths on their own, but X's moderating effect on the mediation chain as a whole.
+    </div>
+    <div class="callout warn">
+      <strong class="label">Scope</strong>
+      Only routes with exactly one moderated edge are reported, as explained above. For a model with both-stage moderation, read the Path Coefficients and Simple Slopes outputs directly at chosen moderator values instead.
+    </div>
+
+    <h2 id="reading">8. Reading every output table</h2>
     <p>The numbers in this section come from the same PLS-SEM run used above (TAM sample, n = 250, with the PU × Attitude interaction included).</p>
 
     <h3 id="read-measurement">Measurement model</h3>
@@ -290,7 +345,7 @@ Attitude (ATT)                <span class="arrow">──▶</span> Behavioral In
     </table></div>
     <p>All values sit far below 3.3, so this dataset shows no evidence of common method bias.</p>
 
-    <h2 id="plspredict">7. PLSpredict — Out-of-Sample Predictive Validity</h2>
+    <h2 id="plspredict">9. PLSpredict — Out-of-Sample Predictive Validity</h2>
     <p>R² tells you how well the model fits the <em>data you have</em>, but not whether it would <em>predict well for new respondents</em> — those are genuinely different questions. <strong>PLSpredict</strong> (Shmueli, Ringle &amp; Sarstedt, 2016) answers the second one via k-fold cross-validation (default k = 10):</p>
     <ol>
       <li>Split the data into 10 folds; hold out one fold as the test set and train the model on the remaining nine.</li>
@@ -322,7 +377,7 @@ Attitude (ATT)                <span class="arrow">──▶</span> Behavioral In
       PLSpredict doesn't yet support models containing an interaction (moderator) construct — the app returns a clear error if you try to run it on one.
     </div>
 
-    <h2 id="ipma">8. IPMA — Importance-Performance Map</h2>
+    <h2 id="ipma">10. IPMA — Importance-Performance Map</h2>
     <p><strong>IPMA</strong> (Importance-Performance Map Analysis; Ringle &amp; Sarstedt, 2016) answers a practical question: "which construct is most worth improving first?" For a <strong>target</strong> construct you choose, every one of its antecedent constructs is plotted on two axes:</p>
     <ul>
       <li><strong>Importance (x-axis)</strong> — the standardized total effect on the target construct, the exact same number already shown in the Total &amp; Indirect Effects table (section 4).</li>
@@ -343,7 +398,7 @@ Attitude (ATT)                <span class="arrow">──▶</span> Behavioral In
       Because the 0–100 scale is rescaled from the <em>observed</em> min/max in this particular dataset, not a fixed theoretical scale (e.g. a 1–7 Likert range). That means performance is only meaningful as a <em>relative</em> comparison across constructs within the same run — don't compare it directly across two different datasets.
     </div>
 
-    <h2 id="sensitivity">9. Sample Size Sensitivity</h2>
+    <h2 id="sensitivity">11. Sample Size Sensitivity</h2>
     <p>The question "how large a sample is enough?" is normally answered with a power analysis <em>before</em> collecting data. <strong>Sample Size Sensitivity</strong> approaches it from the other direction, <em>after</em> the data already exists: it re-runs the model repeatedly on progressively smaller random subsamples, to see at what point the main results (R², path coefficients) start swinging around noticeably.</p>
     <p>Click <strong>"📉 Sample Size Sensitivity"</strong>, enter N (how many more observations to drop at each step); the results page <strong>opens in a new tab</strong>. With N = 20 on the TAM sample (original n = 250, running down to about 20 observations):</p>
     <div class="table-wrap"><table>
@@ -357,12 +412,94 @@ Attitude (ATT)                <span class="arrow">──▶</span> Behavioral In
       </tbody>
     </table></div>
     <p>At n = 230 (close to the original sample), Attitude's R² is 0.220; by n = 30, the same statistic swings as high as 0.384 — visibly more volatile as the sample shrinks, exactly as statistical theory predicts (smaller samples carry larger standard errors). The results page plots this full trajectory on a chart, with a backing data table and distinct markers for any sample size where the model failed to converge.</p>
+
+    <h3 id="sensitivity-pvalue">Optional: significance (p-value) trajectory</h3>
+    <p>CB-SEM's Maximum Likelihood fit already gives a p-value for every path at every step — free, and shown automatically. PLS-SEM has no closed-form significance test, so its p-value trajectory is <em>opt-in</em>: it needs an extra bootstrap run at every single step, so enable <strong>"Test statistical significance"</strong> in the modal and choose a resample count if you want it. With 200 resamples per step on the same N = 20 run:</p>
+    <div class="table-wrap"><table>
+      <thead><tr><th class="num">n</th><th class="num">p (PEOU → Attitude)</th><th>Significant (95%)</th></tr></thead>
+      <tbody>
+        <tr><td class="num">230</td><td class="num">.001</td><td><span class="badge ok">yes</span></td></tr>
+        <tr><td class="num">170</td><td class="num">.002</td><td><span class="badge ok">yes</span></td></tr>
+        <tr><td class="num">110</td><td class="num">.045</td><td><span class="badge ok">yes (borderline)</span></td></tr>
+        <tr><td class="num">70</td><td class="num">&lt; .001</td><td><span class="badge ok">yes</span></td></tr>
+        <tr><td class="num">30</td><td class="num">.332</td><td><span class="badge warn">no</span></td></tr>
+      </tbody>
+    </table></div>
+    <p>At n = 30, the same PEOU → Attitude path — significant at every larger sample size tested here — is no longer statistically significant (p = .332): with so few observations left, the bootstrap standard error grows too large to distinguish this coefficient from zero, even though its point estimate is still a similar magnitude. This kind of instability is exactly what the p-value chart is designed to surface, alongside the R² chart.</p>
     <div class="callout warn">
       <strong class="label">Not a formal power analysis</strong>
-      This is an empirical exploration tool ("how much is enough, based on this actual dataset"), not a substitute for a proper power analysis (e.g. G*Power) run before data collection to determine the minimum required sample size.
+      This is an empirical exploration tool ("how much is enough, based on this actual dataset"), not a substitute for a proper a-priori power analysis run <em>before</em> data collection to determine the minimum required sample size — see §12, Monte Carlo Power Analysis, for that.
     </div>
 
-    <h2 id="cbsem">10. CB-SEM fit indices</h2>
+    <h2 id="power">12. Monte Carlo Power Analysis</h2>
+    <p>Sample Size Sensitivity (§11) works backwards from data you already have. <strong>Power Analysis</strong> works forwards, before data collection: given a <em>hypothesized</em> population model (expected path coefficients and average indicator loadings) and a candidate sample size, what's the probability of correctly detecting each effect as statistically significant? No PLS-SEM software has a closed-form formula for this — PLS has no maximum-likelihood standard error to plug into one — so UEH-WebSEM answers it the only rigorous way available: Monte Carlo simulation.</p>
+    <p>For each candidate sample size n, repeated many times (n_mc replicates):</p>
+    <ol>
+      <li>Generate a synthetic dataset of size n from your declared population path coefficients and average loadings (reflective indicators only).</li>
+      <li>Fit the real estimator — PLS-SEM or CB-SEM — on that synthetic data, exactly as it would fit real data.</li>
+      <li>Test each path for significance: PLS-SEM via an inner bootstrap; CB-SEM via its analytic Wald test, no bootstrap needed.</li>
+    </ol>
+    <p>Power at that n = the fraction of replicates where a given path came out significant (p &lt; .05).</p>
+    <div class="callout warn">
+      <strong class="label">Scope</strong>
+      Reflective (Mode A) constructs only — no formative (Mode B) and no interaction/moderation (Mode I) constructs. Both need a materially different synthetic-data-generating process that isn't implemented yet; the button is disabled with an explanation if your current model contains either.
+    </div>
+    <h3>Worked example</h3>
+    <p>Declaring the TAM sample's own observed path coefficients (PEOU→PU = 0.462, PEOU→Attitude = 0.206, PU→Attitude = 0.331, PU→Intention = 0.354, Attitude→Intention = 0.359) and an average loading of 0.86 for every construct, at n = 100 / 150 / 200:</p>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Path</th><th class="num">Declared β</th><th class="num">Power @ n=100</th><th class="num">Power @ n=150</th><th class="num">Power @ n=200</th></tr></thead>
+      <tbody>
+        <tr><td>PEOU → PU</td><td class="num">0.462</td><td class="num">1.000</td><td class="num">1.000</td><td class="num">1.000</td></tr>
+        <tr><td>PEOU → Attitude</td><td class="num">0.206</td><td class="num">0.567</td><td class="num">0.600</td><td class="num">0.800</td></tr>
+        <tr><td>PU → Attitude</td><td class="num">0.331</td><td class="num">0.933</td><td class="num">0.967</td><td class="num">1.000</td></tr>
+        <tr><td>PU → Intention</td><td class="num">0.354</td><td class="num">1.000</td><td class="num">1.000</td><td class="num">1.000</td></tr>
+        <tr><td>Attitude → Intention</td><td class="num">0.359</td><td class="num">0.933</td><td class="num">0.967</td><td class="num">1.000</td></tr>
+      </tbody>
+    </table></div>
+    <p>The weakest declared path (PEOU → Attitude, β = 0.206) is exactly the one with visibly lower power at every sample size — only 57% at n = 100, still just 80% at n = 200 — while every stronger path is already at or near 100% power by n = 100. This is the practical value of power analysis: it tells you which specific relationships in your model actually need a bigger sample, rather than treating "n" as one number for the whole model.</p>
+    <div class="callout tip">
+      <strong class="label">CB-SEM is much cheaper to simulate</strong>
+      CB-SEM's Maximum Likelihood fit gives every path's significance test analytically, with no inner bootstrap loop — roughly 20× cheaper per replicate than PLS-SEM. The CB-SEM button therefore defaults to far more Monte Carlo replicates (100 vs. PLS-SEM's 30) for the same time budget, giving smoother power estimates.
+    </div>
+    <div class="callout warn">
+      <strong class="label">This can take a while</strong>
+      A full run can range from several seconds to several minutes depending on the number of sample-size points, replicates, and (for PLS-SEM) inner bootstrap resamples you choose — the configuration modal shows a live time estimate as you adjust these, and the results tab shows a live countdown once the run starts.
+    </div>
+
+    <h2 id="mlcompare">13. Machine Learning Comparison</h2>
+    <p>SEM path coefficients come from a <em>confirmatory</em>, theory-specified model. <strong>Machine Learning Comparison</strong> offers an independent, purely <em>data-driven</em> cross-check: for every endogenous construct, its direct predecessor constructs — the same predictor set the structural model itself uses — are fed as input features to several ML algorithms (Linear Regression, Logistic Regression, Decision Tree, Random Forest, SVM, Gradient Boosting/GBM, XGBoost, LightGBM, CatBoost), each evaluated by k-fold cross-validation, and the resulting <strong>feature importance</strong> is compared side by side against the SEM path coefficient for that same predictor → target edge.</p>
+    <p>The one importance measure used for that side-by-side comparison is <strong>permutation importance</strong>, computed identically for every algorithm regardless of type (linear coefficient, tree split, or SVM margin) — the only fair common yardstick across such different models. Each algorithm's own detail section additionally shows its "native" importance (regression coefficient, or <code>feature_importances_</code> for tree/boosting models) alongside permutation importance.</p>
+    <div class="callout">
+      <strong class="label">Why does Logistic Regression report Accuracy/AUC instead of R²?</strong>
+      Every SEM construct score is continuous, but Logistic Regression is a classifier. To include it, each target is split at its <em>training fold's</em> median into "High"/"Low" groups, computed separately per k-fold split to avoid leaking test-fold information — Logistic Regression then predicts which group an observation falls into. Since the task changes from regression to classification, so does the metric: Accuracy and AUC instead of R²/RMSE.
+    </div>
+    <h3>Worked example</h3>
+    <p>Running four algorithms — Linear Regression, Logistic Regression, Random Forest, XGBoost — with k = 5 against Attitude (predicted from Perceived Ease of Use and Perceived Usefulness, exactly as in the structural model) on the TAM sample:</p>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Predictor</th><th class="num">SEM β</th><th class="num">Linear Reg.</th><th class="num">Logistic Reg.</th><th class="num">Random Forest</th><th class="num">XGBoost</th></tr></thead>
+      <tbody>
+        <tr><td>Perceived Ease of Use</td><td class="num">0.206</td><td class="num">0.072</td><td class="num">0.014</td><td class="num">−0.059</td><td class="num">−0.064</td></tr>
+        <tr><td>Perceived Usefulness</td><td class="num">0.331</td><td class="num">0.217</td><td class="num">0.060</td><td class="num">0.181</td><td class="num">0.131</td></tr>
+      </tbody>
+    </table></div>
+    <p>(Columns other than SEM β are each algorithm's permutation importance.) All four algorithms agree with the SEM path coefficients on the <em>ranking</em>: Perceived Usefulness matters more than Perceived Ease of Use for predicting Attitude, matching 0.331 &gt; 0.206 in the structural model — independent, data-driven confirmation of the same relative importance.</p>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Algorithm</th><th>Fit metric 1</th><th>Fit metric 2</th></tr></thead>
+      <tbody>
+        <tr><td>Linear Regression</td><td class="num">R² = 0.192</td><td class="num">RMSE = 0.891</td></tr>
+        <tr><td>Logistic Regression</td><td class="num">Accuracy = 0.620</td><td class="num">AUC = 0.693</td></tr>
+        <tr><td>Random Forest</td><td class="num">R² = −0.114</td><td class="num">RMSE = 1.043</td></tr>
+        <tr><td>XGBoost</td><td class="num">R² = −0.436</td><td class="num">RMSE = 1.188</td></tr>
+      </tbody>
+    </table></div>
+    <div class="callout warn">
+      <strong class="label">Negative R² on a small sample is normal, not a bug</strong>
+      Random Forest and XGBoost show <em>negative</em> test-fold R² here — worse than just predicting the mean. With only 250 observations and 2 predictors, these more flexible algorithms overfit their training folds and generalize poorly, while the much simpler Linear Regression still manages a modest positive R². This is itself useful information: it's a sign the true relationship here is close to linear, and a more complex model buys nothing over a simple one for this particular construct.
+    </div>
+    <p>Inputs are construct scores, not raw survey items — so this "feature importance" lives at the same level as the SEM path coefficients, not at the level of individual questionnaire items. Agreement between the two approaches strengthens confidence in a finding; disagreement is a prompt for further scrutiny, not proof the SEM model is wrong — the Machine Learning side only optimizes predictive accuracy, with no hypothesis testing, so this isn't a statistical test that replaces SEM.</p>
+    <p>Every run also includes a <strong>Computation Transparency</strong> section showing the actual server-side source code for the k-fold/permutation-importance engine and for exactly the algorithms you selected, and both the merged comparison table and the full per-algorithm results can be exported to Excel/Word (§15).</p>
+
+    <h2 id="cbsem">14. CB-SEM fit indices</h2>
     <p>Running the same model (with the interaction) under CB-SEM (Maximum Likelihood) produces classic global fit statistics that PLS-SEM does not report:</p>
     <div class="table-wrap"><table>
       <thead><tr><th>Index</th><th class="num">Value</th><th>Good-fit cutoff</th><th>Assessment</th></tr></thead>
@@ -381,18 +518,21 @@ Attitude (ATT)                <span class="arrow">──▶</span> Behavioral In
     </table></div>
     <p>Every practical fit index (CFI, TLI, RMSEA, SRMR, GFI, AGFI, NFI) clears its good-fit cutoff; only the χ² test itself is marginal, which is normal and expected — χ² almost always rejects large or non-normal samples even for a well-fitting model, which is exactly why the other indices exist.</p>
 
-    <h2 id="export">11. Exporting reports</h2>
-    <p>Both the Excel (.xlsx) and Word (.docx) exports rebuild every table shown on screen — including Total &amp; Indirect Effects and, when present, interaction-term rows and moderation-specific f² labels — directly from the analysis you just ran (no re-estimation, so exporting is instant). The report's language always follows whichever language (VI/EN) is selected in the interface <em>at export time</em>, independent of the language used when you originally ran the analysis.</p>
+    <h2 id="export">15. Exporting reports</h2>
+    <p>Both the Excel (.xlsx) and Word (.docx) exports on the main results page rebuild every table shown on screen — including Total &amp; Indirect Effects, Specific Indirect Effects, Index of Moderated Mediation, and (when present) interaction-term rows and moderation-specific f² labels — directly from the analysis you just ran (no re-estimation, so exporting is instant). The <strong>Machine Learning Comparison</strong> page (§13) has its own separate Excel/Word export, rebuilding its comparison table and per-algorithm detail the same way. In both cases, the report's language always follows whichever language (VI/EN) is selected in the interface <em>at export time</em>, independent of the language used when you originally ran the analysis.</p>
 
-    <h2 id="faq">12. Troubleshooting</h2>
+    <h2 id="faq">16. Troubleshooting</h2>
     <ul>
       <li><strong>“Interaction term ‘X’ predicts ‘Y’, so ‘Z’ also needs a direct main-effect path to ‘Y’.”</strong> — Draw the missing direct path from the named source construct to the moderated target, then re-run. Both multiplicands of an interaction must carry their own main effect on the outcome.</li>
       <li><strong>“Need at least 2 other constructs to create an interaction term.”</strong> — Add and configure at least two ordinary (non-interaction) constructs before switching a construct's type to “Interaction / moderation term”.</li>
-      <li><strong>Q² shows a skip message instead of a value</strong> — this is expected whenever the model contains an interaction term (see §5); it does not indicate an error.</li>
+      <li><strong>Q² shows a skip message instead of a value</strong> — this is expected whenever the model contains an interaction term (see §6); it does not indicate an error.</li>
       <li><strong>CB-SEM rejects a formative construct</strong> — CB-SEM (Maximum Likelihood) only supports reflective (Mode A) measurement; switch the construct to PLS-SEM, or change its measurement type if that's substantively appropriate.</li>
       <li><strong>File upload rejected for too many rows</strong> — the tool caps uploads at 5,000 rows; aggregate or sample your dataset down first.</li>
       <li><strong>"PLSpredict doesn't yet support models with an interaction/moderation construct"</strong> — exactly as stated; this feature doesn't yet handle Interaction-type constructs. Temporarily remove the interaction term from the model (or check on a moderator-free version of it) if you want to run PLSpredict.</li>
       <li><strong>The IPMA button has no constructs to choose from</strong> — IPMA needs at least one endogenous construct (something with an incoming path); if your model is all-exogenous, draw a structural path first.</li>
+      <li><strong>The "⚡ Power Analysis" button is disabled</strong> — Power Analysis (§12) only supports reflective (Mode A) models with no formative or interaction/moderation constructs; the synthetic-data generator doesn't yet handle either case. Hovering the disabled button shows the specific reason.</li>
+      <li><strong>"This configuration would take too long" in Machine Learning Comparison</strong> — the number of endogenous targets × selected algorithms × k-fold count exceeded the time budget; select fewer algorithms (Random Forest and CatBoost are the two slowest) or reduce k, then try again.</li>
+      <li><strong>An algorithm shows "(unavailable)" in the Machine Learning Comparison modal</strong> — that algorithm's library isn't installed on the server running this instance. Every algorithm ships pre-installed in the official desktop .exe, so this normally only appears on a custom self-hosted deployment.</li>
     </ul>
   </main>
 </div>
