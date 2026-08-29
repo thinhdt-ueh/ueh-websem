@@ -7,6 +7,7 @@ from flask import Flask, render_template
 from routes.api import api
 from routes.cbsem_api import cbsem_api
 from routes.ipma_api import ipma_api
+from routes.ml_api import ml_api
 from routes.plspredict_api import plspredict_api
 from routes.power_api import power_api
 from routes.sensitivity_api import sensitivity_api
@@ -28,6 +29,7 @@ def create_app() -> Flask:
     app.register_blueprint(plspredict_api)
     app.register_blueprint(ipma_api)
     app.register_blueprint(power_api)
+    app.register_blueprint(ml_api)
 
     @app.get("/")
     def index():
@@ -40,6 +42,10 @@ def create_app() -> Flask:
     @app.get("/power_analysis")
     def power_analysis_page():
         return render_template("power_analysis.html")
+
+    @app.get("/ml_comparison")
+    def ml_comparison_page():
+        return render_template("ml_comparison.html")
 
     return app
 

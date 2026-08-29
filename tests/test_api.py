@@ -137,6 +137,46 @@ def test_sensitivity_endpoint_rejects_excessive_bootstrap_budget(client, tam_df,
     assert "error" in resp.get_json()
 
 
+def test_ml_compare_endpoint(client, tam_df, tam_model_json):
+    file_id = _upload(client, tam_df)
+    resp = client.post("/api/ml_compare", json={
+        "file_id": file_id, "model": tam_model_json, "lang": "en", "method": "pls",
+        "algorithms": ["linreg", "logreg", "rf"], "k": 3,
+    })
+    assert resp.status_code == 200, resp.get_json()
+    data = resp.get_json()
+    assert {t["target_id"] for t in data["targets"]} == {"pu", "att", "int"}
+    att = next(t for t in data["targets"] if t["target_id"] == "att")
+    assert {p["id"] for p in att["predictors"]} == {"peou", "pu"}
+    assert all(p["sem_coefficient"] is not None for p in att["predictors"])
+    linreg = att["algorithms"]["linreg"]
+    assert linreg["task"] == "regression"
+    assert "r2" in linreg["metrics"]
+    logreg = att["algorithms"]["logreg"]
+    assert logreg["task"] == "classification"
+    assert "accuracy" in logreg["metrics"]
+
+
+def test_ml_compare_endpoint_rejects_no_algorithms(client, tam_df, tam_model_json):
+    file_id = _upload(client, tam_df)
+    resp = client.post("/api/ml_compare", json={
+        "file_id": file_id, "model": tam_model_json, "lang": "en", "method": "pls", "algorithms": [],
+    })
+    assert resp.status_code == 400
+    assert "error" in resp.get_json()
+
+
+def test_ml_compare_endpoint_cbsem(client, tam_df, tam_model_json):
+    file_id = _upload(client, tam_df)
+    resp = client.post("/api/ml_compare", json={
+        "file_id": file_id, "model": tam_model_json, "lang": "en", "method": "cbsem",
+        "algorithms": ["linreg", "dtree"], "k": 3,
+    })
+    assert resp.status_code == 200, resp.get_json()
+    data = resp.get_json()
+    assert {t["target_id"] for t in data["targets"]} == {"pu", "att", "int"}
+
+
 def test_plspredict_endpoint(client, tam_df, tam_model_json):
     file_id = _upload(client, tam_df)
     resp = client.post("/api/plspredict", json={"file_id": file_id, "model": tam_model_json, "lang": "en"})

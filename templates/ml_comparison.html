@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>UEH-WebSEM</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+<header class="topbar">
+  <img class="brand-logo" src="{{ url_for('static', filename='img/logo-ueh.png') }}" alt="UEH">
+  <div class="brand"><span>WebSEM</span></div>
+  <div class="hint" style="margin:0" data-i18n="ml_page_title">So sánh Machine Learning</div>
+  <div class="lang-switch" id="langSwitch">
+    <button class="lang-btn" data-lang="vi">VI</button>
+    <button class="lang-btn active" data-lang="en">EN</button>
+  </div>
+  <button class="btn ghost" id="closeTabBtn" data-i18n="sens_close_tab">✕ Đóng tab này</button>
+</header>
+
+<main class="standalone-page">
+  <div id="mlLoading" class="panel-card standalone-status">
+    <p data-i18n="ml_loading">Đang huấn luyện các thuật toán Machine Learning — có thể mất một lúc…</p>
+  </div>
+  <div id="mlError" class="panel-card standalone-status hidden"></div>
+
+  <div id="mlContent" class="hidden">
+    <div class="panel-card">
+      <h2 data-i18n="ml_summary_title">Tổng quan</h2>
+      <p class="hint" id="mlSummary"></p>
+      <p class="hint" data-i18n="ml_method_hint">Với mỗi construct nội sinh (có ít nhất 1 đường dẫn đi vào), các construct tiền đề trực tiếp của nó (đúng như trong mô hình cấu trúc) được dùng làm biến đầu vào để huấn luyện từng thuật toán đã chọn, đánh giá bằng k-fold cross-validation. Feature importance hiển thị ở phần so sánh là permutation importance — cách đo duy nhất có thể so sánh công bằng giữa hệ số hồi quy tuyến tính, mức độ phân tách của cây quyết định, và biên độ của SVM.</p>
+    </div>
+
+    <div class="panel-card">
+      <h2 data-i18n="ml_comparison_title">So sánh: Hệ số đường dẫn SEM vs. Feature Importance (ML)</h2>
+      <p class="hint" data-i18n="ml_comparison_hint">Mỗi khối bên dưới ứng với một construct nội sinh (biến mục tiêu). Cột "SEM" là hệ số đường dẫn chuẩn hóa từ mô hình cấu trúc; các cột thuật toán là permutation importance (đã chuẩn hóa 0–1 trong từng biến mục tiêu để dễ so sánh).</p>
+      <div id="mlComparisonContainer"></div>
+    </div>
+
+    <div class="panel-card">
+      <h2 data-i18n="ml_detail_title">Chi tiết từng thuật toán</h2>
+      <p class="hint" data-i18n="ml_detail_hint">Chỉ số phù hợp (R²/RMSE cho hồi quy, Accuracy/AUC cho Logistic Regression) và bảng xếp hạng importance đầy đủ — gồm cả importance "gốc" của thuật toán (hệ số hồi quy hoặc feature_importances_) lẫn permutation importance.</p>
+      <div id="mlDetailContainer"></div>
+    </div>
+
+    <div class="panel-card">
+      <h2 data-i18n="ml_guide_section_title">Hướng dẫn đọc &amp; Ý nghĩa các chỉ số</h2>
+      <div class="reading-guide">
+        <details>
+          <summary data-i18n="ml_guide_what_summary">So sánh Machine Learning là gì?</summary>
+          <div class="reading-guide-body" data-i18n-html="ml_guide_what_body">
+            <p>Công cụ này chạy lại đúng bộ dữ liệu bạn đã dùng cho SEM, nhưng thay vì mô hình cấu trúc (path model), mỗi construct nội sinh được dự báo bằng các thuật toán Machine Learning — từ hồi quy tuyến tính/logistic đơn giản đến các mô hình cây và boosting (Random Forest, GBM, XGBoost, LightGBM, CatBoost). Mục tiêu là kiểm tra chéo: các biến tiền đề mà mô hình SEM cho là quan trọng (hệ số đường dẫn lớn) có thực sự là những biến "quan trọng nhất" theo góc nhìn dữ liệu-hướng (data-driven) của Machine Learning hay không.</p>
+            <p><strong>Đây không phải là kiểm định thống kê thay thế SEM</strong> — SEM ước lượng một mô hình lý thuyết đã khai báo trước (confirmatory), trong khi Machine Learning ở đây chỉ tối ưu khả năng dự báo (predictive), không kiểm định giả thuyết. Sự đồng thuận giữa hai cách tiếp cận củng cố thêm độ tin cậy của phát hiện; sự khác biệt là gợi ý để xem xét thêm, không phải bằng chứng SEM "sai".</p>
+          </div>
+        </details>
+        <details>
+          <summary data-i18n="ml_guide_logreg_summary">Vì sao Logistic Regression lại có Accuracy/AUC thay vì R²?</summary>
+          <div class="reading-guide-body" data-i18n-html="ml_guide_logreg_body">
+            <p>Điểm số construct (construct score) trong SEM là biến liên tục, trong khi Logistic Regression là một thuật toán phân loại (classification). Để đưa được thuật toán này vào so sánh, biến mục tiêu được chia đôi tại trung vị (median) của tập huấn luyện thành hai nhóm "Cao"/"Thấp" — Logistic Regression khi đó dự báo một quan sát thuộc nhóm nào. Vì bản chất bài toán đã đổi từ hồi quy sang phân loại, chỉ số đánh giá cũng đổi theo: Accuracy (tỉ lệ dự báo đúng nhóm) và AUC (khả năng phân biệt hai nhóm), thay vì R²/RMSE như các thuật toán hồi quy còn lại.</p>
+          </div>
+        </details>
+        <details>
+          <summary data-i18n="ml_guide_limits_summary">Giới hạn</summary>
+          <div class="reading-guide-body" data-i18n-html="ml_guide_limits_body">
+            <ul>
+              <li>Biến đầu vào là điểm số construct (construct score/factor score), không phải các indicator gốc — nên "feature importance" ở đây là ở cấp construct, tương ứng trực tiếp với hệ số đường dẫn SEM, chứ không phải importance của từng câu hỏi/item khảo sát.</li>
+              <li>Với cỡ mẫu nhỏ, các thuật toán phức tạp (Random Forest, boosting) dễ overfit hơn hồi quy tuyến tính — R² âm ở tập kiểm tra (test fold) là dấu hiệu bình thường khi dữ liệu ít, không hẳn là lỗi.</li>
+              <li>SVM không có importance "gốc" (native) vì kernel mặc định không tuyến tính — chỉ hiển thị được permutation importance.</li>
+              <li>Ngưỡng chia đôi (median split) của Logistic Regression làm mất thông tin so với biến liên tục gốc — chỉ nên xem đây là một góc nhìn bổ sung, không thay thế phân tích hồi quy đầy đủ.</li>
+            </ul>
+          </div>
+        </details>
+      </div>
+    </div>
+  </div>
+</main>
+
+{% include "footer.html" %}
+
+<script src="{{ url_for('static', filename='js/i18n.js') }}"></script>
+<script src="{{ url_for('static', filename='js/ml_comparison.js') }}"></script>
+</body>
+</html>

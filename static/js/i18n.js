@@ -109,6 +109,7 @@ const I18N = {
     s3_export_word: "📄 Xuất Word",
     s3_sensitivity_btn: "📉 Phân tích độ nhạy cỡ mẫu",
     s3_power_btn: "⚡ Power Analysis",
+    s3_ml_compare_btn: "🤖 So sánh Machine Learning",
     s3_plspredict_btn: "🔮 PLSpredict",
     s3_plspredict_running: "Đang chạy k-fold…",
     s3_plspredict_title: "PLSpredict — Đánh giá khả năng dự báo ngoài mẫu",
@@ -251,6 +252,63 @@ const I18N = {
       "<li>Kết quả phụ thuộc hoàn toàn vào giá trị path coefficient/loading kỳ vọng bạn khai báo — đây là mô phỏng dựa trên giả định của bạn, không phải \"sự thật\". Nên thử vài kịch bản khác nhau (lạc quan/thận trọng) để có bức tranh đầy đủ hơn.</li>" +
       "<li>Số lần lặp Monte Carlo càng thấp, đường cong càng nhiễu (dao động ngẫu nhiên do lấy mẫu) — tăng lên nếu cần đường cong mượt hơn, đổi lại thời gian chạy lâu hơn.</li>" +
       "</ul>",
+
+    // --- ML comparison page ---
+    ml_page_title: "So sánh Machine Learning",
+    ml_loading: "Đang huấn luyện các thuật toán Machine Learning — có thể mất một lúc…",
+    ml_no_job: "Không tìm thấy yêu cầu phân tích — hãy mở trang này từ nút \"So sánh Machine Learning\" ở trang kết quả.",
+    ml_failed: "So sánh Machine Learning thất bại.",
+    ml_summary_title: "Tổng quan",
+    ml_summary_text: "{method} · {nTargets} construct nội sinh · {nAlgos} thuật toán đã chọn · k-fold cross-validation với k={k}.",
+    ml_method_hint: "Với mỗi construct nội sinh (có ít nhất 1 đường dẫn đi vào), các construct tiền đề trực tiếp của nó (đúng như trong mô hình cấu trúc) được dùng làm biến đầu vào để huấn luyện từng thuật toán đã chọn, đánh giá bằng k-fold cross-validation. Feature importance hiển thị ở phần so sánh là permutation importance — cách đo duy nhất có thể so sánh công bằng giữa hệ số hồi quy tuyến tính, mức độ phân tách của cây quyết định, và biên độ của SVM.",
+    ml_comparison_title: "So sánh: Hệ số đường dẫn SEM vs. Feature Importance (ML)",
+    ml_comparison_hint: "Mỗi khối bên dưới ứng với một construct nội sinh (biến mục tiêu). Cột \"SEM\" là hệ số đường dẫn chuẩn hóa từ mô hình cấu trúc; các cột thuật toán là permutation importance (đã chuẩn hóa 0–1 trong từng biến mục tiêu để dễ so sánh).",
+    ml_detail_title: "Chi tiết từng thuật toán",
+    ml_detail_hint: "Chỉ số phù hợp (R²/RMSE cho hồi quy, Accuracy/AUC cho Logistic Regression) và bảng xếp hạng importance đầy đủ — gồm cả importance \"gốc\" của thuật toán (hệ số hồi quy hoặc feature_importances_) lẫn permutation importance.",
+    ml_th_predictor: "Biến tiền đề",
+    ml_th_sem_coef: "SEM (path coef.)",
+    ml_th_target: "Biến mục tiêu",
+    ml_th_accuracy: "Accuracy",
+    ml_th_auc: "AUC",
+    ml_th_native_importance: "Importance gốc",
+    ml_th_permutation_importance: "Permutation Importance",
+    ml_tooltip_normalized: "đã chuẩn hóa",
+    ml_algo_linreg: "Hồi quy tuyến tính (Linear Regression)",
+    ml_algo_logreg: "Hồi quy Logistic (Logistic Regression)",
+    ml_algo_dtree: "Cây quyết định (Decision Tree)",
+    ml_algo_rf: "Random Forest",
+    ml_algo_svm: "Support Vector Machine (SVM)",
+    ml_algo_gbm: "Gradient Boosting (GBM)",
+    ml_algo_xgboost: "XGBoost",
+    ml_algo_lightgbm: "LightGBM",
+    ml_algo_catboost: "CatBoost",
+    ml_guide_section_title: "Hướng dẫn đọc & Ý nghĩa các chỉ số",
+    ml_guide_what_summary: "So sánh Machine Learning là gì?",
+    ml_guide_what_body:
+      "<p>Công cụ này chạy lại đúng bộ dữ liệu bạn đã dùng cho SEM, nhưng thay vì mô hình cấu trúc (path model), mỗi construct nội sinh được dự báo bằng các thuật toán Machine Learning — từ hồi quy tuyến tính/logistic đơn giản đến các mô hình cây và boosting (Random Forest, GBM, XGBoost, LightGBM, CatBoost). Mục tiêu là kiểm tra chéo: các biến tiền đề mà mô hình SEM cho là quan trọng (hệ số đường dẫn lớn) có thực sự là những biến \"quan trọng nhất\" theo góc nhìn dữ liệu-hướng (data-driven) của Machine Learning hay không.</p>" +
+      "<p><strong>Đây không phải là kiểm định thống kê thay thế SEM</strong> — SEM ước lượng một mô hình lý thuyết đã khai báo trước (confirmatory), trong khi Machine Learning ở đây chỉ tối ưu khả năng dự báo (predictive), không kiểm định giả thuyết. Sự đồng thuận giữa hai cách tiếp cận củng cố thêm độ tin cậy của phát hiện; sự khác biệt là gợi ý để xem xét thêm, không phải bằng chứng SEM \"sai\".</p>",
+    ml_guide_logreg_summary: "Vì sao Logistic Regression lại có Accuracy/AUC thay vì R²?",
+    ml_guide_logreg_body:
+      "<p>Điểm số construct (construct score) trong SEM là biến liên tục, trong khi Logistic Regression là một thuật toán phân loại (classification). Để đưa được thuật toán này vào so sánh, biến mục tiêu được chia đôi tại trung vị (median) của tập huấn luyện thành hai nhóm \"Cao\"/\"Thấp\" — Logistic Regression khi đó dự báo một quan sát thuộc nhóm nào. Vì bản chất bài toán đã đổi từ hồi quy sang phân loại, chỉ số đánh giá cũng đổi theo: Accuracy (tỉ lệ dự báo đúng nhóm) và AUC (khả năng phân biệt hai nhóm), thay vì R²/RMSE như các thuật toán hồi quy còn lại.</p>",
+    ml_guide_limits_summary: "Giới hạn",
+    ml_guide_limits_body:
+      "<ul>" +
+      "<li>Biến đầu vào là điểm số construct (construct score/factor score), không phải các indicator gốc — nên \"feature importance\" ở đây là ở cấp construct, tương ứng trực tiếp với hệ số đường dẫn SEM, chứ không phải importance của từng câu hỏi/item khảo sát.</li>" +
+      "<li>Với cỡ mẫu nhỏ, các thuật toán phức tạp (Random Forest, boosting) dễ overfit hơn hồi quy tuyến tính — R² âm ở tập kiểm tra (test fold) là dấu hiệu bình thường khi dữ liệu ít, không hẳn là lỗi.</li>" +
+      "<li>SVM không có importance \"gốc\" (native) vì kernel mặc định không tuyến tính — chỉ hiển thị được permutation importance.</li>" +
+      "<li>Ngưỡng chia đôi (median split) của Logistic Regression làm mất thông tin so với biến liên tục gốc — chỉ nên xem đây là một góc nhìn bổ sung, không thay thế phân tích hồi quy đầy đủ.</li>" +
+      "</ul>",
+    ml_modal_title: "Cấu hình So sánh Machine Learning",
+    ml_modal_loading_algorithms: "Đang tải danh sách thuật toán khả dụng…",
+    ml_modal_load_failed: "Không tải được danh sách thuật toán. Vui lòng thử lại.",
+    ml_modal_hint: "Chọn các thuật toán muốn chạy — mỗi thuật toán được đánh giá bằng k-fold cross-validation trên cùng dữ liệu đã dùng cho SEM.",
+    ml_modal_unavailable: "chưa khả dụng",
+    ml_modal_unavailable_hint: "Thư viện của thuật toán này chưa được cài trên máy chủ.",
+    ml_modal_k_label: "Số fold (k) cho cross-validation",
+    ml_modal_k_hint: "Cao hơn = ước lượng ổn định hơn nhưng chạy lâu hơn, đặc biệt với Random Forest/CatBoost.",
+    ml_modal_select_at_least_one: "Vui lòng chọn ít nhất một thuật toán.",
+    ml_modal_invalid_k: "Số fold (k) phải từ 2 đến 10.",
+
     s3_export_failed: "Xuất báo cáo thất bại.",
     s3_loading_pls_boot: "Đang ước lượng mô hình và chạy Bootstrapping ({n} lần lặp — có thể mất vài chục giây)…",
     s3_loading_pls: "Đang ước lượng mô hình…",
@@ -577,6 +635,7 @@ const I18N = {
     s3_export_word: "📄 Export Word",
     s3_sensitivity_btn: "📉 Sample Size Sensitivity",
     s3_power_btn: "⚡ Power Analysis",
+    s3_ml_compare_btn: "🤖 ML Comparison",
     s3_plspredict_btn: "🔮 PLSpredict",
     s3_plspredict_running: "Running k-fold…",
     s3_plspredict_title: "PLSpredict — Out-of-Sample Predictive Validity",
@@ -719,6 +778,63 @@ const I18N = {
       "<li>Results depend entirely on the expected path coefficients/loadings you declare — this is a simulation under your assumptions, not \"the truth\". Try a few scenarios (optimistic/conservative) for a fuller picture.</li>" +
       "<li>Fewer Monte Carlo replicates means a noisier curve (more random sampling fluctuation) — raise the count for a smoother curve at the cost of a longer run.</li>" +
       "</ul>",
+
+    // --- ML comparison page ---
+    ml_page_title: "Machine Learning Comparison",
+    ml_loading: "Training the selected Machine Learning algorithms — this may take a moment…",
+    ml_no_job: "No analysis request found — open this page from the \"ML Comparison\" button on the results page.",
+    ml_failed: "ML Comparison failed.",
+    ml_summary_title: "Overview",
+    ml_summary_text: "{method} · {nTargets} endogenous constructs · {nAlgos} algorithms selected · k-fold cross-validation with k={k}.",
+    ml_method_hint: "For every endogenous construct (with at least one incoming path), its direct predecessor constructs (exactly as in the structural model) are used as input features to train each selected algorithm, evaluated via k-fold cross-validation. The feature importance shown in the comparison section is permutation importance — the one measure that's fairly comparable across linear coefficients, decision-tree splits, and SVM margins.",
+    ml_comparison_title: "Comparison: SEM Path Coefficients vs. ML Feature Importance",
+    ml_comparison_hint: "Each block below corresponds to one endogenous construct (target). The \"SEM\" column is the standardized path coefficient from the structural model; the algorithm columns are permutation importance (normalized 0–1 within each target for easier comparison).",
+    ml_detail_title: "Per-Algorithm Detail",
+    ml_detail_hint: "Fit metrics (R²/RMSE for regressors, Accuracy/AUC for Logistic Regression) and the full importance ranking — both the algorithm's own \"native\" importance (regression coefficient or feature_importances_) and permutation importance.",
+    ml_th_predictor: "Predictor",
+    ml_th_sem_coef: "SEM (path coef.)",
+    ml_th_target: "Target",
+    ml_th_accuracy: "Accuracy",
+    ml_th_auc: "AUC",
+    ml_th_native_importance: "Native Importance",
+    ml_th_permutation_importance: "Permutation Importance",
+    ml_tooltip_normalized: "normalized",
+    ml_algo_linreg: "Linear Regression",
+    ml_algo_logreg: "Logistic Regression",
+    ml_algo_dtree: "Decision Tree",
+    ml_algo_rf: "Random Forest",
+    ml_algo_svm: "Support Vector Machine (SVM)",
+    ml_algo_gbm: "Gradient Boosting (GBM)",
+    ml_algo_xgboost: "XGBoost",
+    ml_algo_lightgbm: "LightGBM",
+    ml_algo_catboost: "CatBoost",
+    ml_guide_section_title: "How to Read This & What the Numbers Mean",
+    ml_guide_what_summary: "What is the ML Comparison?",
+    ml_guide_what_body:
+      "<p>This tool re-runs the exact dataset you used for SEM, but instead of the structural (path) model, each endogenous construct is predicted using Machine Learning algorithms — from simple linear/logistic regression to tree and boosting models (Random Forest, GBM, XGBoost, LightGBM, CatBoost). The goal is a cross-check: are the predictors the SEM model considers important (large path coefficients) actually the \"most important\" ones from Machine Learning's purely data-driven point of view?</p>" +
+      "<p><strong>This is not a statistical test that replaces SEM</strong> — SEM estimates a pre-specified theoretical model (confirmatory), while the Machine Learning here only optimizes predictive accuracy (predictive), with no hypothesis testing. Agreement between the two approaches strengthens confidence in a finding; disagreement is a prompt for further scrutiny, not proof the SEM model is \"wrong\".</p>",
+    ml_guide_logreg_summary: "Why does Logistic Regression report Accuracy/AUC instead of R²?",
+    ml_guide_logreg_body:
+      "<p>A construct score in SEM is a continuous variable, while Logistic Regression is a classification algorithm. To include it in the comparison, the target is split at its training-fold median into \"High\"/\"Low\" groups — Logistic Regression then predicts which group an observation falls into. Since the task itself changed from regression to classification, the evaluation metrics change accordingly: Accuracy (fraction of correctly classified observations) and AUC (how well the two groups are separated), instead of the R²/RMSE used by every other, regression-based algorithm.</p>",
+    ml_guide_limits_summary: "Limitations",
+    ml_guide_limits_body:
+      "<ul>" +
+      "<li>Inputs are construct scores/factor scores, not the raw indicators — so \"feature importance\" here is at the construct level, corresponding directly to the SEM path coefficients, not the importance of individual survey items.</li>" +
+      "<li>With small samples, more complex algorithms (Random Forest, boosting) overfit more easily than linear regression — a negative test-fold R² is a normal sign of limited data, not necessarily a bug.</li>" +
+      "<li>SVM has no \"native\" importance (its default kernel isn't linear) — only permutation importance is shown for it.</li>" +
+      "<li>Logistic Regression's median split discards information relative to the original continuous variable — treat it as a complementary view, not a replacement for a full regression analysis.</li>" +
+      "</ul>",
+    ml_modal_title: "Configure ML Comparison",
+    ml_modal_loading_algorithms: "Loading available algorithms…",
+    ml_modal_load_failed: "Couldn't load the algorithm list. Please try again.",
+    ml_modal_hint: "Choose which algorithms to run — each is evaluated via k-fold cross-validation on the same data used for SEM.",
+    ml_modal_unavailable: "unavailable",
+    ml_modal_unavailable_hint: "This algorithm's library isn't installed on the server.",
+    ml_modal_k_label: "Number of folds (k) for cross-validation",
+    ml_modal_k_hint: "Higher = more stable estimates but a longer run, especially for Random Forest/CatBoost.",
+    ml_modal_select_at_least_one: "Please select at least one algorithm.",
+    ml_modal_invalid_k: "The number of folds (k) must be between 2 and 10.",
+
     s3_export_failed: "Failed to export the report.",
     s3_loading_pls_boot: "Estimating the model and running Bootstrapping ({n} resamples — may take up to a minute)…",
     s3_loading_pls: "Estimating the model…",

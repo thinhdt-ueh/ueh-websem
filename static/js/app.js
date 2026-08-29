@@ -663,6 +663,8 @@ document.getElementById("sensitivityBtn").addEventListener("click", () => openSe
 document.getElementById("cbsemSensitivityBtn").addEventListener("click", () => openSensitivityModal("cbsem"));
 document.getElementById("powerAnalysisBtn").addEventListener("click", () => openPowerAnalysisModal("pls"));
 document.getElementById("cbsemPowerAnalysisBtn").addEventListener("click", () => openPowerAnalysisModal("cbsem"));
+document.getElementById("mlCompareBtn").addEventListener("click", () => openMlComparisonModal("pls"));
+document.getElementById("cbsemMlCompareBtn").addEventListener("click", () => openMlComparisonModal("cbsem"));
 document.getElementById("plspredictBtn").addEventListener("click", runPlspredict);
 document.getElementById("ipmaBtn").addEventListener("click", openIpmaModal);
 
@@ -1143,6 +1145,76 @@ function openPowerAnalysisModal(method) {
     sessionStorage.setItem("websem_power_job", JSON.stringify(job));
     root.innerHTML = "";
     window.open("/power_analysis", "_blank");
+  };
+}
+
+async function openMlComparisonModal(method) {
+  const root = document.getElementById("modalRoot");
+  root.innerHTML = `<div class="modal-backdrop"><div class="modal-box"><h3>${t("ml_modal_title")}</h3><p class="hint">${t("ml_modal_loading_algorithms")}</p></div></div>`;
+
+  let algorithms = null;
+  try {
+    const res = await fetch("/api/ml_algorithms");
+    const data = await res.json();
+    if (res.ok) algorithms = data.algorithms;
+  } catch {
+    algorithms = null;
+  }
+  if (!algorithms) {
+    root.innerHTML = `
+      <div class="modal-backdrop">
+        <div class="modal-box">
+          <h3>${t("ml_modal_title")}</h3>
+          <div class="error-box">${t("ml_modal_load_failed")}</div>
+          <div class="modal-actions"><button class="btn" id="mlModalClose">${t("modal_cancel")}</button></div>
+        </div>
+      </div>`;
+    document.getElementById("mlModalClose").onclick = () => (root.innerHTML = "");
+    return;
+  }
+
+  const checklistHtml = algorithms.map((a) => `
+    <label class="radio-row"${a.available ? "" : ` title="${escapeAttr(t("ml_modal_unavailable_hint"))}"`}>
+      <input type="checkbox" data-algo="${escapeAttr(a.id)}" ${a.available ? "checked" : "disabled"}>
+      ${escapeHtml(t(a.name_key))}${a.available ? "" : ` <span class="hint">(${t("ml_modal_unavailable")})</span>`}
+    </label>
+  `).join("");
+
+  root.innerHTML = `
+    <div class="modal-backdrop">
+      <div class="modal-box wide">
+        <h3>${t("ml_modal_title")}</h3>
+        <p class="hint">${t("ml_modal_hint")}</p>
+        <div class="ml-algo-checklist">${checklistHtml}</div>
+        <label>${t("ml_modal_k_label")}</label>
+        <input type="number" id="mlKFold" min="2" max="10" step="1" value="5">
+        <p class="hint">${t("ml_modal_k_hint")}</p>
+        <div id="mlModalError" class="error-box hidden"></div>
+        <div class="modal-actions">
+          <button class="btn" id="mlModalCancel">${t("modal_cancel")}</button>
+          <button class="btn primary" id="mlModalOk">${t("sens_modal_run")}</button>
+        </div>
+      </div>
+    </div>`;
+  document.getElementById("mlModalCancel").onclick = () => (root.innerHTML = "");
+  document.getElementById("mlModalOk").onclick = () => {
+    const errBox = document.getElementById("mlModalError");
+    const selected = [...root.querySelectorAll("input[data-algo]:checked")].map((i) => i.dataset.algo);
+    const k = parseInt(document.getElementById("mlKFold").value, 10);
+    if (selected.length === 0) {
+      errBox.textContent = t("ml_modal_select_at_least_one");
+      errBox.classList.remove("hidden");
+      return;
+    }
+    if (!Number.isInteger(k) || k < 2 || k > 10) {
+      errBox.textContent = t("ml_modal_invalid_k");
+      errBox.classList.remove("hidden");
+      return;
+    }
+    const job = { file_id: state.fileId, model: editor.serialize(), method, algorithms: selected, k, lang: getLang() };
+    sessionStorage.setItem("websem_ml_job", JSON.stringify(job));
+    root.innerHTML = "";
+    window.open("/ml_comparison", "_blank");
   };
 }
 
