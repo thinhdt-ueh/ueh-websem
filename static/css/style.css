@@ -229,6 +229,10 @@ canvas { width: 100%; border: 1px solid var(--border); border-radius: 10px; back
 .ai-key-row { display: flex; gap: 6px; margin: 6px 0 4px; }
 .ai-key-row input { margin: 0; flex: 1; }
 .ai-key-row button { flex-shrink: 0; padding: 0 12px; }
+#aiTemperatureValue { font-weight: 700; color: var(--primary); }
+.ai-temp-row { display: flex; align-items: center; gap: 10px; margin: 6px 0 4px; }
+.ai-temp-row input[type="range"] { flex: 1; width: auto; margin: 0; accent-color: var(--primary); }
+.ai-temp-endpoint { font-size: 12px; color: var(--muted); flex-shrink: 0; white-space: nowrap; }
 .ai-provider-tabs { display: flex; gap: 6px; margin: 6px 0 12px; flex-wrap: wrap; }
 .ai-provider-tab {
   border: 1px solid var(--border); background: var(--card); color: var(--text);

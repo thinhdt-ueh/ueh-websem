@@ -39,6 +39,14 @@ REQUEST_TIMEOUT_SECONDS = 240
 # doesn't get truncated mid-sentence.
 CLAUDE_MAX_TOKENS = 8192
 GEMINI_MAX_OUTPUT_TOKENS = 8192
+# Anthropic's documented temperature range is 0-1 (not 0-2 like OpenAI/
+# Gemini) -- rather than juggling a different valid range per provider,
+# every provider is exposed through the same 0-1 slider, since that already
+# covers the practically meaningful range (fully deterministic to quite
+# creative) and guarantees a value that's always valid for all three.
+DEFAULT_TEMPERATURE = 1.0
+MIN_TEMPERATURE = 0.0
+MAX_TEMPERATURE = 1.0
 
 DEFAULT_MODELS = {
     "openai": "gpt-4o-mini",
@@ -129,7 +137,7 @@ def _build_messages(context: str, user_prompt: str, lang: str, report_length: st
     return system_msg, user_msg
 
 
-def _call_openai(api_key: str, model: str, system_msg: str, user_msg: str) -> str:
+def _call_openai(api_key: str, model: str, system_msg: str, user_msg: str, temperature: float) -> str:
     """Each `_call_*` function is isolated so tests can monkeypatch it
     directly (by name, looked up dynamically at call time in the route
     below) without touching real network/credentials.
@@ -147,7 +155,7 @@ def _call_openai(api_key: str, model: str, system_msg: str, user_msg: str) -> st
             {"role": "system", "content": system_msg},
             {"role": "user", "content": user_msg},
         ],
-        "temperature": 0.3,
+        "temperature": temperature,
     }).encode("utf-8")
     req = urllib.request.Request(
         OPENAI_CHAT_COMPLETIONS_URL,
@@ -160,11 +168,11 @@ def _call_openai(api_key: str, model: str, system_msg: str, user_msg: str) -> st
     return payload["choices"][0]["message"]["content"]
 
 
-def _call_gemini(api_key: str, model: str, system_msg: str, user_msg: str) -> str:
+def _call_gemini(api_key: str, model: str, system_msg: str, user_msg: str, temperature: float) -> str:
     body = json.dumps({
         "system_instruction": {"parts": [{"text": system_msg}]},
         "contents": [{"role": "user", "parts": [{"text": user_msg}]}],
-        "generationConfig": {"temperature": 0.3, "maxOutputTokens": GEMINI_MAX_OUTPUT_TOKENS},
+        "generationConfig": {"temperature": temperature, "maxOutputTokens": GEMINI_MAX_OUTPUT_TOKENS},
     }).encode("utf-8")
     url = GEMINI_URL_TMPL.format(model=urllib.parse.quote(model), key=urllib.parse.quote(api_key))
     req = urllib.request.Request(url, data=body, method="POST", headers={"Content-Type": "application/json"})
@@ -173,13 +181,13 @@ def _call_gemini(api_key: str, model: str, system_msg: str, user_msg: str) -> st
     return payload["candidates"][0]["content"]["parts"][0]["text"]
 
 
-def _call_claude(api_key: str, model: str, system_msg: str, user_msg: str) -> str:
+def _call_claude(api_key: str, model: str, system_msg: str, user_msg: str, temperature: float) -> str:
     body = json.dumps({
         "model": model,
         "max_tokens": CLAUDE_MAX_TOKENS,
         "system": system_msg,
         "messages": [{"role": "user", "content": user_msg}],
-        "temperature": 0.3,
+        "temperature": temperature,
     }).encode("utf-8")
     req = urllib.request.Request(
         CLAUDE_MESSAGES_URL,
@@ -210,6 +218,11 @@ def ai_report():
         report_length = "long"
     raw_options = payload.get("options") or {}
     options = {k: bool(raw_options.get(k)) for k in REPORT_OPTION_KEYS}
+    try:
+        temperature = float(payload.get("temperature", DEFAULT_TEMPERATURE))
+    except (TypeError, ValueError):
+        temperature = DEFAULT_TEMPERATURE
+    temperature = max(MIN_TEMPERATURE, min(MAX_TEMPERATURE, temperature))
 
     if provider not in DEFAULT_MODELS:
         return jsonify(error=t("err_ai_bad_provider", lang)), 400
@@ -223,11 +236,11 @@ def ai_report():
     system_msg, user_msg = _build_messages(context, user_prompt, lang, report_length, options)
     try:
         if provider == "openai":
-            report_text = _call_openai(api_key, model, system_msg, user_msg)
+            report_text = _call_openai(api_key, model, system_msg, user_msg, temperature)
         elif provider == "gemini":
-            report_text = _call_gemini(api_key, model, system_msg, user_msg)
+            report_text = _call_gemini(api_key, model, system_msg, user_msg, temperature)
         else:
-            report_text = _call_claude(api_key, model, system_msg, user_msg)
+            report_text = _call_claude(api_key, model, system_msg, user_msg, temperature)
     except urllib.error.HTTPError as exc:
         try:
             detail = json.loads(exc.read().decode("utf-8")).get("error", {}).get("message")

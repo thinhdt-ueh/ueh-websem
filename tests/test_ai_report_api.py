@@ -37,7 +37,7 @@ def test_ai_report_success(client, monkeypatch):
 def test_ai_report_missing_report_length_defaults_to_long(client, monkeypatch):
     captured = {}
 
-    def fake_call(api_key, model, system_msg, user_msg):
+    def fake_call(api_key, model, system_msg, user_msg, temperature):
         captured["system_msg"] = system_msg
         return "ok"
 
@@ -59,7 +59,7 @@ def test_ai_report_missing_options_means_no_optional_sections(client, monkeypatc
     output/cost for a caller that didn't ask for it."""
     captured = {}
 
-    def fake_call(api_key, model, system_msg, user_msg):
+    def fake_call(api_key, model, system_msg, user_msg, temperature):
         captured["system_msg"] = system_msg
         return "ok"
 
@@ -77,7 +77,7 @@ def test_ai_report_explicit_options_all_true_include_every_section(client, monke
     checked (its own default state)."""
     captured = {}
 
-    def fake_call(api_key, model, system_msg, user_msg):
+    def fake_call(api_key, model, system_msg, user_msg, temperature):
         captured["system_msg"] = system_msg
         return "ok"
 
@@ -95,7 +95,7 @@ def test_ai_report_explicit_options_all_true_include_every_section(client, monke
 def test_ai_report_short_length_omits_long_instruction(client, monkeypatch):
     captured = {}
 
-    def fake_call(api_key, model, system_msg, user_msg):
+    def fake_call(api_key, model, system_msg, user_msg, temperature):
         captured["system_msg"] = system_msg
         return "ok"
 
@@ -112,7 +112,7 @@ def test_ai_report_short_length_omits_long_instruction(client, monkeypatch):
 def test_ai_report_unknown_length_falls_back_to_long(client, monkeypatch):
     captured = {}
 
-    def fake_call(api_key, model, system_msg, user_msg):
+    def fake_call(api_key, model, system_msg, user_msg, temperature):
         captured["system_msg"] = system_msg
         return "ok"
 
@@ -120,6 +120,47 @@ def test_ai_report_unknown_length_falls_back_to_long(client, monkeypatch):
     resp = client.post("/api/ai_report", json=_valid_payload(report_length="not-a-real-length"))
     assert resp.status_code == 200, resp.get_json()
     assert "1800-3000" in captured["system_msg"]
+
+
+def test_ai_report_temperature_defaults_to_one(client, monkeypatch):
+    captured = {}
+
+    def fake_call(api_key, model, system_msg, user_msg, temperature):
+        captured["temperature"] = temperature
+        return "ok"
+
+    monkeypatch.setattr(ai_report_api, "_call_openai", fake_call)
+    payload = _valid_payload()
+    payload.pop("temperature", None)
+    resp = client.post("/api/ai_report", json=payload)
+    assert resp.status_code == 200, resp.get_json()
+    assert captured["temperature"] == 1.0
+
+
+def test_ai_report_temperature_is_clamped_to_valid_range(client, monkeypatch):
+    captured = {}
+
+    def fake_call(api_key, model, system_msg, user_msg, temperature):
+        captured["temperature"] = temperature
+        return "ok"
+
+    monkeypatch.setattr(ai_report_api, "_call_openai", fake_call)
+
+    resp = client.post("/api/ai_report", json=_valid_payload(temperature=5))
+    assert resp.status_code == 200, resp.get_json()
+    assert captured["temperature"] == 1.0  # clamped down to the max
+
+    resp = client.post("/api/ai_report", json=_valid_payload(temperature=-2))
+    assert resp.status_code == 200, resp.get_json()
+    assert captured["temperature"] == 0.0  # clamped up to the min
+
+    resp = client.post("/api/ai_report", json=_valid_payload(temperature=0.4))
+    assert resp.status_code == 200, resp.get_json()
+    assert captured["temperature"] == 0.4  # a valid value passes through untouched
+
+    resp = client.post("/api/ai_report", json=_valid_payload(temperature="not-a-number"))
+    assert resp.status_code == 200, resp.get_json()
+    assert captured["temperature"] == 1.0  # unparseable -> falls back to the default
 
 
 def test_ai_report_rejects_missing_key(client):

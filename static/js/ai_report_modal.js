@@ -122,6 +122,14 @@ function openAiReportModal(opts) {
         <datalist id="aiModelSuggestions"></datalist>
         <p class="hint">${t("ai_modal_model_hint")}</p>
 
+        <label>${t("ai_modal_temperature_label")} — <span id="aiTemperatureValue">1.0</span></label>
+        <div class="ai-temp-row">
+          <span class="ai-temp-endpoint">${t("ai_modal_temperature_low")}</span>
+          <input type="range" id="aiTemperature" min="0" max="1" step="0.1" value="1">
+          <span class="ai-temp-endpoint">${t("ai_modal_temperature_high")}</span>
+        </div>
+        <p class="hint">${t("ai_modal_temperature_hint")}</p>
+
         <label>${t("ai_modal_length_label")}</label>
         <div class="ai-provider-tabs" id="aiLengthTabs">
           ${AI_LENGTH_OPTIONS.map((o) => `<button type="button" class="ai-provider-tab${o.id === "long" ? " active" : ""}" data-length="${o.id}">${t(o.labelKey)}</button>`).join("")}
@@ -185,6 +193,11 @@ function openAiReportModal(opts) {
   document.getElementById("aiKeyToggle").onclick = () => {
     keyInput.type = keyInput.type === "password" ? "text" : "password";
   };
+  const temperatureInput = document.getElementById("aiTemperature");
+  const temperatureValue = document.getElementById("aiTemperatureValue");
+  temperatureInput.addEventListener("input", () => {
+    temperatureValue.textContent = Number(temperatureInput.value).toFixed(1);
+  });
   document.getElementById("aiModalCancel").onclick = () => (root.innerHTML = "");
   document.getElementById("aiModalOk").onclick = () => {
     const errBox = document.getElementById("aiModalError");
@@ -192,6 +205,7 @@ function openAiReportModal(opts) {
     const model = modelInput.value.trim() || AI_PROVIDERS[currentProvider].defaultModel;
     const userPrompt = document.getElementById("aiPrompt").value.trim();
     const remember = rememberCheckbox.checked;
+    const temperature = Number(temperatureInput.value);
 
     if (!apiKey) {
       errBox.textContent = t("ai_modal_invalid_key");
@@ -216,7 +230,7 @@ function openAiReportModal(opts) {
     root.querySelectorAll("input[data-option]").forEach((cb) => (options[cb.dataset.option] = cb.checked));
 
     const job = {
-      provider: currentProvider, api_key: apiKey, model, context: opts.context, user_prompt: userPrompt,
+      provider: currentProvider, api_key: apiKey, model, temperature, context: opts.context, user_prompt: userPrompt,
       report_length: currentLength, options,
       source_label: opts.sourceLabel || "", images: opts.images || [], lang: getLang(),
     };
