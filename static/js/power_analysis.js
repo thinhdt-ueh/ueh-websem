@@ -84,6 +84,13 @@ async function main() {
     return;
   }
 
+  let stopEta = null;
+  if (job.estimated_seconds) {
+    const etaEl = document.getElementById("powerLoadingEta");
+    etaEl.classList.remove("hidden");
+    stopEta = startEtaCountdown(etaEl, job.estimated_seconds);
+  }
+
   try {
     const res = await fetch("/api/power_analysis", {
       method: "POST",
@@ -96,6 +103,8 @@ async function main() {
     renderAll(data);
   } catch (err) {
     showError(err.message);
+  } finally {
+    if (stopEta) stopEta();
   }
 }
 

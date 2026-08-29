@@ -108,6 +108,13 @@ async function main() {
     return;
   }
 
+  let stopEta = null;
+  if (job.estimated_seconds) {
+    const etaEl = document.getElementById("mlLoadingEta");
+    etaEl.classList.remove("hidden");
+    stopEta = startEtaCountdown(etaEl, job.estimated_seconds);
+  }
+
   try {
     const res = await fetch("/api/ml_compare", {
       method: "POST",
@@ -120,6 +127,8 @@ async function main() {
     renderAll(data);
   } catch (err) {
     showError(err.message);
+  } finally {
+    if (stopEta) stopEta();
   }
 }
 

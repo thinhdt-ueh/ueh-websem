@@ -21,6 +21,7 @@
 <main class="standalone-page">
   <div id="sensLoading" class="panel-card standalone-status">
     <p data-i18n="sens_loading">Đang chạy lại mô hình với các cỡ mẫu khác nhau…</p>
+    <p id="sensLoadingEta" class="eta-line hidden"></p>
   </div>
   <div id="sensError" class="panel-card standalone-status hidden"></div>
 
@@ -104,6 +105,7 @@
 {% include "footer.html" %}
 
 <script src="{{ url_for('static', filename='js/i18n.js') }}"></script>
+<script src="{{ url_for('static', filename='js/countdown.js') }}"></script>
 <script src="{{ url_for('static', filename='js/sensitivity.js') }}"></script>
 </body>
 </html>

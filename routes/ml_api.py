@@ -15,7 +15,7 @@ from flask import Blueprint, jsonify, request, send_file
 from cbsem.estimator import CBSEMError, run_cbsem
 from cbsem.moderation import run_cbsem_with_moderation
 from i18n import get_lang, t
-from ml_compare.engine import run_ml_comparison
+from ml_compare.engine import COST_PER_FIT_SECONDS, run_ml_comparison
 from ml_compare.registry import ALGORITHM_ORDER, ALGORITHMS
 from ml_compare.report import build_excel_report, build_word_report
 from ml_compare.source_transparency import ml_compare_sections
@@ -53,7 +53,15 @@ def _round_stat(stat: dict | None) -> dict | None:
 @ml_api.get("/ml_algorithms")
 def ml_algorithms():
     return jsonify(algorithms=[
-        {"id": a, "name_key": ALGORITHMS[a].name_key, "task": ALGORITHMS[a].task, "available": ALGORITHMS[a].available}
+        {
+            "id": a, "name_key": ALGORITHMS[a].name_key, "task": ALGORITHMS[a].task,
+            "available": ALGORITHMS[a].available,
+            # Same per-algorithm cost weights the budget guard in
+            # ml_compare/engine.py uses -- exposed so the frontend's "time
+            # remaining" estimate is computed from the exact same numbers,
+            # not a separately-hardcoded guess that could drift out of sync.
+            "cost_per_fit": COST_PER_FIT_SECONDS.get(a, 1.0),
+        }
         for a in ALGORITHM_ORDER
     ])
 

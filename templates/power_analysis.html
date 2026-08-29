@@ -21,6 +21,7 @@
 <main class="standalone-page">
   <div id="powerLoading" class="panel-card standalone-status">
     <p data-i18n="power_loading">Đang mô phỏng Monte Carlo — có thể mất một lúc…</p>
+    <p id="powerLoadingEta" class="eta-line hidden"></p>
   </div>
   <div id="powerError" class="panel-card standalone-status hidden"></div>
 
@@ -90,6 +91,7 @@
 {% include "footer.html" %}
 
 <script src="{{ url_for('static', filename='js/i18n.js') }}"></script>
+<script src="{{ url_for('static', filename='js/countdown.js') }}"></script>
 <script src="{{ url_for('static', filename='js/power_analysis.js') }}"></script>
 </body>
 </html>

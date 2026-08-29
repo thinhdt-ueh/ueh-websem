@@ -418,6 +418,8 @@ const I18N = {
 
     // --- labels / verdicts ---
     lbl_dash: "—",
+    eta_remaining: "Ước lượng còn lại: ~{s} giây",
+    eta_almost_done: "Sắp xong, đang xử lý những bước cuối…",
     lbl_r2_weak: "Yếu",
     lbl_r2_moderate: "Trung bình",
     lbl_r2_substantial: "Khá mạnh",
@@ -955,6 +957,8 @@ const I18N = {
     th_value: "Value",
 
     lbl_dash: "—",
+    eta_remaining: "Estimated time remaining: ~{s}s",
+    eta_almost_done: "Almost done, finishing up…",
     lbl_r2_weak: "Weak",
     lbl_r2_moderate: "Moderate",
     lbl_r2_substantial: "Substantial",

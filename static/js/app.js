@@ -28,7 +28,7 @@ function updateGuideLink() {
 document.getElementById("runAnalysisBtn").textContent = t("s2_run_pls");
 document.getElementById("toolbarHint").textContent = t("s2_toolbar_hint_default");
 document.getElementById("methodHint").textContent = t("s2_method_hint_pls");
-document.getElementById("resultsLoading").textContent = t("s3_loading_pls");
+document.getElementById("resultsLoadingMsg").textContent = t("s3_loading_pls");
 
 document.getElementById("langSwitch").addEventListener("click", (e) => {
   const btn = e.target.closest(".lang-btn");
@@ -952,7 +952,8 @@ function openSensitivityModal(method) {
       errBox.classList.remove("hidden");
       return;
     }
-    const job = { file_id: state.fileId, model: editor.serialize(), method, step, lang: getLang() };
+    const modelPayload = editor.serialize();
+    const job = { file_id: state.fileId, model: modelPayload, method, step, lang: getLang() };
     if (!isCbsem && document.getElementById("sensBootEnabled").checked) {
       const nBoot = parseInt(document.getElementById("sensNBoot").value, 10);
       if (!Number.isInteger(nBoot) || nBoot < 100) {
@@ -961,6 +962,13 @@ function openSensitivityModal(method) {
         return;
       }
       job.bootstrap = { enabled: true, n_boot: nBoot };
+      // Mirrors routes/sensitivity_api.py's own expected_steps math, so the
+      // countdown on the results tab is grounded in the same formula the
+      // server will actually run against -- see PLS_MS_PER_FIT's comment.
+      const nIndicators = modelPayload.constructs.reduce((sum, c) => sum + (c.indicators ? c.indicators.length : 0), 0);
+      const minN = Math.max(20, nIndicators + 5);
+      const expectedSteps = Math.max(1, Math.min(150, Math.floor((nRows - minN) / step) + 1));
+      job.estimated_seconds = (expectedSteps * nBoot * PLS_MS_PER_FIT) / 1000;
     }
     sessionStorage.setItem("websem_sensitivity_job", JSON.stringify(job));
     root.innerHTML = "";
@@ -1141,6 +1149,11 @@ function openPowerAnalysisModal(method) {
       n_step: parseInt(document.getElementById("powerNStep").value, 10),
       n_mc: nMc, lang: getLang(),
     };
+    // Same formula as updateEstimate() above -- reused here so the countdown
+    // on the results tab matches the estimate the modal already showed.
+    job.estimated_seconds = isCbsem
+      ? points.length * nMc * 0.044
+      : points.length * nMc * (1 + nBoot) * 0.0077;
     if (!isCbsem) job.n_boot_inner = nBoot;
     sessionStorage.setItem("websem_power_job", JSON.stringify(job));
     root.innerHTML = "";
@@ -1223,7 +1236,14 @@ async function openMlComparisonModal(method) {
       errBox.classList.remove("hidden");
       return;
     }
-    const job = { file_id: state.fileId, model: editor.serialize(), method, algorithms: selected, k, lang: getLang() };
+    const modelPayload = editor.serialize();
+    const job = { file_id: state.fileId, model: modelPayload, method, algorithms: selected, k, lang: getLang() };
+    // Mirrors ml_compare/engine.py's own budget-guard formula exactly --
+    // cost_per_fit came from that same module via /api/ml_algorithms, so
+    // this can't drift out of sync with the real cost model.
+    const nTargets = new Set(modelPayload.paths.map((p) => p.target)).size;
+    const totalCostPerFit = selected.reduce((sum, id) => sum + (byId[id] ? byId[id].cost_per_fit : 1), 0);
+    job.estimated_seconds = nTargets * k * totalCostPerFit;
     sessionStorage.setItem("websem_ml_job", JSON.stringify(job));
     root.innerHTML = "";
     window.open("/ml_comparison", "_blank");
@@ -1276,6 +1296,14 @@ document.getElementById("estimationMethod").addEventListener("change", (e) => {
   document.getElementById("runAnalysisBtn").textContent = t(isCbsem ? "s2_run_cbsem" : "s2_run_pls");
 });
 
+// Benchmarked on this app's own 4-construct/13-indicator TAM sample model
+// (see pls/power_analysis.py's docstring) -- one PLS fit, which is what each
+// bootstrap resample costs, takes ~7.7ms there. Used only for a rough
+// client-side "time remaining" estimate on top of the real request; actual
+// cost depends on the user's own dataset/model size, so the countdown
+// degrades gracefully (see countdown.js) rather than promising exact timing.
+const PLS_MS_PER_FIT = 7.7;
+
 async function runAnalysis() {
   const method = document.getElementById("estimationMethod").value;
   if (method === "cbsem") return runCbsemAnalysis();
@@ -1293,9 +1321,17 @@ async function runAnalysis() {
   document.getElementById("ipmaSection").classList.add("hidden");
   window.__lastIpma = null;
   document.getElementById("resultsLoading").classList.remove("hidden");
-  document.getElementById("resultsLoading").textContent = bootstrapEnabled
+  document.getElementById("resultsLoadingMsg").textContent = bootstrapEnabled
     ? t("s3_loading_pls_boot", { n: nBoot })
     : t("s3_loading_pls");
+  const etaEl = document.getElementById("resultsLoadingEta");
+  let stopEta = null;
+  if (bootstrapEnabled) {
+    etaEl.classList.remove("hidden");
+    stopEta = startEtaCountdown(etaEl, (nBoot * PLS_MS_PER_FIT) / 1000);
+  } else {
+    etaEl.classList.add("hidden");
+  }
 
   try {
     const res = await fetch("/api/analyze", {
@@ -1315,6 +1351,7 @@ async function runAnalysis() {
     document.getElementById("resultsError").textContent = err.message;
     document.getElementById("resultsError").classList.remove("hidden");
   } finally {
+    if (stopEta) stopEta();
     document.getElementById("resultsLoading").classList.add("hidden");
   }
 }
@@ -1327,7 +1364,8 @@ async function runCbsemAnalysis() {
   document.getElementById("cbsemResultsContent").classList.add("hidden");
   document.getElementById("resultsError").classList.add("hidden");
   document.getElementById("resultsLoading").classList.remove("hidden");
-  document.getElementById("resultsLoading").textContent = t("s3_loading_cbsem");
+  document.getElementById("resultsLoadingMsg").textContent = t("s3_loading_cbsem");
+  document.getElementById("resultsLoadingEta").classList.add("hidden");
 
   try {
     const res = await fetch("/api/analyze_cbsem", {

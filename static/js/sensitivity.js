@@ -89,6 +89,13 @@ async function main() {
     return;
   }
 
+  let stopEta = null;
+  if (job.estimated_seconds) {
+    const etaEl = document.getElementById("sensLoadingEta");
+    etaEl.classList.remove("hidden");
+    stopEta = startEtaCountdown(etaEl, job.estimated_seconds);
+  }
+
   try {
     const res = await fetch("/api/sensitivity", {
       method: "POST",
@@ -101,6 +108,8 @@ async function main() {
     renderAll(data);
   } catch (err) {
     showError(err.message);
+  } finally {
+    if (stopEta) stopEta();
   }
 }
 

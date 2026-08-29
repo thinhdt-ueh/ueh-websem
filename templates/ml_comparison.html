@@ -21,6 +21,7 @@
 <main class="standalone-page">
   <div id="mlLoading" class="panel-card standalone-status">
     <p data-i18n="ml_loading">Đang huấn luyện các thuật toán Machine Learning — có thể mất một lúc…</p>
+    <p id="mlLoadingEta" class="eta-line hidden"></p>
   </div>
   <div id="mlError" class="panel-card standalone-status hidden"></div>
 
@@ -95,6 +96,7 @@
 {% include "footer.html" %}
 
 <script src="{{ url_for('static', filename='js/i18n.js') }}"></script>
+<script src="{{ url_for('static', filename='js/countdown.js') }}"></script>
 <script src="{{ url_for('static', filename='js/ml_comparison.js') }}"></script>
 </body>
 </html>

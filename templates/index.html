@@ -144,7 +144,10 @@
 
   <!-- STEP 3: RESULTS -->
   <section class="step-panel" id="panel-3">
-    <div id="resultsLoading" class="hidden loading-box"></div>
+    <div id="resultsLoading" class="hidden loading-box">
+      <p id="resultsLoadingMsg"></p>
+      <p id="resultsLoadingEta" class="eta-line hidden"></p>
+    </div>
     <div id="resultsError" class="error-box hidden"></div>
     <div id="resultsContent" class="hidden">
       <div class="panel-card">
@@ -486,6 +489,7 @@
 <div id="modalRoot"></div>
 
 <script src="{{ url_for('static', filename='js/i18n.js') }}"></script>
+<script src="{{ url_for('static', filename='js/countdown.js') }}"></script>
 <script src="{{ url_for('static', filename='js/diagram.js') }}"></script>
 <script src="{{ url_for('static', filename='js/app.js') }}"></script>
 </body>
