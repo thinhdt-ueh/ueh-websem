@@ -29,6 +29,9 @@
     <div class="panel-card">
       <h2 data-i18n="sens_summary_title">Tổng quan</h2>
       <p class="hint" id="sensSummary"></p>
+      <div class="export-buttons">
+        <button class="btn" id="sensAiReportBtn" data-i18n="s3_ai_report_btn">🤖 Báo cáo AI</button>
+      </div>
     </div>
 
     <div class="panel-card">
@@ -104,8 +107,11 @@
 
 {% include "footer.html" %}
 
+<div id="modalRoot"></div>
+
 <script src="{{ url_for('static', filename='js/i18n.js') }}"></script>
 <script src="{{ url_for('static', filename='js/countdown.js') }}"></script>
+<script src="{{ url_for('static', filename='js/ai_report_modal.js') }}"></script>
 <script src="{{ url_for('static', filename='js/sensitivity.js') }}"></script>
 </body>
 </html>

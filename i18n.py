@@ -129,6 +129,15 @@ _CATALOG: dict[str, dict[str, str]] = {
         "err_export_excel_error": "Lỗi khi tạo file Excel: {exc}",
         "err_export_word_error": "Lỗi khi tạo file Word: {exc}",
 
+        # --- AI report (routes/ai_report_api.py) ---
+        "err_ai_missing_key": "Vui lòng nhập OpenAI API key.",
+        "err_ai_missing_context": "Thiếu dữ liệu kết quả phân tích để viết báo cáo.",
+        "err_ai_missing_prompt": "Vui lòng nhập yêu cầu (prompt) cho báo cáo.",
+        "err_ai_invalid_key": "OpenAI API key không hợp lệ hoặc đã hết hạn.",
+        "err_ai_rate_limited": "Tài khoản OpenAI đã vượt giới hạn tốc độ (rate limit) hoặc hết hạn mức sử dụng — vui lòng thử lại sau.",
+        "err_ai_bad_model": "Tên model không hợp lệ hoặc tài khoản không có quyền dùng model này: {detail}",
+        "err_ai_request_failed": "Lỗi khi gọi OpenAI: {detail}",
+
         # --- shared report labels (pls/report.py & cbsem/report.py) ---
         "rpt_title_pls": "PLS-SEM — Báo cáo phân tích",
         "rpt_title_cbsem": "Báo cáo phân tích CB-SEM (Maximum Likelihood)",
@@ -430,6 +439,15 @@ _CATALOG: dict[str, dict[str, str]] = {
         "err_export_missing_data": "Missing analysis result data to export.",
         "err_export_excel_error": "Error while generating the Excel file: {exc}",
         "err_export_word_error": "Error while generating the Word file: {exc}",
+
+        # --- AI report (routes/ai_report_api.py) ---
+        "err_ai_missing_key": "Please enter your OpenAI API key.",
+        "err_ai_missing_context": "Missing analysis result data to write a report from.",
+        "err_ai_missing_prompt": "Please enter a prompt for the report.",
+        "err_ai_invalid_key": "The OpenAI API key is invalid or has expired.",
+        "err_ai_rate_limited": "The OpenAI account has hit its rate limit or usage quota — please try again later.",
+        "err_ai_bad_model": "Invalid model name, or this account doesn't have access to it: {detail}",
+        "err_ai_request_failed": "Error calling OpenAI: {detail}",
 
         "rpt_title_pls": "PLS-SEM — Analysis Report",
         "rpt_title_cbsem": "CB-SEM Analysis Report (Maximum Likelihood)",

@@ -66,6 +66,56 @@ document.getElementById("closeTabBtn").addEventListener("click", () => window.cl
 document.addEventListener("langchange", () => {
   if (window.__sensResult) renderAll(window.__sensResult);
 });
+document.getElementById("sensAiReportBtn").addEventListener("click", () => {
+  if (!window.__sensResult) return;
+  const data = window.__sensResult;
+  openAiReportModal({
+    context: buildSensitivityReportContext(data),
+    sourceLabel: `${t("sens_page_title") || "Sample Size Sensitivity"} — ${data.method === "cbsem" ? "CB-SEM" : "PLS-SEM"}, n_total = ${data.n_total}`,
+    defaultPrompt: t("ai_modal_prompt_default_sensitivity"),
+  });
+});
+
+function buildSensitivityReportContext(data) {
+  const converged = data.points.filter((p) => p.converged);
+  // Cap to ~12 evenly-spaced points so a dense run (up to 150 steps)
+  // doesn't balloon the prompt sent to the AI.
+  const maxPoints = 12;
+  const stride = Math.max(1, Math.ceil(converged.length / maxPoints));
+  const sampled = converged.filter((_, i) => i % stride === 0);
+
+  const lines = [];
+  lines.push(`## Sample Size Sensitivity (${data.method === "cbsem" ? "CB-SEM" : "PLS-SEM"})`);
+  lines.push(`Original n = ${data.n_total}, step = ${data.step}, has p-values = ${data.has_p_values}${data.n_boot ? `, bootstrap resamples per step = ${data.n_boot}` : ""}`);
+  lines.push("");
+  lines.push("## R² by sample size");
+  const rSquaredIds = data.constructs.map((c) => c.id);
+  lines.push(`| n | ${data.constructs.map((c) => c.name).join(" | ")} |`);
+  lines.push(`|---|${data.constructs.map(() => "---").join("|")}|`);
+  sampled.forEach((p) => {
+    lines.push(`| ${p.n} | ${rSquaredIds.map((cid) => fmt(p.r_squared[cid])).join(" | ")} |`);
+  });
+
+  lines.push("");
+  lines.push("## Path coefficients by sample size" + (data.has_p_values ? " (with p-value)" : ""));
+  lines.push(`| n | ${data.paths.map((p) => `${p.source_name}->${p.target_name}`).join(" | ")} |`);
+  lines.push(`|---|${data.paths.map(() => "---").join("|")}|`);
+  sampled.forEach((p) => {
+    lines.push(`| ${p.n} | ${data.paths.map((pt) => {
+      const coef = fmt(p.paths[pt.id]);
+      if (data.has_p_values) {
+        const pv = p.p_values[pt.id];
+        return `${coef} (p=${fmt(pv, 4)})`;
+      }
+      return coef;
+    }).join(" | ")} |`);
+  });
+
+  const nonConverged = data.points.length - converged.length;
+  if (nonConverged > 0) lines.push(`\n${nonConverged} of ${data.points.length} sample sizes tested failed to converge.`);
+
+  return lines.join("\n");
+}
 
 function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));

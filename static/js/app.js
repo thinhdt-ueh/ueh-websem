@@ -665,6 +665,8 @@ document.getElementById("powerAnalysisBtn").addEventListener("click", () => open
 document.getElementById("cbsemPowerAnalysisBtn").addEventListener("click", () => openPowerAnalysisModal("cbsem"));
 document.getElementById("mlCompareBtn").addEventListener("click", () => openMlComparisonModal("pls"));
 document.getElementById("cbsemMlCompareBtn").addEventListener("click", () => openMlComparisonModal("cbsem"));
+document.getElementById("aiReportBtn").addEventListener("click", () => openSemAiReportModal("pls"));
+document.getElementById("cbsemAiReportBtn").addEventListener("click", () => openSemAiReportModal("cbsem"));
 document.getElementById("plspredictBtn").addEventListener("click", runPlspredict);
 document.getElementById("ipmaBtn").addEventListener("click", openIpmaModal);
 
@@ -1248,6 +1250,104 @@ async function openMlComparisonModal(method) {
     root.innerHTML = "";
     window.open("/ml_comparison", "_blank");
   };
+}
+
+function buildSemReportContext(data, method) {
+  const idToName = {};
+  data.constructs.forEach((c) => (idToName[c.id] = c.name));
+  const lines = [];
+  const modeLabel = { A: "Reflective (Mode A)", B: "Formative (Mode B)", I: "Interaction/Moderation" };
+
+  lines.push(`## Model overview (${method === "cbsem" ? "CB-SEM" : "PLS-SEM"})`);
+  lines.push(`n = ${data.n_obs}, converged = ${data.converged}${data.iterations ? `, iterations = ${data.iterations}` : ""}`);
+  if (data.bootstrap) lines.push(`Bootstrap: ${data.bootstrap.valid}/${data.bootstrap.requested} valid resamples`);
+  lines.push("");
+  lines.push("Constructs:");
+  data.constructs.forEach((c) => {
+    lines.push(`- ${c.name} (${modeLabel[c.mode] || c.mode}), indicators: ${c.indicators.join(", ") || "—"}`);
+  });
+
+  lines.push("");
+  lines.push("## Structural model — path coefficients");
+  lines.push("| Path | Coefficient | p-value | Significant | f² |");
+  lines.push("|---|---|---|---|---|");
+  data.structural.paths.forEach((p) => {
+    const coef = method === "cbsem" ? p.std : p.coefficient;
+    const sig = p.significant === undefined ? "—" : (p.significant ? "yes" : "no");
+    lines.push(`| ${p.source_name} -> ${p.target_name} | ${fmt(coef)} | ${fmt(p.p_value, 4)} | ${sig} | ${fmt(p.f_squared)} |`);
+  });
+
+  lines.push("");
+  lines.push("## R²" + (method === "pls" ? " / Q²" : ""));
+  lines.push(method === "pls" ? "| Construct | R² | Q² |" : "| Construct | R² |");
+  lines.push(method === "pls" ? "|---|---|---|" : "|---|---|");
+  Object.keys(data.structural.r_squared || {}).forEach((cid) => {
+    if (method === "pls") {
+      const q2 = data.structural.q_squared ? data.structural.q_squared[cid] : null;
+      lines.push(`| ${idToName[cid]} | ${fmt(data.structural.r_squared[cid])} | ${q2 !== null && q2 !== undefined ? fmt(q2) : "—"} |`);
+    } else {
+      lines.push(`| ${idToName[cid]} | ${fmt(data.structural.r_squared[cid])} |`);
+    }
+  });
+
+  const m = data.measurement;
+  if (m && m.cronbachs_alpha) {
+    lines.push("");
+    lines.push("## Reliability & convergent validity");
+    lines.push("| Construct | Cronbach's α | Composite Reliability | AVE |");
+    lines.push("|---|---|---|---|");
+    data.constructs.filter((c) => c.mode === "A").forEach((c) => {
+      lines.push(`| ${c.name} | ${fmt(m.cronbachs_alpha[c.id])} | ${fmt(m.composite_reliability[c.id])} | ${fmt(m.ave[c.id])} |`);
+    });
+  }
+
+  const teRows = (data.structural.total_effects || []);
+  if (teRows.length) {
+    lines.push("");
+    lines.push("## Total & Indirect Effects (mediation)");
+    lines.push("| Path | Direct | Indirect | Total |");
+    lines.push("|---|---|---|---|");
+    teRows.forEach((e) => lines.push(`| ${e.source_name} -> ${e.target_name} | ${fmt(e.direct)} | ${fmt(e.indirect)} | ${fmt(e.total)} |`));
+  }
+
+  const siRows = (data.structural.specific_indirect_effects || []);
+  if (siRows.length) {
+    lines.push("");
+    lines.push("## Specific Indirect Effects");
+    lines.push("| Route | Effect | p-value | Significant |");
+    lines.push("|---|---|---|---|");
+    siRows.forEach((r) => lines.push(`| ${r.path_names.join(" -> ")} | ${fmt(r.effect)} | ${r.p_value !== undefined ? fmt(r.p_value, 4) : "—"} | ${r.significant === undefined ? "—" : (r.significant ? "yes" : "no")} |`));
+  }
+
+  const mmRows = (data.structural.moderated_mediation || []);
+  if (mmRows.length) {
+    lines.push("");
+    lines.push("## Index of Moderated Mediation (Hayes, 2015)");
+    lines.push("| Route | Moderator | Index | p-value | Significant |");
+    lines.push("|---|---|---|---|---|");
+    mmRows.forEach((r) => lines.push(`| ${r.path_names.join(" -> ")} | ${r.moderator_name} | ${fmt(r.index)} | ${r.p_value !== undefined ? fmt(r.p_value, 4) : "—"} | ${r.significant === undefined ? "—" : (r.significant ? "yes" : "no")} |`));
+  }
+
+  if (method === "cbsem" && data.fit_indices) {
+    const fi = data.fit_indices;
+    lines.push("");
+    lines.push("## CB-SEM fit indices");
+    lines.push(`chi-square = ${fmt(fi.chi_square)} (df = ${fi.df}, p = ${fmt(fi.chi_square_p_value, 4)}), CFI = ${fmt(fi.cfi)}, TLI = ${fmt(fi.tli)}, RMSEA = ${fmt(fi.rmsea)}, SRMR = ${fmt(fi.srmr)}, GFI = ${fmt(fi.gfi)}, AGFI = ${fmt(fi.agfi)}, NFI = ${fmt(fi.nfi)}, AIC = ${fmt(fi.aic)}, BIC = ${fmt(fi.bic)}`);
+  }
+
+  return lines.join("\n");
+}
+
+function openSemAiReportModal(method) {
+  const data = method === "cbsem" ? lastCbsemResult : lastAnalysisResult;
+  if (!data) return;
+  const context = buildSemReportContext(data, method);
+  const sourceLabel = `${method === "cbsem" ? "CB-SEM" : "PLS-SEM"} — n = ${data.n_obs}`;
+  openAiReportModal({
+    context,
+    sourceLabel,
+    defaultPrompt: t("ai_modal_prompt_default_sem"),
+  });
 }
 
 async function exportReport(kind) {

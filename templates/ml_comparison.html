@@ -31,6 +31,7 @@
       <p class="hint" id="mlSummary"></p>
       <p class="hint" data-i18n="ml_method_hint">Với mỗi construct nội sinh (có ít nhất 1 đường dẫn đi vào), các construct tiền đề trực tiếp của nó (đúng như trong mô hình cấu trúc) được dùng làm biến đầu vào để huấn luyện từng thuật toán đã chọn, đánh giá bằng k-fold cross-validation. Feature importance hiển thị ở phần so sánh là permutation importance — cách đo duy nhất có thể so sánh công bằng giữa hệ số hồi quy tuyến tính, mức độ phân tách của cây quyết định, và biên độ của SVM.</p>
       <div class="export-buttons">
+        <button class="btn" id="mlAiReportBtn" data-i18n="s3_ai_report_btn">🤖 Báo cáo AI</button>
         <button class="btn" id="mlExportExcelBtn" data-i18n="s3_export_excel">📊 Xuất Excel</button>
         <button class="btn" id="mlExportWordBtn" data-i18n="s3_export_word">📄 Xuất Word</button>
       </div>
@@ -95,8 +96,11 @@
 
 {% include "footer.html" %}
 
+<div id="modalRoot"></div>
+
 <script src="{{ url_for('static', filename='js/i18n.js') }}"></script>
 <script src="{{ url_for('static', filename='js/countdown.js') }}"></script>
+<script src="{{ url_for('static', filename='js/ai_report_modal.js') }}"></script>
 <script src="{{ url_for('static', filename='js/ml_comparison.js') }}"></script>
 </body>
 </html>

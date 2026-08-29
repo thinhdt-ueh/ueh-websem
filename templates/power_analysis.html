@@ -30,6 +30,9 @@
       <h2 data-i18n="power_summary_title">Tổng quan</h2>
       <p class="hint" id="powerSummary"></p>
       <p class="hint" data-i18n="power_method_hint">Mỗi điểm mô phỏng: sinh dữ liệu tổng hợp từ mô hình quần thể đã khai báo (path coefficient &amp; loading kỳ vọng), chạy PLS-SEM + Bootstrap, rồi tính tỉ lệ số lần path có ý nghĩa thống kê (p &lt; 0.05) trên tổng số lần lặp hội tụ. Giả định các construct ngoại sinh độc lập nhau (Aguirre-Urreta &amp; Rönkkö, 2015).</p>
+      <div class="export-buttons">
+        <button class="btn" id="powerAiReportBtn" data-i18n="s3_ai_report_btn">🤖 Báo cáo AI</button>
+      </div>
     </div>
 
     <div class="panel-card">
@@ -90,8 +93,11 @@
 
 {% include "footer.html" %}
 
+<div id="modalRoot"></div>
+
 <script src="{{ url_for('static', filename='js/i18n.js') }}"></script>
 <script src="{{ url_for('static', filename='js/countdown.js') }}"></script>
+<script src="{{ url_for('static', filename='js/ai_report_modal.js') }}"></script>
 <script src="{{ url_for('static', filename='js/power_analysis.js') }}"></script>
 </body>
 </html>

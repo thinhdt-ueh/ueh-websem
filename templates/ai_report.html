@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>UEH-WebSEM</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+<header class="topbar">
+  <img class="brand-logo" src="{{ url_for('static', filename='img/logo-ueh.png') }}" alt="UEH">
+  <div class="brand"><span>WebSEM</span></div>
+  <div class="hint" style="margin:0" data-i18n="ai_page_title">Báo cáo AI</div>
+  <div class="lang-switch" id="langSwitch">
+    <button class="lang-btn" data-lang="vi">VI</button>
+    <button class="lang-btn active" data-lang="en">EN</button>
+  </div>
+  <button class="btn ghost" id="closeTabBtn" data-i18n="sens_close_tab">✕ Đóng tab này</button>
+</header>
+
+<main class="standalone-page">
+  <div id="aiLoading" class="panel-card standalone-status">
+    <p data-i18n="ai_loading">Đang sinh báo cáo bằng AI — có thể mất khoảng 30-90 giây tuỳ độ dài yêu cầu…</p>
+  </div>
+  <div id="aiError" class="panel-card standalone-status hidden"></div>
+
+  <div id="aiContent" class="hidden">
+    <div class="panel-card">
+      <h2 data-i18n="ai_page_title">Báo cáo AI</h2>
+      <div class="ai-report-meta">
+        <p><strong data-i18n="ai_generated_from">Tạo từ:</strong> <span id="aiSourceLabel"></span></p>
+        <p><strong data-i18n="ai_your_prompt">Yêu cầu của bạn:</strong> <span id="aiUserPrompt"></span></p>
+      </div>
+      <div id="aiReportBody" class="ai-report-body"></div>
+    </div>
+  </div>
+</main>
+
+{% include "footer.html" %}
+
+<script src="{{ url_for('static', filename='js/i18n.js') }}"></script>
+<script src="{{ url_for('static', filename='js/ai_report.js') }}"></script>
+</body>
+</html>

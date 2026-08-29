@@ -38,6 +38,53 @@ document.addEventListener("langchange", () => {
 });
 document.getElementById("mlExportExcelBtn").addEventListener("click", () => exportMlReport("excel"));
 document.getElementById("mlExportWordBtn").addEventListener("click", () => exportMlReport("word"));
+document.getElementById("mlAiReportBtn").addEventListener("click", () => {
+  if (!window.__mlResult) return;
+  const data = window.__mlResult;
+  openAiReportModal({
+    context: buildMlReportContext(data),
+    sourceLabel: `${data.method === "cbsem" ? "CB-SEM" : "PLS-SEM"} ML Comparison — k = ${data.k}, algorithms: ${data.algorithms.map(algoLabel).join(", ")}`,
+    defaultPrompt: t("ai_modal_prompt_default_mlcompare"),
+  });
+});
+
+function buildMlReportContext(data) {
+  const lines = [];
+  lines.push(`## Machine Learning Comparison (${data.method === "cbsem" ? "CB-SEM" : "PLS-SEM"})`);
+  lines.push(`k-fold = ${data.k}, algorithms: ${data.algorithms.map(algoLabel).join(", ")}`);
+
+  lines.push("");
+  lines.push("## SEM path coefficient vs. permutation importance, per target");
+  lines.push(`| Target | Predictor | SEM coefficient | ${data.algorithms.map(algoLabel).join(" | ")} |`);
+  lines.push(`|---|---|---|${data.algorithms.map(() => "---").join("|")}|`);
+  data.targets.forEach((tr) => {
+    tr.predictors.forEach((p) => {
+      const cells = data.algorithms.map((a) => {
+        const ao = tr.algorithms[a];
+        const pi = ao ? ao.permutation_importance[p.id] : null;
+        return pi ? fmt(pi.mean) : "—";
+      });
+      lines.push(`| ${tr.target_name} | ${p.name} | ${fmt(p.sem_coefficient)} | ${cells.join(" | ")} |`);
+    });
+  });
+
+  lines.push("");
+  lines.push("## Per-algorithm fit metrics");
+  data.algorithms.forEach((a) => {
+    lines.push(`### ${algoLabel(a)}`);
+    data.targets.forEach((tr) => {
+      const ao = tr.algorithms[a];
+      if (!ao) return;
+      if (ao.task === "classification") {
+        lines.push(`- ${tr.target_name}: Accuracy = ${fmt(ao.metrics.accuracy && ao.metrics.accuracy.mean)}, AUC = ${fmt(ao.metrics.auc && ao.metrics.auc.mean)}`);
+      } else {
+        lines.push(`- ${tr.target_name}: R² = ${fmt(ao.metrics.r2 && ao.metrics.r2.mean)}, RMSE = ${fmt(ao.metrics.rmse && ao.metrics.rmse.mean)}`);
+      }
+    });
+  });
+
+  return lines.join("\n");
+}
 
 async function exportMlReport(kind) {
   if (!window.__mlResult) return;

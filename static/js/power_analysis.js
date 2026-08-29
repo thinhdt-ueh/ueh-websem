@@ -61,6 +61,30 @@ document.getElementById("closeTabBtn").addEventListener("click", () => window.cl
 document.addEventListener("langchange", () => {
   if (window.__powerResult) renderAll(window.__powerResult);
 });
+document.getElementById("powerAiReportBtn").addEventListener("click", () => {
+  if (!window.__powerResult) return;
+  const data = window.__powerResult;
+  openAiReportModal({
+    context: buildPowerReportContext(data),
+    sourceLabel: `${data.method === "cbsem" ? "CB-SEM" : "PLS-SEM"} Power Analysis — n_mc = ${data.n_mc}`,
+    defaultPrompt: t("ai_modal_prompt_default_power"),
+  });
+});
+
+function buildPowerReportContext(data) {
+  const lines = [];
+  lines.push(`## Monte Carlo Power Analysis (${data.method === "cbsem" ? "CB-SEM" : "PLS-SEM"})`);
+  lines.push(`n_mc replicates per point = ${data.n_mc}${data.n_boot_inner ? `, inner bootstrap resamples = ${data.n_boot_inner}` : ""}, sample sizes tested: ${data.sample_sizes.join(", ")}`);
+  lines.push(`Power threshold convention: 0.8 (80%) is considered adequate.`);
+  lines.push("");
+  lines.push("## Power by path and sample size");
+  lines.push("| Path | n | Declared/estimated coefficient | Power | Converged replicates |");
+  lines.push("|---|---|---|---|---|");
+  data.points.forEach((p) => {
+    lines.push(`| ${p.source_name}->${p.target_name} | ${p.n} | ${fmt(p.mean_estimate)} | ${fmt(p.power, 4)} | ${p.n_converged}/${p.n_replicates} |`);
+  });
+  return lines.join("\n");
+}
 
 function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
