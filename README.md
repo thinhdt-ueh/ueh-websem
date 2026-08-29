@@ -142,7 +142,7 @@ mode) — chỉ cần đẩy code lên GitHub rồi trỏ Render vào là xong:
    bấm **Apply**.
    - Nếu muốn cấu hình tay thay vì Blueprint: **New +** → **Web Service** →
      chọn repo → Build Command: `pip install -r requirements.txt` → Start
-     Command: `gunicorn app:app --bind 0.0.0.0:$PORT --workers 2 --timeout 120`.
+     Command: `gunicorn app:app --bind 0.0.0.0:$PORT --workers 2 --timeout 2400`.
 4. Sau khi build xong (vài phút), Render cấp sẵn 1 domain dạng
    `https://ueh-websem.onrender.com` kèm HTTPS miễn phí.
 
@@ -154,9 +154,11 @@ mode) — chỉ cần đẩy code lên GitHub rồi trỏ Render vào là xong:
   lại sẽ xoá sạch. Không ảnh hưởng đến việc sử dụng bình thường (mỗi phiên chỉ
   cần file tồn tại đến lúc chạy xong phân tích), chỉ cần biết để không kỳ vọng
   file cũ còn tồn tại sau khi service khởi động lại.
-- `--timeout 120` (giây) cho gunicorn đã tính dư so với trường hợp nặng nhất
-  (bootstrapping 5000 lần lặp ~40 giây) — nếu sau này tăng giới hạn bootstrap
-  cao hơn, cần tăng số này tương ứng trong `Procfile`/`render.yaml`.
+- `--timeout 2400` (giây) cho gunicorn đủ dư cho cả trường hợp nặng nhất hiện
+  tại — Power Analysis (mô phỏng Monte Carlo) và So sánh Machine Learning với
+  nhiều thuật toán/target đều có thể chạy tới vài chục phút; nếu sau này tăng
+  thêm các giới hạn đó, cần tăng số này tương ứng trong `Procfile`/`render.yaml`
+  (và `Dockerfile` nếu triển khai bằng Docker).
 - Muốn dịch vụ luôn sẵn sàng (không bị ngủ): đổi `plan: free` thành
   `plan: starter` trong `render.yaml` (~$7/tháng).
 
