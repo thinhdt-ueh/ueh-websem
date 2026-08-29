@@ -49,6 +49,17 @@ const AI_PROVIDERS = {
   },
 };
 const AI_PROVIDER_ORDER = ["openai", "gemini", "claude"];
+const AI_LENGTH_OPTIONS = [
+  { id: "short", labelKey: "ai_modal_length_short" },
+  { id: "medium", labelKey: "ai_modal_length_medium" },
+  { id: "long", labelKey: "ai_modal_length_long" },
+];
+const AI_CONTENT_OPTIONS = [
+  { id: "include_tables", labelKey: "ai_modal_opt_tables", defaultChecked: true },
+  { id: "include_interpretation", labelKey: "ai_modal_opt_interpretation", defaultChecked: true },
+  { id: "include_recommendations", labelKey: "ai_modal_opt_recommendations", defaultChecked: true },
+  { id: "include_limitations", labelKey: "ai_modal_opt_limitations", defaultChecked: true },
+];
 
 function aiReportEscapeHtml(s) {
   return String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -80,6 +91,7 @@ function aiReportGetStoredKey(providerId) {
 function openAiReportModal(opts) {
   const root = document.getElementById("modalRoot");
   let currentProvider = "openai";
+  let currentLength = "long";
 
   const providerTabsHtml = AI_PROVIDER_ORDER.map((id) =>
     `<button type="button" class="ai-provider-tab${id === currentProvider ? " active" : ""}" data-provider="${id}">${aiReportEscapeHtml(AI_PROVIDERS[id].label)}</button>`,
@@ -110,6 +122,21 @@ function openAiReportModal(opts) {
         <datalist id="aiModelSuggestions"></datalist>
         <p class="hint">${t("ai_modal_model_hint")}</p>
 
+        <label>${t("ai_modal_length_label")}</label>
+        <div class="ai-provider-tabs" id="aiLengthTabs">
+          ${AI_LENGTH_OPTIONS.map((o) => `<button type="button" class="ai-provider-tab${o.id === "long" ? " active" : ""}" data-length="${o.id}">${t(o.labelKey)}</button>`).join("")}
+        </div>
+
+        <label>${t("ai_modal_options_label")}</label>
+        <div class="ml-algo-checklist">
+          ${AI_CONTENT_OPTIONS.map((o) => `
+            <label class="ml-algo-item">
+              <input type="checkbox" data-option="${o.id}" ${o.defaultChecked ? "checked" : ""}>
+              <span>${t(o.labelKey)}</span>
+            </label>
+          `).join("")}
+        </div>
+
         <label>${t("ai_modal_prompt_label")}</label>
         <textarea id="aiPrompt" rows="5">${aiReportEscapeHtml(opts.defaultPrompt || "")}</textarea>
 
@@ -129,7 +156,11 @@ function openAiReportModal(opts) {
 
   function applyProvider(providerId) {
     currentProvider = providerId;
-    document.querySelectorAll(".ai-provider-tab").forEach((btn) => btn.classList.toggle("active", btn.dataset.provider === providerId));
+    // Scoped to #aiProviderTabs specifically -- the length-tab buttons
+    // below reuse the same .ai-provider-tab class for identical styling,
+    // and an unscoped selector here would also toggle (and clear) their
+    // active state since they don't have a data-provider attribute.
+    document.querySelectorAll("#aiProviderTabs .ai-provider-tab").forEach((btn) => btn.classList.toggle("active", btn.dataset.provider === providerId));
     const cfg = AI_PROVIDERS[providerId];
     const stored = aiReportGetStoredKey(providerId);
     keyInput.value = stored;
@@ -144,6 +175,12 @@ function openAiReportModal(opts) {
   document.getElementById("aiProviderTabs").addEventListener("click", (e) => {
     const btn = e.target.closest(".ai-provider-tab");
     if (btn) applyProvider(btn.dataset.provider);
+  });
+  document.getElementById("aiLengthTabs").addEventListener("click", (e) => {
+    const btn = e.target.closest(".ai-provider-tab");
+    if (!btn) return;
+    currentLength = btn.dataset.length;
+    document.querySelectorAll("#aiLengthTabs .ai-provider-tab").forEach((b) => b.classList.toggle("active", b === btn));
   });
   document.getElementById("aiKeyToggle").onclick = () => {
     keyInput.type = keyInput.type === "password" ? "text" : "password";
@@ -175,8 +212,12 @@ function openAiReportModal(opts) {
       // localStorage unavailable (private browsing, etc.) -- key just won't persist, not fatal
     }
 
+    const options = {};
+    root.querySelectorAll("input[data-option]").forEach((cb) => (options[cb.dataset.option] = cb.checked));
+
     const job = {
       provider: currentProvider, api_key: apiKey, model, context: opts.context, user_prompt: userPrompt,
+      report_length: currentLength, options,
       source_label: opts.sourceLabel || "", images: opts.images || [], lang: getLang(),
     };
     try {
