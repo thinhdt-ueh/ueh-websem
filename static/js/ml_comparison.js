@@ -18,6 +18,12 @@ const ALGO_LABEL_KEY = {
   lightgbm: "ml_algo_lightgbm", catboost: "ml_algo_catboost",
 };
 
+// Clicking a series' name in any chart's legend hides/shows its bars in
+// EVERY target's chart at once (series ids -- "sem" plus each algorithm id
+// -- are shared across charts). Kept at module scope so the toggle survives
+// a re-render (window resize, language switch).
+const hiddenSeriesIds = new Set();
+
 applyStaticTranslations();
 document.querySelectorAll(".lang-btn").forEach((b) => b.classList.toggle("active", b.dataset.lang === getLang()));
 document.getElementById("langSwitch").addEventListener("click", (e) => {
@@ -101,6 +107,19 @@ function renderAll(data) {
 
   renderComparisonSection(data);
   renderDetailSection(data);
+  renderSourceTransparency(data.source_transparency);
+}
+
+function renderSourceTransparency(sections) {
+  const container = document.getElementById("mlSourceTransparency");
+  container.innerHTML = (sections || [])
+    .map((s, i) => `
+      <details${i === 0 ? " open" : ""}>
+        <summary>${escapeHtml(t(s.key))}</summary>
+        <pre><code>${escapeHtml(s.code)}</code></pre>
+      </details>
+    `)
+    .join("");
 }
 
 // ---------------- top: SEM vs. ML comparison, per target ----------------
@@ -171,6 +190,7 @@ function renderComparisonChart(tr, algorithmIds) {
     id: "sem", label: "SEM", color: SEM_COLOR,
     values: tr.predictors.map((p) => (p.sem_coefficient === null || p.sem_coefficient === undefined ? 0 : p.sem_coefficient)),
     raw: tr.predictors.map((p) => p.sem_coefficient),
+    hidden: hiddenSeriesIds.has("sem"),
   }];
   algorithmIds.forEach((a, i) => {
     const raw = rawByAlgo[i];
@@ -178,6 +198,7 @@ function renderComparisonChart(tr, algorithmIds) {
       id: a, label: algoLabel(a), color: SERIES_COLORS[i % SERIES_COLORS.length],
       values: raw.map((v) => (v === null ? 0 : v / maxAbs)),
       raw,
+      hidden: hiddenSeriesIds.has(a),
     });
   });
   drawGroupedBarChart(
@@ -200,11 +221,23 @@ function drawGroupedBarChart(canvasId, tooltipId, legendId, groupLabels, series)
   const ctx = canvas.getContext("2d");
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
+  // Clicking a legend entry hides/shows that series' bars in every target's
+  // chart at once (a full re-render keeps all charts + the toggle state in
+  // sync, same cost as the resize handler already does).
   legendEl.innerHTML = series.map((s) =>
-    `<span class="leg-item" style="cursor:default"><svg class="leg-swatch" width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><rect width="14" height="14" fill="${s.color}"/></svg>${escapeHtml(s.label)}</span>`,
+    `<button type="button" class="leg-item" data-series-id="${escapeHtml(s.id)}" aria-pressed="${!s.hidden}"><svg class="leg-swatch" width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><rect width="14" height="14" fill="${s.color}"/></svg>${escapeHtml(s.label)}</button>`,
   ).join("");
+  legendEl.querySelectorAll(".leg-item").forEach((btn) => {
+    btn.onclick = () => {
+      const id = btn.dataset.seriesId;
+      if (hiddenSeriesIds.has(id)) hiddenSeriesIds.delete(id);
+      else hiddenSeriesIds.add(id);
+      if (window.__mlResult) renderComparisonSection(window.__mlResult);
+    };
+  });
 
-  const allVals = series.flatMap((s) => s.values);
+  const visibleSeries = series.filter((s) => !s.hidden);
+  const allVals = visibleSeries.flatMap((s) => s.values);
   const maxAbs = Math.max(0.1, ...allVals.map((v) => Math.abs(v)));
   const yMax = maxAbs * 1.15;
   const yMin = -yMax;
@@ -217,7 +250,7 @@ function drawGroupedBarChart(canvasId, tooltipId, legendId, groupLabels, series)
 
   const groupCount = groupLabels.length;
   const groupW = plotW / Math.max(1, groupCount);
-  const barW = Math.min(26, groupW / (series.length + 1.2));
+  const barW = Math.min(26, groupW / (visibleSeries.length + 1.2));
 
   const barRects = []; // {x,y,w,h,groupIndex,seriesIndex}
 
@@ -243,9 +276,9 @@ function drawGroupedBarChart(canvasId, tooltipId, legendId, groupLabels, series)
     barRects.length = 0;
     groupLabels.forEach((label, gi) => {
       const groupCenterX = PAD_L + gi * groupW + groupW / 2;
-      const totalW = barW * series.length;
+      const totalW = barW * visibleSeries.length;
       const startX = groupCenterX - totalW / 2;
-      series.forEach((s, si) => {
+      visibleSeries.forEach((s, si) => {
         const v = s.values[gi];
         const bx = startX + si * barW;
         const by = yOf(v);
@@ -290,7 +323,7 @@ function drawGroupedBarChart(canvasId, tooltipId, legendId, groupLabels, series)
       return;
     }
     render(hit);
-    const s = series[hit.seriesIndex];
+    const s = visibleSeries[hit.seriesIndex];
     const rawVal = s.raw[hit.groupIndex];
     const label = s.id === "sem"
       ? `${t("ml_th_sem_coef")}: <strong>${fmt(rawVal)}</strong>`
@@ -317,6 +350,7 @@ function renderDetailSection(data) {
     <details${i === 0 ? " open" : ""}>
       <summary>${escapeHtml(algoLabel(algoId))} <span class="ml-task-badge">${t(badgeKey)}</span></summary>
       <div class="ml-detail-body">
+        ${task === "classification" ? `<p class="hint">${t("ml_logreg_inline_note")}</p>` : ""}
         <div class="table-scroll"><table id="mlDetailMetrics_${algoId}"></table></div>
         <div class="table-scroll" style="margin-top:10px"><table id="mlDetailImportance_${algoId}"></table></div>
       </div>

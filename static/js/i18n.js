@@ -291,7 +291,14 @@ const I18N = {
       "<p><strong>Đây không phải là kiểm định thống kê thay thế SEM</strong> — SEM ước lượng một mô hình lý thuyết đã khai báo trước (confirmatory), trong khi Machine Learning ở đây chỉ tối ưu khả năng dự báo (predictive), không kiểm định giả thuyết. Sự đồng thuận giữa hai cách tiếp cận củng cố thêm độ tin cậy của phát hiện; sự khác biệt là gợi ý để xem xét thêm, không phải bằng chứng SEM \"sai\".</p>",
     ml_guide_logreg_summary: "Vì sao Logistic Regression lại có Accuracy/AUC thay vì R²?",
     ml_guide_logreg_body:
-      "<p>Điểm số construct (construct score) trong SEM là biến liên tục, trong khi Logistic Regression là một thuật toán phân loại (classification). Để đưa được thuật toán này vào so sánh, biến mục tiêu được chia đôi tại trung vị (median) của tập huấn luyện thành hai nhóm \"Cao\"/\"Thấp\" — Logistic Regression khi đó dự báo một quan sát thuộc nhóm nào. Vì bản chất bài toán đã đổi từ hồi quy sang phân loại, chỉ số đánh giá cũng đổi theo: Accuracy (tỉ lệ dự báo đúng nhóm) và AUC (khả năng phân biệt hai nhóm), thay vì R²/RMSE như các thuật toán hồi quy còn lại.</p>",
+      "<p>Điểm số construct (construct score) trong SEM là biến liên tục, trong khi Logistic Regression là một thuật toán phân loại (classification) — nó chỉ dự báo được nhãn 0/1, không dự báo được một giá trị liên tục. Vì vậy biến mục tiêu (y) được chuyển thành 0/1 theo đúng quy tắc sau, thực hiện <strong>riêng cho từng fold của k-fold cross-validation</strong>:</p>" +
+      "<ol>" +
+      "<li>Tính trung vị (median) của y <strong>chỉ trên tập huấn luyện (training fold)</strong> của fold đó — không dùng tập kiểm tra (test fold), để tránh rò rỉ dữ liệu (data leakage).</li>" +
+      "<li>Với mỗi quan sát (ở cả tập huấn luyện lẫn tập kiểm tra): <code>y_nhị_phân = 1</code> nếu <code>y &gt; median_tập_huấn_luyện</code> (nhóm \"Cao\"), ngược lại <code>y_nhị_phân = 0</code> (nhóm \"Thấp\").</li>" +
+      "<li>Logistic Regression được huấn luyện và đánh giá trên <code>y_nhị_phân</code> này, không phải trên điểm số liên tục gốc.</li>" +
+      "</ol>" +
+      "<p>Vì ngưỡng median được tính lại trên từng fold, giá trị ngưỡng cụ thể có thể khác nhau đôi chút giữa các fold — đây là điều bình thường của k-fold cross-validation, không phải lỗi. Vì bài toán đã đổi từ hồi quy sang phân loại, chỉ số đánh giá cũng đổi theo: Accuracy (tỉ lệ dự báo đúng nhóm) và AUC (khả năng phân biệt hai nhóm 0/1), thay vì R²/RMSE như các thuật toán hồi quy còn lại.</p>",
+    ml_logreg_inline_note: "Biến mục tiêu đã được chuyển thành 0/1: y = 1 (\"Cao\") nếu lớn hơn trung vị của tập huấn luyện trong fold đó, ngược lại y = 0 (\"Thấp\"). Xem mục \"Vì sao Logistic Regression lại có Accuracy/AUC thay vì R²?\" ở phần hướng dẫn bên dưới để biết chi tiết.",
     ml_guide_limits_summary: "Giới hạn",
     ml_guide_limits_body:
       "<ul>" +
@@ -432,6 +439,8 @@ const I18N = {
     src_section_moderation: "Biến điều tiết (Moderation)",
     src_section_bootstrap: "Bootstrapping (kiểm định ý nghĩa thống kê)",
     src_section_blindfolding: "Blindfolding (Q² — predictive relevance)",
+    src_section_ml_engine: "Vòng lặp k-fold & permutation importance (ml_compare/engine.py)",
+    src_section_ml_algorithms: "Khởi tạo các thuật toán đã chọn (ml_compare/registry.py)",
 
     // --- results reading guide (bottom of PLS-SEM / CB-SEM results pages) ---
     results_guide_section_title: "Hướng dẫn đọc & Ý nghĩa các chỉ số",
@@ -822,7 +831,14 @@ const I18N = {
       "<p><strong>This is not a statistical test that replaces SEM</strong> — SEM estimates a pre-specified theoretical model (confirmatory), while the Machine Learning here only optimizes predictive accuracy (predictive), with no hypothesis testing. Agreement between the two approaches strengthens confidence in a finding; disagreement is a prompt for further scrutiny, not proof the SEM model is \"wrong\".</p>",
     ml_guide_logreg_summary: "Why does Logistic Regression report Accuracy/AUC instead of R²?",
     ml_guide_logreg_body:
-      "<p>A construct score in SEM is a continuous variable, while Logistic Regression is a classification algorithm. To include it in the comparison, the target is split at its training-fold median into \"High\"/\"Low\" groups — Logistic Regression then predicts which group an observation falls into. Since the task itself changed from regression to classification, the evaluation metrics change accordingly: Accuracy (fraction of correctly classified observations) and AUC (how well the two groups are separated), instead of the R²/RMSE used by every other, regression-based algorithm.</p>",
+      "<p>A construct score in SEM is a continuous variable, while Logistic Regression is a classification algorithm — it can only predict a 0/1 label, not a continuous value. So the target (y) is converted to 0/1 using the following rule, applied <strong>separately within each k-fold cross-validation fold</strong>:</p>" +
+      "<ol>" +
+      "<li>Compute the median of y <strong>using only that fold's training data</strong> — never the test fold, to avoid data leakage.</li>" +
+      "<li>For every observation (in both the training and test fold): <code>y_binary = 1</code> if <code>y &gt; training_fold_median</code> (the \"High\" group), otherwise <code>y_binary = 0</code> (the \"Low\" group).</li>" +
+      "<li>Logistic Regression is trained and evaluated on this <code>y_binary</code>, not on the original continuous score.</li>" +
+      "</ol>" +
+      "<p>Because the median threshold is recomputed per fold, its exact value can differ slightly from one fold to the next — that's a normal feature of k-fold cross-validation, not a bug. Since the task itself changed from regression to classification, the evaluation metrics change accordingly: Accuracy (fraction of correctly classified observations) and AUC (how well the two 0/1 groups are separated), instead of the R²/RMSE used by every other, regression-based algorithm.</p>",
+    ml_logreg_inline_note: "The target was converted to 0/1: y = 1 (\"High\") if above that fold's training-set median, otherwise y = 0 (\"Low\"). See \"Why does Logistic Regression report Accuracy/AUC instead of R²?\" in the guide below for the full rule.",
     ml_guide_limits_summary: "Limitations",
     ml_guide_limits_body:
       "<ul>" +
@@ -958,6 +974,8 @@ const I18N = {
     src_section_moderation: "Moderation",
     src_section_bootstrap: "Bootstrapping (significance testing)",
     src_section_blindfolding: "Blindfolding (Q² — predictive relevance)",
+    src_section_ml_engine: "k-fold loop & permutation importance (ml_compare/engine.py)",
+    src_section_ml_algorithms: "Selected algorithms' construction (ml_compare/registry.py)",
 
     // --- results reading guide (bottom of PLS-SEM / CB-SEM results pages) ---
     results_guide_section_title: "Reading Guide & What the Numbers Mean",

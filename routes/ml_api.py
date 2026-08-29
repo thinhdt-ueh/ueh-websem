@@ -17,6 +17,7 @@ from cbsem.moderation import run_cbsem_with_moderation
 from i18n import get_lang, t
 from ml_compare.engine import run_ml_comparison
 from ml_compare.registry import ALGORITHM_ORDER, ALGORITHMS
+from ml_compare.source_transparency import ml_compare_sections
 from pls.algorithm import run_pls_algorithm
 from pls.model import Model, ModelError
 from pls.moderation import run_pls_with_moderation
@@ -125,6 +126,7 @@ def ml_compare():
         method=method,
         k=k,
         algorithms=algorithm_ids,
+        source_transparency=[{"key": s.key, "code": s.code} for s in ml_compare_sections(algorithm_ids)],
         targets=[
             {
                 "target_id": tr.target_id,
