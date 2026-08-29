@@ -187,12 +187,16 @@ canvas { width: 100%; border: 1px solid var(--border); border-radius: 10px; back
 .summary-indicators li { padding: 1px 0; border: none; }
 
 .checkbox-row { display: flex !important; align-items: center; gap: 7px; font-size: 13px; color: var(--text); margin: 8px 0; }
-.checkbox-row input { width: auto; }
+/* !important: .modal-box input (below) sets width:100%/padding/margin at
+ * equal specificity and comes later in the file, so without this the
+ * checkbox itself stretches to the full row width -- pushing its label
+ * text far to the right instead of sitting right next to it. */
+.checkbox-row input { width: auto !important; padding: 0 !important; margin: 0 !important; flex-shrink: 0; }
 #bootstrapOptions { margin-bottom: 4px; }
 
 .radio-group { display: flex; flex-direction: column; gap: 4px; margin: 4px 0 10px; }
 .radio-row { display: flex !important; align-items: center; gap: 7px; font-size: 13px; color: var(--text); }
-.radio-row input { width: auto; }
+.radio-row input { width: auto !important; padding: 0 !important; margin: 0 !important; flex-shrink: 0; }
 .radio-row:has(input:disabled) { opacity: .5; cursor: not-allowed; }
 
 .results-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); gap: 18px; }
