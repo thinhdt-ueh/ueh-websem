@@ -225,6 +225,13 @@ canvas { width: 100%; border: 1px solid var(--border); border-radius: 10px; back
 .ai-key-row { display: flex; gap: 6px; margin: 6px 0 4px; }
 .ai-key-row input { margin: 0; flex: 1; }
 .ai-key-row button { flex-shrink: 0; padding: 0 12px; }
+.ai-provider-tabs { display: flex; gap: 6px; margin: 6px 0 12px; flex-wrap: wrap; }
+.ai-provider-tab {
+  border: 1px solid var(--border); background: var(--card); color: var(--text);
+  border-radius: 999px; padding: 6px 14px; font-size: 13px; cursor: pointer;
+}
+.ai-provider-tab.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+.ai-provider-tab:not(.active):hover { background: var(--accent-bg); color: var(--primary); }
 .ml-algo-checklist { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 8px 0 4px; }
 @media (max-width: 480px) { .ml-algo-checklist { grid-template-columns: 1fr; } }
 .ml-algo-item {
@@ -473,4 +480,8 @@ canvas { width: 100%; border: 1px solid var(--border); border-radius: 10px; back
 .ai-report-body table { border-collapse: collapse; width: 100%; font-size: 13px; margin: 6px 0 16px; }
 .ai-report-body th, .ai-report-body td { padding: 7px 10px; text-align: left; border: 1px solid var(--border); }
 .ai-report-body th { background: var(--accent-bg); font-weight: 700; }
+.ai-report-images { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; margin-bottom: 22px; }
+.ai-report-image-card { border: 1px solid var(--border); border-radius: 10px; padding: 10px; background: var(--card); }
+.ai-report-image-card img { display: block; width: 100%; height: auto; border-radius: 6px; }
+.ai-report-image-card .caption { margin: 8px 2px 0; font-size: 12.5px; color: var(--muted); text-align: center; }
 .slope-swap-btn:hover { border-color: var(--primary); color: var(--primary); }

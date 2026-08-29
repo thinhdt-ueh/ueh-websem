@@ -45,8 +45,19 @@ document.getElementById("mlAiReportBtn").addEventListener("click", () => {
     context: buildMlReportContext(data),
     sourceLabel: `${data.method === "cbsem" ? "CB-SEM" : "PLS-SEM"} ML Comparison — k = ${data.k}, algorithms: ${data.algorithms.map(algoLabel).join(", ")}`,
     defaultPrompt: t("ai_modal_prompt_default_mlcompare"),
+    images: captureMlChartImages(data),
   });
 });
+
+function captureMlChartImages(data) {
+  return data.targets
+    .map((tr) => {
+      const canvas = document.getElementById(`mlCompChart_${tr.target_id}`);
+      if (!canvas || !canvas.width || !canvas.height) return null;
+      return { label: t("ai_image_ml_chart", { target: tr.target_name }), dataUrl: canvas.toDataURL("image/png") };
+    })
+    .filter(Boolean);
+}
 
 function buildMlReportContext(data) {
   const lines = [];

@@ -1,7 +1,8 @@
-"""Tests for /api/ai_report. Never calls the real OpenAI API -- that would
-need a real paid key and be flaky/non-deterministic in CI -- instead
-monkeypatches `_call_openai`, the one function that makes the actual HTTP
-call, and asserts the route's validation/error-mapping around it.
+"""Tests for /api/ai_report. Never calls a real provider's API -- that would
+need real paid keys and be flaky/non-deterministic in CI -- instead
+monkeypatches `_call_openai`/`_call_gemini`/`_call_claude`, the three
+functions that make the actual HTTP calls, and asserts the route's
+validation/provider-dispatch/error-mapping around them.
 """
 
 from __future__ import annotations
@@ -15,6 +16,7 @@ import routes.ai_report_api as ai_report_api
 
 def _valid_payload(**overrides):
     payload = {
+        "provider": "openai",
         "api_key": "sk-test-123",
         "model": "gpt-4o-mini",
         "context": "PEOU -> PU: 0.462 (p < .001)",
@@ -82,4 +84,42 @@ def test_ai_report_maps_network_error(client, monkeypatch):
     monkeypatch.setattr(ai_report_api, "_call_openai", raise_network_error)
     resp = client.post("/api/ai_report", json=_valid_payload())
     assert resp.status_code == 502
+    assert "error" in resp.get_json()
+
+
+def test_ai_report_rejects_unknown_provider(client):
+    resp = client.post("/api/ai_report", json=_valid_payload(provider="not-a-real-provider"))
+    assert resp.status_code == 400
+    assert "error" in resp.get_json()
+
+
+def test_ai_report_gemini_success(client, monkeypatch):
+    monkeypatch.setattr(ai_report_api, "_call_gemini", lambda *a, **k: "# Gemini Report")
+    resp = client.post("/api/ai_report", json=_valid_payload(provider="gemini", model="gemini-2.0-flash"))
+    assert resp.status_code == 200, resp.get_json()
+    assert resp.get_json()["report"] == "# Gemini Report"
+
+
+def test_ai_report_claude_success(client, monkeypatch):
+    monkeypatch.setattr(ai_report_api, "_call_claude", lambda *a, **k: "# Claude Report")
+    resp = client.post("/api/ai_report", json=_valid_payload(provider="claude", model="claude-sonnet-5"))
+    assert resp.status_code == 200, resp.get_json()
+    assert resp.get_json()["report"] == "# Claude Report"
+
+
+def test_ai_report_gemini_maps_forbidden_as_invalid_key(client, monkeypatch):
+    def raise_403(*a, **k):
+        raise _http_error(403, "Permission denied")
+    monkeypatch.setattr(ai_report_api, "_call_gemini", raise_403)
+    resp = client.post("/api/ai_report", json=_valid_payload(provider="gemini"))
+    assert resp.status_code == 400
+    assert "error" in resp.get_json()
+
+
+def test_ai_report_claude_maps_overloaded_as_rate_limited(client, monkeypatch):
+    def raise_529(*a, **k):
+        raise _http_error(529, "Overloaded")
+    monkeypatch.setattr(ai_report_api, "_call_claude", raise_529)
+    resp = client.post("/api/ai_report", json=_valid_payload(provider="claude"))
+    assert resp.status_code == 429
     assert "error" in resp.get_json()

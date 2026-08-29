@@ -1343,10 +1343,13 @@ function openSemAiReportModal(method) {
   if (!data) return;
   const context = buildSemReportContext(data, method);
   const sourceLabel = `${method === "cbsem" ? "CB-SEM" : "PLS-SEM"} — n = ${data.n_obs}`;
+  const diagram = method === "cbsem" ? cbsemResultDiagram : resultDiagram;
+  const images = diagram ? [{ label: t("ai_image_path_diagram"), dataUrl: diagram.canvas.toDataURL("image/png") }] : [];
   openAiReportModal({
     context,
     sourceLabel,
     defaultPrompt: t("ai_modal_prompt_default_sem"),
+    images,
   });
 }
 

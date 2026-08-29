@@ -73,8 +73,24 @@ document.getElementById("sensAiReportBtn").addEventListener("click", () => {
     context: buildSensitivityReportContext(data),
     sourceLabel: `${t("sens_page_title") || "Sample Size Sensitivity"} — ${data.method === "cbsem" ? "CB-SEM" : "PLS-SEM"}, n_total = ${data.n_total}`,
     defaultPrompt: t("ai_modal_prompt_default_sensitivity"),
+    images: captureSensitivityChartImages(data),
   });
 });
+
+function captureSensitivityChartImages(data) {
+  const charts = [
+    ["r2Chart", t("sens_r2_chart_title")],
+    ["pathChart", t("sens_path_chart_title")],
+  ];
+  if (data.has_p_values) charts.push(["pvalueChart", t("sens_pvalue_chart_title")]);
+  return charts
+    .map(([id, label]) => {
+      const canvas = document.getElementById(id);
+      if (!canvas || !canvas.width || !canvas.height) return null;
+      return { label, dataUrl: canvas.toDataURL("image/png") };
+    })
+    .filter(Boolean);
+}
 
 function buildSensitivityReportContext(data) {
   const converged = data.points.filter((p) => p.converged);

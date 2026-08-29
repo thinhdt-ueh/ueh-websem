@@ -149,6 +149,7 @@ async function main() {
   }
   document.getElementById("aiSourceLabel").textContent = job.source_label || "";
   document.getElementById("aiUserPrompt").textContent = job.user_prompt || "";
+  renderReportImages(job.images);
 
   try {
     const res = await fetch("/api/ai_report", {
@@ -164,6 +165,21 @@ async function main() {
   } catch (err) {
     showError(err.message);
   }
+}
+
+function renderReportImages(images) {
+  const container = document.getElementById("aiReportImages");
+  if (!images || !images.length) {
+    container.classList.add("hidden");
+    return;
+  }
+  container.classList.remove("hidden");
+  container.innerHTML = images.map((img) => `
+    <div class="ai-report-image-card">
+      <img src="${img.dataUrl}" alt="${escapeHtml(img.label || "")}">
+      <p class="caption">${escapeHtml(img.label || "")}</p>
+    </div>
+  `).join("");
 }
 
 function showError(msg) {
