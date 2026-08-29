@@ -43,6 +43,15 @@ function algoLabel(algoId) {
   return t(ALGO_LABEL_KEY[algoId] || algoId);
 }
 
+// Truncates long construct/algorithm names with a CSS ellipsis instead of
+// letting them wrap or overflow raggedly inside a narrow table column or
+// chart heading -- the full name is still available on hover via `title`.
+function cellTrunc(text, maxWidth) {
+  const s = escapeHtml(text);
+  const style = maxWidth ? ` style="max-width:${maxWidth}px"` : "";
+  return `<span class="cell-trunc"${style} title="${s}">${s}</span>`;
+}
+
 async function main() {
   const raw = sessionStorage.getItem("websem_ml_job");
   if (!raw) {
@@ -98,39 +107,47 @@ function renderAll(data) {
 
 function renderComparisonSection(data) {
   const container = document.getElementById("mlComparisonContainer");
-  container.innerHTML = data.targets.map((tr) => `
-    <div class="ml-target-block">
-      <h3>${escapeHtml(tr.target_name)} <span class="hint">(n = ${tr.n_obs})</span></h3>
-      <div class="table-scroll"><table id="mlCompTable_${tr.target_id}"></table></div>
-      <div class="chart-wrap">
-        <canvas id="mlCompChart_${tr.target_id}"></canvas>
-        <div id="mlCompTooltip_${tr.target_id}" class="chart-tooltip hidden"></div>
-      </div>
-      <div id="mlCompLegend_${tr.target_id}" class="chart-legend"></div>
+  container.innerHTML = `
+    <div class="table-scroll"><table id="mlCompTableAll"></table></div>
+    <div class="ml-comparison-charts">
+      ${data.targets.map((tr) => `
+        <div class="ml-target-block">
+          <h3>${cellTrunc(tr.target_name, 260)} <span class="hint">(n = ${tr.n_obs})</span></h3>
+          <div class="chart-wrap">
+            <canvas id="mlCompChart_${tr.target_id}"></canvas>
+            <div id="mlCompTooltip_${tr.target_id}" class="chart-tooltip hidden"></div>
+          </div>
+          <div id="mlCompLegend_${tr.target_id}" class="chart-legend"></div>
+        </div>
+      `).join("")}
     </div>
-  `).join("");
+  `;
 
-  data.targets.forEach((tr) => {
-    renderComparisonTable(tr, data.algorithms);
-    renderComparisonChart(tr, data.algorithms);
-  });
+  renderComparisonTableAll(data.targets, data.algorithms);
+  data.targets.forEach((tr) => renderComparisonChart(tr, data.algorithms));
 }
 
-function renderComparisonTable(tr, algorithmIds) {
-  let html = `<thead><tr><th>${t("ml_th_predictor")}</th><th>${t("ml_th_sem_coef")}</th>`;
-  algorithmIds.forEach((a) => (html += `<th>${escapeHtml(algoLabel(a))}</th>`));
+function renderComparisonTableAll(targets, algorithmIds) {
+  let html = `<thead><tr><th>${t("ml_th_target")}</th><th>${t("ml_th_predictor")}</th><th>${t("ml_th_sem_coef")}</th>`;
+  algorithmIds.forEach((a) => (html += `<th>${cellTrunc(algoLabel(a), 130)}</th>`));
   html += "</tr></thead><tbody>";
-  tr.predictors.forEach((p) => {
-    html += `<tr><td>${escapeHtml(p.name)}</td><td>${fmt(p.sem_coefficient)}</td>`;
-    algorithmIds.forEach((a) => {
-      const ao = tr.algorithms[a];
-      const pi = ao ? ao.permutation_importance[p.id] : null;
-      html += `<td>${pi ? `${fmt(pi.mean)} <span class="hint">(±${fmt(pi.std, 3)})</span>` : t("lbl_dash")}</td>`;
+  targets.forEach((tr) => {
+    tr.predictors.forEach((p, pi) => {
+      html += "<tr>";
+      if (pi === 0) {
+        html += `<td rowspan="${tr.predictors.length}" class="ml-target-cell">${cellTrunc(tr.target_name, 160)}</td>`;
+      }
+      html += `<td>${cellTrunc(p.name, 160)}</td><td>${fmt(p.sem_coefficient)}</td>`;
+      algorithmIds.forEach((a) => {
+        const ao = tr.algorithms[a];
+        const pi2 = ao ? ao.permutation_importance[p.id] : null;
+        html += `<td>${pi2 ? `${fmt(pi2.mean)} <span class="hint">(±${fmt(pi2.std, 3)})</span>` : t("lbl_dash")}</td>`;
+      });
+      html += "</tr>";
     });
-    html += "</tr>";
   });
   html += "</tbody>";
-  document.getElementById(`mlCompTable_${tr.target_id}`).innerHTML = html;
+  document.getElementById("mlCompTableAll").innerHTML = html;
 }
 
 function renderComparisonChart(tr, algorithmIds) {
@@ -293,15 +310,19 @@ function drawGroupedBarChart(canvasId, tooltipId, legendId, groupLabels, series)
 
 function renderDetailSection(data) {
   const container = document.getElementById("mlDetailContainer");
-  container.innerHTML = `<div class="reading-guide">${data.algorithms.map((algoId) => `
-    <details open>
-      <summary>${escapeHtml(algoLabel(algoId))}</summary>
-      <div class="reading-guide-body">
+  container.innerHTML = `<div class="ml-detail">${data.algorithms.map((algoId, i) => {
+    const task = data.targets.find((tr) => tr.algorithms[algoId])?.algorithms[algoId]?.task;
+    const badgeKey = task === "classification" ? "ml_badge_classification" : "ml_badge_regression";
+    return `
+    <details${i === 0 ? " open" : ""}>
+      <summary>${escapeHtml(algoLabel(algoId))} <span class="ml-task-badge">${t(badgeKey)}</span></summary>
+      <div class="ml-detail-body">
         <div class="table-scroll"><table id="mlDetailMetrics_${algoId}"></table></div>
         <div class="table-scroll" style="margin-top:10px"><table id="mlDetailImportance_${algoId}"></table></div>
       </div>
     </details>
-  `).join("")}</div>`;
+  `;
+  }).join("")}</div>`;
 
   data.algorithms.forEach((algoId) => {
     renderDetailMetricsTable(algoId, data.targets);
@@ -317,7 +338,7 @@ function renderDetailMetricsTable(algoId, targets) {
     targets.forEach((tr) => {
       const ao = tr.algorithms[algoId];
       const acc = ao.metrics.accuracy, auc = ao.metrics.auc;
-      html += `<tr><td>${escapeHtml(tr.target_name)}</td>` +
+      html += `<tr><td>${cellTrunc(tr.target_name, 200)}</td>` +
         `<td>${acc ? `${fmt(acc.mean)} <span class="hint">(±${fmt(acc.std, 3)})</span>` : t("lbl_dash")}</td>` +
         `<td>${auc ? `${fmt(auc.mean)} <span class="hint">(±${fmt(auc.std, 3)})</span>` : t("lbl_dash")}</td></tr>`;
     });
@@ -326,7 +347,7 @@ function renderDetailMetricsTable(algoId, targets) {
     targets.forEach((tr) => {
       const ao = tr.algorithms[algoId];
       const r2 = ao.metrics.r2, rmse = ao.metrics.rmse;
-      html += `<tr><td>${escapeHtml(tr.target_name)}</td>` +
+      html += `<tr><td>${cellTrunc(tr.target_name, 200)}</td>` +
         `<td>${r2 ? `${fmt(r2.mean)} <span class="hint">(±${fmt(r2.std, 3)})</span>` : t("lbl_dash")}</td>` +
         `<td>${rmse ? `${fmt(rmse.mean)} <span class="hint">(±${fmt(rmse.std, 3)})</span>` : t("lbl_dash")}</td></tr>`;
     });
@@ -343,7 +364,7 @@ function renderDetailImportanceTable(algoId, targets) {
     tr.predictors.forEach((p) => {
       const native = ao.native_importance ? ao.native_importance[p.id] : null;
       const perm = ao.permutation_importance[p.id];
-      html += `<tr><td>${escapeHtml(tr.target_name)}</td><td>${escapeHtml(p.name)}</td>` +
+      html += `<tr><td>${cellTrunc(tr.target_name, 160)}</td><td>${cellTrunc(p.name, 160)}</td>` +
         `<td>${native === null || native === undefined ? t("lbl_dash") : fmt(native)}</td>` +
         `<td>${perm ? `${fmt(perm.mean)} <span class="hint">(±${fmt(perm.std, 3)})</span>` : t("lbl_dash")}</td></tr>`;
     });

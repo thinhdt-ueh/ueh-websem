@@ -217,8 +217,21 @@ canvas { width: 100%; border: 1px solid var(--border); border-radius: 10px; back
 .modal-box h3 { margin-top: 0; }
 .modal-box input, .modal-box select { width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 7px; margin: 6px 0 12px; }
 .modal-actions { display: flex; justify-content: flex-end; gap: 8px; }
-.ml-algo-checklist { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 12px; margin: 10px 0; }
-@media (max-width: 420px) { .ml-algo-checklist { grid-template-columns: 1fr; } }
+.ml-algo-checklist { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 8px 0 4px; }
+@media (max-width: 480px) { .ml-algo-checklist { grid-template-columns: 1fr; } }
+.ml-algo-item {
+  display: flex; align-items: center; gap: 8px;
+  border: 1px solid var(--border); border-radius: 8px; background: var(--card);
+  padding: 8px 10px; font-size: 13px; color: var(--text); cursor: pointer;
+  transition: border-color .12s, background .12s;
+}
+.ml-algo-item:hover { border-color: var(--primary); }
+.ml-algo-item:has(input:checked) { border-color: var(--primary); background: var(--accent-bg); }
+.ml-algo-item:has(input:disabled) { opacity: .5; cursor: not-allowed; }
+.ml-algo-item input { width: auto; margin: 0; flex-shrink: 0; }
+.ml-kfold-row { display: flex; align-items: center; gap: 10px; margin-top: 14px; }
+.ml-kfold-row label { font-size: 13px; color: var(--text); flex: 1; }
+.ml-kfold-row input { width: 80px; margin: 0; flex-shrink: 0; }
 
 /* Wider modal variant for forms with several rows of inputs (e.g. Power
  * Analysis's population-model editor) rather than one field. */
@@ -396,11 +409,36 @@ canvas { width: 100%; border: 1px solid var(--border); border-radius: 10px; back
 .chart-legend .leg-swatch { flex-shrink: 0; }
 .chart-legend .leg-glyph { font-size: 11px; line-height: 1; }
 
-/* ML comparison page: one block per endogenous target (table + bar chart) */
-.ml-target-block { padding: 14px 0; border-bottom: 1px solid var(--border); }
-.ml-target-block:last-child { border-bottom: none; padding-bottom: 0; }
-.ml-target-block:first-child { padding-top: 0; }
-.ml-target-block h3 { margin: 0 0 8px; font-size: 15px; }
+/* ML comparison page: one merged table across all targets, plus one
+ * small-multiple bar chart per endogenous target. */
+.cell-trunc {
+  display: inline-block; max-width: 100%; overflow: hidden;
+  text-overflow: ellipsis; white-space: nowrap; vertical-align: middle;
+}
+.ml-target-cell { font-weight: 600; vertical-align: top; border-right: 1px solid var(--border); }
+.ml-comparison-charts { display: grid; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); gap: 18px; margin-top: 18px; }
+.ml-target-block { min-width: 0; }
+.ml-target-block h3 { margin: 0 0 8px; font-size: 14px; display: flex; align-items: baseline; gap: 6px; }
+.ml-target-block h3 .cell-trunc { max-width: 260px; }
+
+/* Per-algorithm detail: same collapsible chevron chrome as .reading-guide,
+ * but without its prose max-width (this section holds data tables). */
+.ml-detail { display: flex; flex-direction: column; gap: 8px; }
+.ml-detail details { border: 1px solid var(--border); border-radius: 8px; background: var(--bg); }
+.ml-detail summary {
+  cursor: pointer; padding: 10px 14px; font-weight: 600; font-size: 13.5px;
+  color: var(--text); list-style: none; display: flex; align-items: center; gap: 8px;
+}
+.ml-detail summary::-webkit-details-marker { display: none; }
+.ml-detail summary::before { content: "▸"; color: var(--muted); }
+.ml-detail details[open] summary::before { content: "▾"; }
+.ml-task-badge {
+  font-size: 10.5px; font-weight: 700; padding: 2px 8px; border-radius: 999px;
+  background: var(--card); border: 1px solid var(--primary);
+  color: var(--primary); text-transform: uppercase; letter-spacing: .02em;
+}
+.ml-detail-body { padding: 4px 14px 14px; border-top: 1px solid var(--border); }
+.ml-detail-body .table-scroll:first-child { margin-top: 10px; }
 
 /* Simple slopes (moderation interpretation) small multiples */
 .simple-slopes-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); gap: 18px; margin-top: 6px; }

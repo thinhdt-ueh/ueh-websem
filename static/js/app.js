@@ -1173,21 +1173,33 @@ async function openMlComparisonModal(method) {
     return;
   }
 
-  const checklistHtml = algorithms.map((a) => `
-    <label class="radio-row"${a.available ? "" : ` title="${escapeAttr(t("ml_modal_unavailable_hint"))}"`}>
+  const GROUPS = [
+    { titleKey: "ml_group_linear", ids: ["linreg", "logreg"] },
+    { titleKey: "ml_group_tree", ids: ["dtree", "rf", "svm", "gbm"] },
+    { titleKey: "ml_group_boosting", ids: ["xgboost", "lightgbm", "catboost"] },
+  ];
+  const byId = Object.fromEntries(algorithms.map((a) => [a.id, a]));
+  const algoItemHtml = (a) => `
+    <label class="ml-algo-item"${a.available ? "" : ` title="${escapeAttr(t("ml_modal_unavailable_hint"))}"`}>
       <input type="checkbox" data-algo="${escapeAttr(a.id)}" ${a.available ? "checked" : "disabled"}>
-      ${escapeHtml(t(a.name_key))}${a.available ? "" : ` <span class="hint">(${t("ml_modal_unavailable")})</span>`}
+      <span>${escapeHtml(t(a.name_key))}${a.available ? "" : ` <span class="hint">(${t("ml_modal_unavailable")})</span>`}</span>
     </label>
+  `;
+  const groupsHtml = GROUPS.map((g) => `
+    <div class="modal-section-title">${t(g.titleKey)}</div>
+    <div class="ml-algo-checklist">${g.ids.filter((id) => byId[id]).map((id) => algoItemHtml(byId[id])).join("")}</div>
   `).join("");
 
   root.innerHTML = `
     <div class="modal-backdrop">
-      <div class="modal-box wide">
+      <div class="modal-box modal-wide">
         <h3>${t("ml_modal_title")}</h3>
         <p class="hint">${t("ml_modal_hint")}</p>
-        <div class="ml-algo-checklist">${checklistHtml}</div>
-        <label>${t("ml_modal_k_label")}</label>
-        <input type="number" id="mlKFold" min="2" max="10" step="1" value="5">
+        ${groupsHtml}
+        <div class="ml-kfold-row">
+          <label>${t("ml_modal_k_label")}</label>
+          <input type="number" id="mlKFold" min="2" max="10" step="1" value="5">
+        </div>
         <p class="hint">${t("ml_modal_k_hint")}</p>
         <div id="mlModalError" class="error-box hidden"></div>
         <div class="modal-actions">
