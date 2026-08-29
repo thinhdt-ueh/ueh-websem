@@ -29,13 +29,24 @@
       <h2 data-i18n="ml_summary_title">Tổng quan</h2>
       <p class="hint" id="mlSummary"></p>
       <p class="hint" data-i18n="ml_method_hint">Với mỗi construct nội sinh (có ít nhất 1 đường dẫn đi vào), các construct tiền đề trực tiếp của nó (đúng như trong mô hình cấu trúc) được dùng làm biến đầu vào để huấn luyện từng thuật toán đã chọn, đánh giá bằng k-fold cross-validation. Feature importance hiển thị ở phần so sánh là permutation importance — cách đo duy nhất có thể so sánh công bằng giữa hệ số hồi quy tuyến tính, mức độ phân tách của cây quyết định, và biên độ của SVM.</p>
+      <div class="export-buttons">
+        <button class="btn" id="mlExportExcelBtn" data-i18n="s3_export_excel">📊 Xuất Excel</button>
+        <button class="btn" id="mlExportWordBtn" data-i18n="s3_export_word">📄 Xuất Word</button>
+      </div>
+      <div id="mlExportError" class="error-box hidden"></div>
     </div>
 
     <div class="panel-card">
       <h2 data-i18n="ml_comparison_title">So sánh: Hệ số đường dẫn SEM vs. Feature Importance (ML)</h2>
-      <p class="hint" data-i18n="ml_comparison_hint">Mỗi khối bên dưới ứng với một construct nội sinh (biến mục tiêu). Cột "SEM" là hệ số đường dẫn chuẩn hóa từ mô hình cấu trúc; các cột thuật toán là permutation importance (đã chuẩn hóa 0–1 trong từng biến mục tiêu để dễ so sánh).</p>
-      <div id="mlComparisonContainer"></div>
+      <p class="hint" data-i18n="ml_comparison_hint">Mỗi dòng là một cặp (biến mục tiêu, biến tiền đề) — bảng phẳng, không gộp ô. Cột "SEM" là hệ số đường dẫn chuẩn hóa từ mô hình cấu trúc; các cột thuật toán là permutation importance. Xem biểu đồ minh họa cùng số liệu ở mục bên dưới.</p>
+      <div class="table-scroll"><table id="mlCompTableAll"></table></div>
     </div>
+
+    <div class="panel-card">
+      <h2 data-i18n="ml_charts_title">Biểu đồ so sánh theo từng biến mục tiêu</h2>
+      <p class="hint" data-i18n="ml_charts_hint">Mỗi biểu đồ ứng với một construct nội sinh (biến mục tiêu), chuẩn hóa 0–1 trong phạm vi biến đó để so sánh các thuật toán dễ dàng hơn. Bấm vào tên trong chú thích để ẩn/hiện thuật toán đó trên tất cả biểu đồ.</p>
+    </div>
+    <div id="mlComparisonChartsContainer"></div>
 
     <div class="panel-card">
       <h2 data-i18n="ml_detail_title">Chi tiết từng thuật toán</h2>

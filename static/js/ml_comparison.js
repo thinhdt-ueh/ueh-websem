@@ -36,6 +36,42 @@ document.getElementById("closeTabBtn").addEventListener("click", () => window.cl
 document.addEventListener("langchange", () => {
   if (window.__mlResult) renderAll(window.__mlResult);
 });
+document.getElementById("mlExportExcelBtn").addEventListener("click", () => exportMlReport("excel"));
+document.getElementById("mlExportWordBtn").addEventListener("click", () => exportMlReport("word"));
+
+async function exportMlReport(kind) {
+  if (!window.__mlResult) return;
+  const btn = document.getElementById(kind === "excel" ? "mlExportExcelBtn" : "mlExportWordBtn");
+  const originalText = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = t("s3_generating_file");
+  document.getElementById("mlExportError").classList.add("hidden");
+  try {
+    const res = await fetch(`/api/ml_compare/export/${kind}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ...window.__mlResult, lang: getLang() }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || t("s3_export_failed"));
+    }
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = kind === "excel" ? "ML_Comparison_Report.xlsx" : "ML_Comparison_Report.docx";
+    a.click();
+    URL.revokeObjectURL(url);
+  } catch (err) {
+    const box = document.getElementById("mlExportError");
+    box.textContent = err.message;
+    box.classList.remove("hidden");
+  } finally {
+    btn.disabled = false;
+    btn.textContent = originalText;
+  }
+}
 
 function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -125,24 +161,19 @@ function renderSourceTransparency(sections) {
 // ---------------- top: SEM vs. ML comparison, per target ----------------
 
 function renderComparisonSection(data) {
-  const container = document.getElementById("mlComparisonContainer");
-  container.innerHTML = `
-    <div class="table-scroll"><table id="mlCompTableAll"></table></div>
-    <div class="ml-comparison-charts">
-      ${data.targets.map((tr) => `
-        <div class="ml-target-block">
-          <h3>${cellTrunc(tr.target_name, 260)} <span class="hint">(n = ${tr.n_obs})</span></h3>
-          <div class="chart-wrap">
-            <canvas id="mlCompChart_${tr.target_id}"></canvas>
-            <div id="mlCompTooltip_${tr.target_id}" class="chart-tooltip hidden"></div>
-          </div>
-          <div id="mlCompLegend_${tr.target_id}" class="chart-legend"></div>
-        </div>
-      `).join("")}
-    </div>
-  `;
-
   renderComparisonTableAll(data.targets, data.algorithms);
+
+  const chartsContainer = document.getElementById("mlComparisonChartsContainer");
+  chartsContainer.innerHTML = data.targets.map((tr) => `
+    <div class="panel-card ml-target-block">
+      <h3>${cellTrunc(tr.target_name, 320)} <span class="hint">(n = ${tr.n_obs})</span></h3>
+      <div class="chart-wrap">
+        <canvas id="mlCompChart_${tr.target_id}"></canvas>
+        <div id="mlCompTooltip_${tr.target_id}" class="chart-tooltip hidden"></div>
+      </div>
+      <div id="mlCompLegend_${tr.target_id}" class="chart-legend"></div>
+    </div>
+  `).join("");
   data.targets.forEach((tr) => renderComparisonChart(tr, data.algorithms));
 }
 
@@ -151,11 +182,9 @@ function renderComparisonTableAll(targets, algorithmIds) {
   algorithmIds.forEach((a) => (html += `<th>${cellTrunc(algoLabel(a), 130)}</th>`));
   html += "</tr></thead><tbody>";
   targets.forEach((tr) => {
-    tr.predictors.forEach((p, pi) => {
+    tr.predictors.forEach((p) => {
       html += "<tr>";
-      if (pi === 0) {
-        html += `<td rowspan="${tr.predictors.length}" class="ml-target-cell">${cellTrunc(tr.target_name, 160)}</td>`;
-      }
+      html += `<td>${cellTrunc(tr.target_name, 160)}</td>`;
       html += `<td>${cellTrunc(p.name, 160)}</td><td>${fmt(p.sem_coefficient)}</td>`;
       algorithmIds.forEach((a) => {
         const ao = tr.algorithms[a];

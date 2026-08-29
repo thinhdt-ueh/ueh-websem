@@ -177,6 +177,28 @@ def test_ml_compare_endpoint_cbsem(client, tam_df, tam_model_json):
     assert {t["target_id"] for t in data["targets"]} == {"pu", "att", "int"}
 
 
+def test_ml_compare_export_round_trip(client, tam_df, tam_model_json):
+    file_id = _upload(client, tam_df)
+    resp = client.post("/api/ml_compare", json={
+        "file_id": file_id, "model": tam_model_json, "lang": "en", "method": "pls",
+        "algorithms": ["linreg", "logreg", "rf"], "k": 3,
+    })
+    assert resp.status_code == 200, resp.get_json()
+    data = resp.get_json()
+    data["lang"] = "en"
+
+    for endpoint, name in (("excel", "ML_Comparison_Report.xlsx"), ("word", "ML_Comparison_Report.docx")):
+        r = client.post(f"/api/ml_compare/export/{endpoint}", json=data)
+        assert r.status_code == 200
+        assert len(r.data) > 0
+
+
+def test_ml_compare_export_rejects_missing_data(client):
+    resp = client.post("/api/ml_compare/export/excel", json={"lang": "en"})
+    assert resp.status_code == 400
+    assert "error" in resp.get_json()
+
+
 def test_plspredict_endpoint(client, tam_df, tam_model_json):
     file_id = _upload(client, tam_df)
     resp = client.post("/api/plspredict", json={"file_id": file_id, "model": tam_model_json, "lang": "en"})

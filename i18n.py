@@ -208,6 +208,36 @@ _CATALOG: dict[str, dict[str, str]] = {
             "của hiệu ứng gián tiếp theo biến điều tiết — hiệu ứng gián tiếp thay đổi bao nhiêu khi biến điều "
             "tiết tăng 1 đơn vị. Nếu đã bootstrap, ý nghĩa thống kê được kiểm định trực tiếp trên chỉ số này."
         ),
+        # --- ML comparison report labels (ml_compare/report.py) ---
+        "rpt_title_ml": "So sánh Machine Learning — Báo cáo",
+        "rpt_sheet_ml_comparison": "So sánh",
+        "rpt_ml_k": "Số fold (k)",
+        "rpt_ml_algorithms_selected": "Thuật toán đã chọn",
+        "rpt_ml_targets_title": "Các biến mục tiêu (construct nội sinh)",
+        "rpt_ml_target": "Biến mục tiêu",
+        "rpt_ml_predictor": "Biến tiền đề",
+        "rpt_ml_sem_coef": "SEM (path coef.)",
+        "rpt_ml_rmse": "RMSE",
+        "rpt_ml_accuracy": "Accuracy",
+        "rpt_ml_auc": "AUC",
+        "rpt_ml_native_importance": "Importance gốc",
+        "rpt_ml_permutation_importance": "Permutation Importance",
+        "rpt_ml_comparison_title": "So sánh: Hệ số đường dẫn SEM vs. Feature Importance (ML)",
+        "rpt_ml_importance_title": "Bảng xếp hạng Importance",
+        "rpt_ml_logreg_note": (
+            "Biến mục tiêu đã được chuyển thành 0/1 theo trung vị (median) của từng fold huấn luyện "
+            "(y = 1 nếu lớn hơn trung vị, ngược lại y = 0) — xem giải thích đầy đủ trên trang So sánh Machine Learning."
+        ),
+        "ml_algo_linreg": "Hồi quy tuyến tính (Linear Regression)",
+        "ml_algo_logreg": "Hồi quy Logistic (Logistic Regression)",
+        "ml_algo_dtree": "Cây quyết định (Decision Tree)",
+        "ml_algo_rf": "Random Forest",
+        "ml_algo_svm": "Support Vector Machine (SVM)",
+        "ml_algo_gbm": "Gradient Boosting (GBM)",
+        "ml_algo_xgboost": "XGBoost",
+        "ml_algo_lightgbm": "LightGBM",
+        "ml_algo_catboost": "CatBoost",
+
         "rpt_f_squared": "f²",
         "rpt_f2_effect": "Mức ảnh hưởng f²",
         "rpt_r2_q2_title": "R² & Q² (Predictive Relevance)",
@@ -479,6 +509,36 @@ _CATALOG: dict[str, dict[str, str]] = {
             "the indirect effect with respect to the moderator -- how much the indirect effect changes per "
             "one-unit increase in the moderator. When bootstrapping was run, significance is tested directly on this index."
         ),
+        # --- ML comparison report labels (ml_compare/report.py) ---
+        "rpt_title_ml": "Machine Learning Comparison — Report",
+        "rpt_sheet_ml_comparison": "Comparison",
+        "rpt_ml_k": "Number of folds (k)",
+        "rpt_ml_algorithms_selected": "Algorithms selected",
+        "rpt_ml_targets_title": "Target constructs (endogenous)",
+        "rpt_ml_target": "Target",
+        "rpt_ml_predictor": "Predictor",
+        "rpt_ml_sem_coef": "SEM (path coef.)",
+        "rpt_ml_rmse": "RMSE",
+        "rpt_ml_accuracy": "Accuracy",
+        "rpt_ml_auc": "AUC",
+        "rpt_ml_native_importance": "Native Importance",
+        "rpt_ml_permutation_importance": "Permutation Importance",
+        "rpt_ml_comparison_title": "Comparison: SEM Path Coefficients vs. ML Feature Importance",
+        "rpt_ml_importance_title": "Importance Ranking",
+        "rpt_ml_logreg_note": (
+            "The target was converted to 0/1 using each training fold's median (y = 1 if above the median, "
+            "otherwise y = 0) -- see the full explanation on the ML Comparison page."
+        ),
+        "ml_algo_linreg": "Linear Regression",
+        "ml_algo_logreg": "Logistic Regression",
+        "ml_algo_dtree": "Decision Tree",
+        "ml_algo_rf": "Random Forest",
+        "ml_algo_svm": "Support Vector Machine (SVM)",
+        "ml_algo_gbm": "Gradient Boosting (GBM)",
+        "ml_algo_xgboost": "XGBoost",
+        "ml_algo_lightgbm": "LightGBM",
+        "ml_algo_catboost": "CatBoost",
+
         "rpt_f_squared": "f²",
         "rpt_f2_effect": "f² Effect Size",
         "rpt_r2_q2_title": "R² & Q² (Predictive Relevance)",

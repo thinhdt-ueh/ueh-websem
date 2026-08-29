@@ -10,13 +10,14 @@ from __future__ import annotations
 import os
 
 import pandas as pd
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify, request, send_file
 
 from cbsem.estimator import CBSEMError, run_cbsem
 from cbsem.moderation import run_cbsem_with_moderation
 from i18n import get_lang, t
 from ml_compare.engine import run_ml_comparison
 from ml_compare.registry import ALGORITHM_ORDER, ALGORITHMS
+from ml_compare.report import build_excel_report, build_word_report
 from ml_compare.source_transparency import ml_compare_sections
 from pls.algorithm import run_pls_algorithm
 from pls.model import Model, ModelError
@@ -154,4 +155,43 @@ def ml_compare():
             }
             for tr in targets
         ],
+    )
+
+
+@ml_api.post("/ml_compare/export/excel")
+def ml_compare_export_excel():
+    """Builds an .xlsx report directly from an /api/ml_compare response
+    payload (sent back by the frontend) -- no re-training, so exporting is
+    instant regardless of how many algorithms/folds the original run used."""
+    data = request.get_json(force=True, silent=True) or {}
+    lang = get_lang(data)
+    if not data.get("targets") or not data.get("algorithms"):
+        return jsonify(error=t("err_export_missing_data", lang)), 400
+    try:
+        buf = build_excel_report(data, lang=lang)
+    except Exception as exc:  # noqa: BLE001
+        return jsonify(error=t("err_export_excel_error", lang, exc=exc)), 500
+    return send_file(
+        buf,
+        as_attachment=True,
+        download_name="ML_Comparison_Report.xlsx",
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )
+
+
+@ml_api.post("/ml_compare/export/word")
+def ml_compare_export_word():
+    data = request.get_json(force=True, silent=True) or {}
+    lang = get_lang(data)
+    if not data.get("targets") or not data.get("algorithms"):
+        return jsonify(error=t("err_export_missing_data", lang)), 400
+    try:
+        buf = build_word_report(data, lang=lang)
+    except Exception as exc:  # noqa: BLE001
+        return jsonify(error=t("err_export_word_error", lang, exc=exc)), 500
+    return send_file(
+        buf,
+        as_attachment=True,
+        download_name="ML_Comparison_Report.docx",
+        mimetype="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     )
