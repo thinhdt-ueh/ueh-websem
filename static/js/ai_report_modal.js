@@ -19,21 +19,33 @@ const AI_PROVIDERS = {
     keyStorageKey: "websem_openai_api_key",
     keyPlaceholder: "sk-...",
     defaultModel: "gpt-4o-mini",
-    modelSuggestions: ["gpt-4o-mini", "gpt-4o", "gpt-4-turbo", "gpt-4.1-mini"],
+    modelSuggestions: [
+      "gpt-4o-mini", "gpt-4o", "gpt-4.1", "gpt-4.1-mini", "gpt-4.1-nano", "gpt-4-turbo",
+      "gpt-5", "gpt-5-mini", "gpt-5-nano", "gpt-5-chat",
+      "o1", "o1-mini", "o1-pro", "o3", "o3-mini", "o3-pro", "o4-mini",
+    ],
   },
   gemini: {
     label: "Google Gemini",
     keyStorageKey: "websem_gemini_api_key",
     keyPlaceholder: "AIza...",
     defaultModel: "gemini-2.0-flash",
-    modelSuggestions: ["gemini-2.0-flash", "gemini-1.5-pro", "gemini-1.5-flash"],
+    modelSuggestions: [
+      "gemini-2.5-pro", "gemini-2.5-flash", "gemini-2.5-flash-lite",
+      "gemini-2.0-flash", "gemini-2.0-flash-lite", "gemini-2.0-pro",
+      "gemini-1.5-pro", "gemini-1.5-flash", "gemini-1.5-flash-8b",
+    ],
   },
   claude: {
     label: "Anthropic Claude",
     keyStorageKey: "websem_claude_api_key",
     keyPlaceholder: "sk-ant-...",
     defaultModel: "claude-sonnet-5",
-    modelSuggestions: ["claude-sonnet-5", "claude-opus-5", "claude-haiku-4-5-20251001", "claude-fable-5"],
+    modelSuggestions: [
+      "claude-sonnet-5", "claude-opus-5", "claude-fable-5", "claude-haiku-4-5-20251001",
+      "claude-opus-4-1", "claude-sonnet-4-5", "claude-3-7-sonnet-latest",
+      "claude-3-5-haiku-latest", "claude-3-opus-latest",
+    ],
   },
 };
 const AI_PROVIDER_ORDER = ["openai", "gemini", "claude"];
@@ -96,6 +108,7 @@ function openAiReportModal(opts) {
         <label>${t("ai_modal_model_label")}</label>
         <input type="text" id="aiModel" list="aiModelSuggestions">
         <datalist id="aiModelSuggestions"></datalist>
+        <p class="hint">${t("ai_modal_model_hint")}</p>
 
         <label>${t("ai_modal_prompt_label")}</label>
         <textarea id="aiPrompt" rows="5">${aiReportEscapeHtml(opts.defaultPrompt || "")}</textarea>
