@@ -26,6 +26,11 @@ if not exist ".venv\Scripts\python.exe" (
   --hidden-import semopy ^
   --collect-submodules semopy ^
   --collect-data semopy ^
+  --collect-all sklearn ^
+  --collect-data xgboost ^
+  --collect-binaries xgboost ^
+  --collect-all lightgbm ^
+  --collect-all catboost ^
   desktop_launcher.py
 
 echo.
