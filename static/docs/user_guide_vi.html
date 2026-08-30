@@ -69,6 +69,13 @@
   .diagram-box { border: 1px dashed var(--border); border-radius: 10px; padding: 18px; margin: 16px 0; background: #fbfcfe; font-family: var(--mono); font-size: 13px; overflow-x: auto; white-space: pre; color: var(--text); }
   .diagram-box .arrow { color: var(--primary); font-weight: 700; }
 
+  figure.screenshot { margin: 16px 0 20px; }
+  figure.screenshot img { display: block; width: 100%; border: 1px solid var(--border); border-radius: 10px; background: var(--accent-bg); }
+  figure.screenshot figcaption { margin-top: 8px; font-size: 12.5px; color: var(--muted); text-align: center; }
+  .screenshot-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 16px 0 20px; }
+  .screenshot-row figure.screenshot { margin: 0; }
+  @media (max-width: 700px) { .screenshot-row { grid-template-columns: 1fr; } }
+
   footer.doc-footer { max-width: 1180px; margin: 0 auto; padding: 0 20px 60px; color: var(--muted); font-size: 12.5px; text-align: center; }
 
   @media (max-width: 900px) {
@@ -126,6 +133,11 @@
   <main class="doc">
     <h1>Hướng dẫn sử dụng UEH-WebSEM</h1>
     <p class="subtitle">Cách xây dựng mô hình, chạy PLS-SEM / CB-SEM, và đọc hiểu từng bảng kết quả — minh hoạ xuyên suốt bằng bộ dữ liệu mẫu TAM (n = 250) và các con số thật do chính công cụ này tính ra.</p>
+
+    <div class="callout tip">
+      <strong class="label">Bản đầy đủ, song ngữ</strong>
+      Trang này là hướng dẫn thao tác nhanh. Nếu cần bản đầy đủ hơn — kèm nền tảng lý thuyết SEM, trích dẫn học thuật gốc cho từng chỉ số, và các ví dụ tính tay từng bước — xem <a href="/static/docs/handbook.html" target="_blank" rel="noopener"><strong>Sách hướng dẫn đầy đủ (Việt–Anh)</strong></a>.
+    </div>
 
     <h2 id="intro">1. UEH-WebSEM là gì?</h2>
     <p>UEH-WebSEM là công cụ phân tích mô hình cấu trúc (SEM) chạy trên trình duyệt, hỗ trợ hai phương pháp ước lượng trên cùng một sơ đồ mô hình:</p>
@@ -235,6 +247,26 @@ Thái độ (ATT)                 <span class="arrow">──▶</span> Ý địn
       <li>Chọn hai construct nguồn (ví dụ “Nhận thức hữu ích” và “Thái độ”).</li>
       <li>Vẽ một path đi <em>từ</em> node biến tương tác mới <em>đến</em> construct bị điều tiết (ví dụ → Ý định hành vi).</li>
     </ol>
+
+    <figure class="screenshot">
+      <img src="/static/docs/images/moderator-01-add-construct-modal.png" alt="Hộp thoại Thêm Construct mới với Loại đo lường được chọn là Biến tương tác/điều tiết">
+      <figcaption>Bấm “+ Construct” → đặt tên → chọn Loại đo lường là “Biến tương tác / điều tiết (Interaction, A × B)”. Hai ô Construct A/B xuất hiện ngay khi chọn loại này.</figcaption>
+    </figure>
+    <figure class="screenshot">
+      <img src="/static/docs/images/moderator-02-pick-sources.png" alt="Đã chọn Construct A và Construct B cho biến tương tác mới">
+      <figcaption>Chọn hai construct nguồn ở Construct A / Construct B (ở đây: Nhận thức hữu ích × Kinh nghiệm) rồi bấm “Add”. Model Overview bên phải liệt kê biến tương tác đã có sẵn trong mô hình mẫu (PEOU × Kinh nghiệm) để đối chiếu.</figcaption>
+    </figure>
+    <div class="screenshot-row">
+      <figure class="screenshot">
+        <img src="/static/docs/images/moderator-03-canvas-node.png" alt="Node biến tương tác mới xuất hiện trên canvas với viền nét đứt màu hổ phách">
+        <figcaption>Biến tương tác mới xuất hiện trên canvas với viền nét đứt màu hổ phách — chưa có path đi ra.</figcaption>
+      </figure>
+      <figure class="screenshot">
+        <img src="/static/docs/images/moderator-04-canvas-path.png" alt="Đã vẽ path từ biến tương tác mới đến Ý định hành vi">
+        <figcaption>Sau khi bấm “↗ Vẽ đường dẫn (Path)”, chọn node biến tương tác rồi chọn construct bị điều tiết: path mới xuất hiện, mô hình sẵn sàng chạy lại.</figcaption>
+      </figure>
+    </div>
+
     <div class="callout warn">
       <strong class="label">Quy tắc xác thực (validation)</strong>
       Cả hai construct nguồn phải đã có sẵn path <em>trực tiếp</em> của riêng mình đến construct mà biến tương tác dự báo. Điều này khớp với thông lệ kiểm định moderation chuẩn: nếu thiếu một trong hai path hiệu ứng chính (main effect), biến tương tác có thể âm thầm "hút" phần phương sai vốn thuộc về hiệu ứng chính đó. Nếu một nguồn thiếu path trực tiếp, ứng dụng sẽ từ chối mô hình kèm thông báo rõ ràng nêu tên path còn thiếu — hãy thêm path đó rồi chạy lại.
@@ -333,6 +365,10 @@ Thái độ (ATT)                 <span class="arrow">──▶</span> Ý địn
 
     <h3 id="read-cmb">Common Method Bias — Full Collinearity Test</h3>
     <p>Mỗi construct (kể cả biến tương tác nếu có) được hồi quy trên <em>tất cả</em> construct còn lại, bất kể các path cấu trúc đã vẽ, và VIF thu được được so với ngưỡng 3.3 (Kock, 2015) — kỹ thuật full-collinearity của WarpPLS để phát hiện một nhân tố "phương pháp" (method factor) tiềm ẩn duy nhất làm phóng đại toàn bộ phương sai cùng lúc.</p>
+    <div class="callout">
+      <strong class="label">Ngưỡng 3.3 so với 5</strong>
+      Phần mềm áp dụng đúng ngưỡng nghiêm ngặt VIF ≤ 3.3 của Kock (2015) để gắn nhãn "Đạt/Cảnh báo". Trong khoảng 3.3–5, nhiều tài liệu vẫn xem là "chấp nhận được" theo quy ước VIF tổng quát (Kock &amp; Lynn, 2012) — nhưng UEH-WebSEM sẽ gắn nhãn cảnh báo ngay khi vượt 3.3, không đợi đến 5, nên hãy đọc nhãn "Cảnh báo" trong khoảng này là "cần xem xét thêm" chứ không hẳn là "mô hình có vấn đề nghiêm trọng".
+    </div>
     <div class="table-wrap"><table>
       <thead><tr><th>Construct</th><th class="num">Full collinearity VIF</th><th>Đánh giá</th></tr></thead>
       <tbody>

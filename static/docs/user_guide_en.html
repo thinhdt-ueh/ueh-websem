@@ -69,6 +69,13 @@
   .diagram-box { border: 1px dashed var(--border); border-radius: 10px; padding: 18px; margin: 16px 0; background: #fbfcfe; font-family: var(--mono); font-size: 13px; overflow-x: auto; white-space: pre; color: var(--text); }
   .diagram-box .arrow { color: var(--primary); font-weight: 700; }
 
+  figure.screenshot { margin: 16px 0 20px; }
+  figure.screenshot img { display: block; width: 100%; border: 1px solid var(--border); border-radius: 10px; background: var(--accent-bg); }
+  figure.screenshot figcaption { margin-top: 8px; font-size: 12.5px; color: var(--muted); text-align: center; }
+  .screenshot-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 16px 0 20px; }
+  .screenshot-row figure.screenshot { margin: 0; }
+  @media (max-width: 700px) { .screenshot-row { grid-template-columns: 1fr; } }
+
   footer.doc-footer { max-width: 1180px; margin: 0 auto; padding: 0 20px 60px; color: var(--muted); font-size: 12.5px; text-align: center; }
 
   @media (max-width: 900px) {
@@ -126,6 +133,11 @@
   <main class="doc">
     <h1>UEH-WebSEM User Guide</h1>
     <p class="subtitle">How to build a model, run PLS-SEM / CB-SEM, and read every result table — illustrated throughout with the built-in TAM sample dataset (n = 250) and real numbers produced by this tool.</p>
+
+    <div class="callout tip">
+      <strong class="label">Full bilingual handbook</strong>
+      This page is a quick operating guide. For a fuller treatment — SEM theory, original academic citations behind every metric, and step-by-step worked examples — see the <a href="/static/docs/handbook.html" target="_blank" rel="noopener"><strong>full handbook (Vietnamese–English)</strong></a>.
+    </div>
 
     <h2 id="intro">1. What is UEH-WebSEM?</h2>
     <p>UEH-WebSEM is a browser-based structural equation modeling (SEM) tool supporting two estimation approaches on the same visual model:</p>
@@ -235,6 +247,26 @@ Attitude (ATT)                <span class="arrow">──▶</span> Behavioral In
       <li>Pick the two source constructs (e.g. “Perceived Usefulness” and “Attitude”).</li>
       <li>Draw a structural path <em>from</em> the new interaction node <em>to</em> the construct being moderated (e.g. → Behavioral Intention).</li>
     </ol>
+
+    <figure class="screenshot">
+      <img src="/static/docs/images/moderator-01-add-construct-modal.png" alt="Add New Construct dialog with Measurement type set to Interaction / moderation term">
+      <figcaption>Click “+ Construct” → enter a name → set Measurement type to “Interaction / moderation term (A × B)”. The Construct A/B pickers appear as soon as this type is selected.</figcaption>
+    </figure>
+    <figure class="screenshot">
+      <img src="/static/docs/images/moderator-02-pick-sources.png" alt="Construct A and Construct B chosen for the new interaction term">
+      <figcaption>Pick the two source constructs in Construct A / Construct B (here: Perceived Usefulness × Experience), then click “Add”. The Model Overview panel on the right already lists one interaction term from the sample model (PEOU × Experience) for comparison.</figcaption>
+    </figure>
+    <div class="screenshot-row">
+      <figure class="screenshot">
+        <img src="/static/docs/images/moderator-03-canvas-node.png" alt="New interaction node appears on the canvas with a dashed amber border">
+        <figcaption>The new interaction term appears on the canvas with a dashed amber border — no outgoing path yet.</figcaption>
+      </figure>
+      <figure class="screenshot">
+        <img src="/static/docs/images/moderator-04-canvas-path.png" alt="A path has been drawn from the new interaction term to Behavioral Intention">
+        <figcaption>After clicking “↗ Draw path”, click the interaction node then the moderated construct: the new path appears and the model is ready to re-run.</figcaption>
+      </figure>
+    </div>
+
     <div class="callout warn">
       <strong class="label">Validation rule</strong>
       Both source constructs must already have their own <em>direct</em> path to whatever the interaction term predicts. This mirrors standard moderation practice: without both main-effect paths present, the interaction term could silently absorb variance that actually belongs to a main effect. If a source is missing its direct path, the app rejects the model with a clear message naming the missing path — add it and re-run.
@@ -333,6 +365,10 @@ Attitude (ATT)                <span class="arrow">──▶</span> Behavioral In
 
     <h3 id="read-cmb">Common Method Bias — full collinearity test</h3>
     <p>Every construct (including any interaction term) is regressed on <em>every other</em> construct, regardless of the drawn structural paths, and the resulting VIF is checked against 3.3 (Kock, 2015) — the WarpPLS full-collinearity technique for detecting a single latent “method” factor inflating all variances at once.</p>
+    <div class="callout">
+      <strong class="label">3.3 versus 5</strong>
+      The app applies Kock's (2015) strict VIF ≤ 3.3 cutoff for the OK/Warning label. Values between 3.3 and 5 are still often treated as "acceptable" under the general VIF convention (Kock &amp; Lynn, 2012) — but UEH-WebSEM flags a warning as soon as 3.3 is exceeded, not at 5, so read a "Warning" in that range as "worth a closer look," not necessarily "a serious problem."
+    </div>
     <div class="table-wrap"><table>
       <thead><tr><th>Construct</th><th class="num">Full collinearity VIF</th><th>Assessment</th></tr></thead>
       <tbody>
