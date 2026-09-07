@@ -93,8 +93,14 @@ class Model:
 
             if len(indicators) < 1:
                 raise ModelError(t("err_construct_min_indicators", lang, name=name))
-            if mode == "A" and len(indicators) < 2:
-                raise ModelError(t("err_construct_reflective_min2", lang, name=name))
+            # A single-indicator reflective (Mode A) construct is a legitimate
+            # PLS-SEM modeling choice (e.g. single-item measures) -- the outer
+            # weight/loading math in algorithm.py handles it fine (loading is
+            # trivially 1.0), and reliability metrics that are undefined for a
+            # 1-item scale (Cronbach's alpha, rho_A, composite reliability)
+            # already skip such constructs gracefully in pls/metrics.py rather
+            # than reporting a meaningless number, so there's no need to block
+            # the model from running at all.
 
             constructs[cid] = Construct(id=cid, name=name, mode=mode, indicators=indicators)
 

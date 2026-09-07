@@ -260,6 +260,98 @@ canvas { width: 100%; border: 1px solid var(--border); border-radius: 10px; back
  * Analysis's population-model editor) rather than one field. */
 .modal-box.modal-wide { width: min(560px, 94vw); max-height: 85vh; overflow-y: auto; }
 .modal-section-title { font-size: 12.5px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .02em; margin: 14px 0 4px; }
+
+/* ---------------- Step 1: AI-generated survey data wizard ---------------- */
+.ai-gen-steps { display: flex; align-items: center; gap: 6px; margin: 4px 0 20px; flex-wrap: wrap; }
+.ai-gen-step-dot {
+  display: flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--muted);
+  padding: 4px 10px; border-radius: 999px; border: 1px solid var(--border);
+}
+.ai-gen-step-dot .num {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 18px; height: 18px; border-radius: 50%; background: var(--border); color: #fff;
+  font-size: 11px; font-weight: 700; flex-shrink: 0;
+}
+.ai-gen-step-dot.active { border-color: var(--primary); color: var(--primary); font-weight: 600; }
+.ai-gen-step-dot.active .num, .ai-gen-step-dot.done .num { background: var(--primary); }
+.ai-gen-step-dot.reached { cursor: pointer; }
+.ai-gen-step-dot.reached:hover { border-color: var(--primary); }
+
+.ai-gen-substep { display: none; }
+.ai-gen-substep.active { display: block; }
+
+.codebook-table td { text-align: left; white-space: normal; vertical-align: top; }
+.codebook-table input[type="text"] { width: 100%; padding: 6px 8px; border: 1px solid var(--border); border-radius: 6px; font-size: 13px; }
+.codebook-table td.codebook-remove-cell { text-align: center; white-space: nowrap; }
+.codebook-row-remove { border: 1px solid var(--border); background: var(--card); color: var(--danger); border-radius: 6px; padding: 3px 9px; font-size: 12px; cursor: pointer; }
+.codebook-row-remove:hover { background: #fdecec; }
+.codebook-actions { display: flex; gap: 8px; margin: 10px 0 4px; flex-wrap: wrap; }
+
+.ai-gen-form-row { display: flex; gap: 14px; margin-bottom: 12px; flex-wrap: wrap; }
+.ai-gen-form-row > div { flex: 1; min-width: 160px; }
+.ai-gen-form-row label { display: block; font-size: 13px; color: var(--text); margin-bottom: 4px; }
+.ai-gen-form-row input, .ai-gen-form-row select { width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 7px; }
+
+.ai-gen-nav { display: flex; justify-content: space-between; gap: 10px; margin-top: 18px; }
+
+.ai-gen-prompt-preview {
+  background: var(--accent-bg); border: 1px solid var(--border); border-radius: 8px;
+  padding: 10px 12px; font-size: 12.5px; color: var(--muted); white-space: pre-wrap; max-height: 200px; overflow-y: auto;
+}
+textarea.ai-gen-prompt-preview { color: var(--text); resize: vertical; max-height: none; }
+
+.ai-gen-progress-wrap { text-align: center; padding: 20px 0; }
+.ai-gen-progress-wrap progress { width: 100%; height: 10px; accent-color: var(--primary); }
+.ai-gen-progress-text { margin-top: 10px; color: var(--muted); font-size: 13.5px; }
+.ai-gen-result-actions { display: flex; gap: 10px; margin-top: 10px; flex-wrap: wrap; }
+
+/* Unlike the AI Report modal's fields (styled via `.modal-box input` etc.,
+ * scoped to that overlay), this wizard's fields live directly in the page,
+ * so labels/inputs need their own block-level treatment -- otherwise a
+ * <label> (inline) followed by an <input>/<textarea> (inline-block) render
+ * side by side on one line instead of stacked. */
+.ai-gen-substep > label,
+.ai-gen-shared-provider > label,
+.ai-gen-construct-search > label,
+#aiGenStep3 label:not(.checkbox-row):not(.radio-row),
+#constructSearchPanel label:not(.checkbox-row):not(.radio-row) {
+  display: block; margin: 12px 0 4px; font-size: 13px; color: var(--text);
+}
+.ai-gen-substep input[type="text"],
+.ai-gen-substep input[type="number"],
+.ai-gen-substep input[type="password"],
+.ai-gen-substep select,
+.ai-gen-substep textarea,
+.ai-gen-shared-provider input[type="text"],
+.ai-gen-shared-provider input[type="number"],
+.ai-gen-shared-provider input[type="password"],
+.ai-gen-shared-provider select,
+.ai-gen-construct-search input[type="text"],
+.ai-gen-construct-search input[type="number"],
+.ai-gen-construct-search textarea {
+  width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 7px; box-sizing: border-box;
+  font-family: inherit; font-size: 13.5px;
+}
+.ai-gen-substep textarea, .ai-gen-construct-search textarea { resize: vertical; }
+#demoAgeMin, #demoAgeMax { flex: 1; min-width: 0; }
+
+.ai-gen-shared-provider { margin-bottom: 18px; padding-bottom: 14px; border-bottom: 1px solid var(--border); }
+
+.ai-gen-construct-search { margin: 14px 0; }
+#constructSearchPanel {
+  margin-top: 10px; padding: 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--accent-bg);
+}
+.construct-search-group { margin-bottom: 12px; padding-bottom: 10px; border-bottom: 1px solid var(--border); }
+.construct-search-group:last-child { border-bottom: none; }
+.construct-search-items { margin-left: 22px; display: flex; flex-direction: column; gap: 2px; }
+.construct-theory-hint { margin: 2px 0 6px 22px; font-style: italic; }
+#cTheoryBox.construct-theory-hint { margin-left: 0; margin-top: -6px; margin-bottom: 10px; }
+
+.ai-gen-demo-summary { margin-bottom: 16px; }
+.ai-gen-demo-summary dl { display: grid; grid-template-columns: max-content 1fr; gap: 6px 14px; font-size: 13.5px; margin: 0; }
+.ai-gen-demo-summary dt { font-weight: 600; color: var(--muted); }
+.ai-gen-demo-summary dd { margin: 0; }
+.ai-gen-stats-table-title { font-weight: 600; font-size: 13.5px; margin: 12px 0 4px; }
 .modal-value-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 4px 0; }
 .modal-value-row span { flex: 1; font-size: 13px; color: var(--text); }
 .modal-value-row input { width: 80px; margin: 0; flex-shrink: 0; }

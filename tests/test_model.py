@@ -28,7 +28,11 @@ def test_rejects_cycle():
         Model.from_json(payload)
 
 
-def test_rejects_reflective_construct_with_one_indicator():
+def test_allows_reflective_construct_with_one_indicator():
+    # A single-indicator reflective (Mode A) construct is a legitimate
+    # modeling choice (e.g. a single-item measure) -- it must load, not be
+    # rejected. Reliability metrics undefined for a 1-item scale are simply
+    # omitted for it downstream (see pls/metrics.py), not blocked here.
     payload = {
         "constructs": [
             {"id": "a", "name": "A", "mode": "A", "indicators": ["a1"]},
@@ -36,8 +40,8 @@ def test_rejects_reflective_construct_with_one_indicator():
         ],
         "paths": [{"source": "a", "target": "b"}],
     }
-    with pytest.raises(ModelError):
-        Model.from_json(payload)
+    model = Model.from_json(payload)
+    assert model.constructs["a"].indicators == ["a1"]
 
 
 def test_interaction_requires_main_effect_paths(moderation_model_json):

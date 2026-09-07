@@ -7,6 +7,11 @@ const state = {
   numericColumns: [],
   previewRows: [],
   nRows: 0,
+  // One-shot seed for Step 2's model builder, set by finalizeAiGeneration()
+  // right after applyUploadResult() when the codebook's Construct column
+  // grouped some indicators -- consumed (and cleared) the first time
+  // initEditor() runs. See applyUploadResult() for why it's cleared there.
+  pendingConstructSeed: null,
 };
 
 let editor = null;
@@ -54,6 +59,15 @@ function refreshUIForLanguage() {
     document.getElementById("dzFilename").textContent = t("s1_selected_file", { name: state.filename });
   }
   if (state.columns.length) updatePreviewTitle();
+  if (document.getElementById("aiGenStep3").classList.contains("active")) {
+    applyAiGenProvider(aiGenState.provider);
+    updateAiGenNRowsHint();
+  }
+  // Codebook remove buttons are created dynamically (codebookAddRow()), so
+  // their label isn't covered by the static data-i18n re-application above.
+  document.querySelectorAll(".codebook-row-remove").forEach((btn) => {
+    btn.textContent = t("s1_ai_codebook_remove");
+  });
   if (editor) {
     renderModelSummary();
     editor.render();
@@ -169,11 +183,21 @@ function applyUploadResult(data) {
   state.numericColumns = data.numeric_columns;
   state.previewRows = data.preview;
   state.nRows = data.n_rows;
+  // Only the AI-gen path re-sets this (immediately after calling this
+  // function) -- a plain upload/sample load must never inherit a stale
+  // construct grouping left over from an earlier, abandoned AI-gen session.
+  state.pendingConstructSeed = null;
 
   document.getElementById("dzFilename").textContent = t("s1_selected_file", { name: data.filename });
   updatePreviewTitle();
   renderPreviewTable();
   document.getElementById("dataPreviewWrap").classList.remove("hidden");
+  // Only the AI-generation path re-shows these; a plain upload or sample
+  // load should never carry over a stale download link/export button/
+  // demographics-and-stats panel from an earlier AI-generated dataset.
+  document.getElementById("aiGenDownloadLink").classList.add("hidden");
+  document.getElementById("aiGenExportBtn").classList.add("hidden");
+  document.getElementById("aiGenResultExtra").classList.add("hidden");
   goToStep2Enable();
 }
 
@@ -204,6 +228,1062 @@ document.getElementById("toStep2Btn").addEventListener("click", () => {
   if (!editor) initEditor();
 });
 
+// ---------------- Step 1: AI-generated survey data ----------------
+// A second path into Step 1, alongside upload/sample data: define a
+// question codebook + target-respondent profile, then have an LLM (the
+// caller's own API key, same 3 providers as the AI Report feature) write a
+// synthetic Likert dataset. finalizeAiGeneration() hands the result to the
+// exact same applyUploadResult() an upload or sample load uses, so nothing
+// downstream (Step 2 model builder, /api/analyze) needs to know or care
+// where the data came from.
+const aiGenState = {
+  codebook: [],
+  demographics: {},
+  demoAttributes: [],
+  // Populated from AI construct-search results: {construct_name: {citation_apa, doi}}.
+  // Carried into /finalize so it survives into the export's References sheet
+  // and into Step 2's pre-seeded construct nodes (see finalizeAiGeneration).
+  constructTheories: {},
+  provider: "openai",
+  apiKey: "",
+  model: "",
+  temperature: 1,
+  systemPrompt: "",
+  userPrompt: "",
+  columns: [],
+  likertMin: 1,
+  likertMax: 5,
+  nRows: 200,
+  batchSize: 25,
+  totalBatches: 0,
+  firstBatchInstruction: "",
+  currentBatch: 0,
+  rows: [],
+  // One entry per successful batch call: {start_row, end_row, system_prompt,
+  // user_prompt} -- the ACTUAL prompt that produced those rows (post any
+  // server-side corrective retry), persisted at finalize time for the
+  // "prompt transparency" section and the full Excel export.
+  batchLog: [],
+};
+let aiGenUserPromptEdited = false;
+
+document.getElementById("dataSourceTabs").addEventListener("click", (e) => {
+  const btn = e.target.closest(".ai-provider-tab");
+  if (!btn) return;
+  const source = btn.dataset.source;
+  document.querySelectorAll("#dataSourceTabs .ai-provider-tab").forEach((b) => b.classList.toggle("active", b === btn));
+  document.getElementById("uploadSourcePane").classList.toggle("hidden", source !== "upload");
+  document.getElementById("aiGenSourcePane").classList.toggle("hidden", source !== "ai_gen");
+});
+
+let aiGenMaxSubstepReached = 1;
+function aiGenGoToSubstep(n) {
+  aiGenMaxSubstepReached = Math.max(aiGenMaxSubstepReached, n);
+  document.querySelectorAll(".ai-gen-substep").forEach((el) => el.classList.remove("active"));
+  document.getElementById("aiGenStep" + n).classList.add("active");
+  document.querySelectorAll("#aiGenSteps .ai-gen-step-dot").forEach((dot) => {
+    const num = Number(dot.dataset.substep);
+    dot.classList.toggle("active", num === n);
+    dot.classList.toggle("done", num < n);
+    dot.classList.toggle("reached", num <= aiGenMaxSubstepReached);
+  });
+}
+
+// Jumping via a step-dot bypasses whichever step's own "Next" button would
+// normally commit its DOM edits into aiGenState -- so do that commit
+// ourselves whenever the user navigates away from step 1 or 2 this way,
+// otherwise a codebook/profile edit made after going back could be silently
+// dropped when jumping forward again without re-clicking "Next".
+function aiGenCommitCurrentSubstepState() {
+  if (document.getElementById("aiGenStep1").classList.contains("active")) {
+    aiGenState.codebook = collectCodebook();
+  } else if (document.getElementById("aiGenStep2").classList.contains("active")) {
+    const { attrs } = collectDemoAttrs();
+    if (attrs) aiGenState.demoAttributes = attrs;
+    aiGenState.demographics = collectDemographics();
+  }
+}
+
+document.getElementById("aiGenSteps").addEventListener("click", (e) => {
+  const dot = e.target.closest(".ai-gen-step-dot");
+  if (!dot) return;
+  const target = Number(dot.dataset.substep);
+  if (target > aiGenMaxSubstepReached) return;
+  const activeEl = document.querySelector(".ai-gen-substep.active");
+  const previousActive = activeEl ? Number(activeEl.id.replace("aiGenStep", "")) : null;
+  aiGenCommitCurrentSubstepState();
+  aiGenGoToSubstep(target);
+  // Arriving at step 3 from elsewhere needs the same refresh its own "Next"
+  // button already does -- otherwise the prompt preview keeps showing
+  // whatever was last fetched, stale relative to any codebook/profile edit
+  // just made after jumping back via a dot.
+  if (target === 3 && previousActive !== 3) {
+    requestPromptSuggestion();
+  }
+});
+
+// ---- Sub-step 1: Codebook ----
+function codebookAddRow(column, question, construct) {
+  const tbody = document.getElementById("codebookTableBody");
+  const tr = document.createElement("tr");
+  const colInput = document.createElement("input");
+  colInput.type = "text";
+  colInput.className = "codebook-col-input";
+  colInput.value = column || "";
+  const constructInput = document.createElement("input");
+  constructInput.type = "text";
+  constructInput.className = "codebook-construct-input";
+  constructInput.value = construct || "";
+  const qInput = document.createElement("input");
+  qInput.type = "text";
+  qInput.className = "codebook-question-input";
+  qInput.value = question || "";
+  const tdCol = document.createElement("td");
+  tdCol.appendChild(colInput);
+  const tdConstruct = document.createElement("td");
+  tdConstruct.appendChild(constructInput);
+  const tdQ = document.createElement("td");
+  tdQ.appendChild(qInput);
+  const tdRemove = document.createElement("td");
+  tdRemove.className = "codebook-remove-cell";
+  const removeBtn = document.createElement("button");
+  removeBtn.type = "button";
+  removeBtn.className = "codebook-row-remove";
+  removeBtn.textContent = t("s1_ai_codebook_remove");
+  removeBtn.addEventListener("click", () => tr.remove());
+  tdRemove.appendChild(removeBtn);
+  tr.append(tdCol, tdConstruct, tdQ, tdRemove);
+  tbody.appendChild(tr);
+}
+document.getElementById("codebookAddRowBtn").addEventListener("click", () => codebookAddRow());
+
+function collectCodebook() {
+  return Array.from(document.querySelectorAll("#codebookTableBody tr"))
+    .map((tr) => ({
+      column: tr.querySelector(".codebook-col-input").value.trim(),
+      construct: tr.querySelector(".codebook-construct-input").value.trim(),
+      question_text: tr.querySelector(".codebook-question-input").value.trim(),
+    }))
+    .filter((r) => r.column);
+}
+
+// Groups codebook items by their (optional) Construct column -- used to
+// pre-seed Step 2's model canvas with matching construct nodes, so the
+// user doesn't have to manually recreate groupings that came from the AI
+// construct search (or that they typed in by hand).
+function buildConstructGroupsFromCodebook(codebook) {
+  const groups = [];
+  const byName = new Map();
+  for (const item of codebook) {
+    const name = (item.construct || "").trim();
+    if (!name) continue;
+    if (!byName.has(name)) {
+      const group = { name, indicators: [] };
+      byName.set(name, group);
+      groups.push(group);
+    }
+    byName.get(name).indicators.push(item.column);
+  }
+  return groups;
+}
+
+document.getElementById("codebookExportBtn").addEventListener("click", () => {
+  const payload = {
+    format: "pls-sem-web-codebook",
+    version: 1,
+    exported_at: new Date().toISOString(),
+    items: collectCodebook(),
+  };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "survey_codebook.json";
+  a.click();
+  URL.revokeObjectURL(url);
+});
+
+document.getElementById("codebookImportBtn").addEventListener("click", () => {
+  document.getElementById("codebookImportInput").click();
+});
+document.getElementById("codebookImportInput").addEventListener("change", (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const errBox = document.getElementById("codebookImportError");
+  const reader = new FileReader();
+  reader.onload = () => {
+    errBox.classList.add("hidden");
+    try {
+      const parsed = JSON.parse(reader.result);
+      if (!Array.isArray(parsed.items)) throw new Error(t("s1_ai_codebook_min_rows"));
+      const cleanItems = parsed.items.filter((it) => it && String(it.column || "").trim());
+      if (!cleanItems.length) throw new Error(t("s1_ai_codebook_min_rows"));
+      document.getElementById("codebookTableBody").innerHTML = "";
+      cleanItems.forEach((it) => codebookAddRow(it.column, it.question_text || "", it.construct || ""));
+    } catch (err) {
+      errBox.textContent = t("s1_ai_codebook_import_failed", { msg: err.message });
+      errBox.classList.remove("hidden");
+    } finally {
+      e.target.value = "";
+    }
+  };
+  reader.readAsText(file);
+});
+
+// ---- AI-assisted construct/indicator search (literature review) ----
+// Uses the shared provider/API key/model/temperature fields above (visible
+// from Step 1 onward) -- no separate key entry for this feature.
+document.getElementById("constructSearchToggleBtn").addEventListener("click", () => {
+  document.getElementById("constructSearchPanel").classList.toggle("hidden");
+});
+
+let lastConstructSearchResults = [];
+
+function renderConstructSearchResults(constructs) {
+  const el = document.getElementById("constructSearchGroups");
+  el.innerHTML = constructs.map((group, gi) => {
+    const theory = group.theory || {};
+    const citation = [theory.citation_apa, theory.doi ? `DOI: ${theory.doi}` : ""].filter(Boolean).join(" — ");
+    return `
+    <div class="construct-search-group">
+      <label class="checkbox-row">
+        <input type="checkbox" class="construct-group-check" data-group="${gi}" checked>
+        <strong>${escapeHtml(group.name)}</strong>
+      </label>
+      ${citation ? `<p class="hint construct-theory-hint">📚 ${escapeHtml(citation)}</p>` : ""}
+      <div class="construct-search-items">
+        ${group.items.map((item, ii) => `
+          <label class="checkbox-row">
+            <input type="checkbox" class="construct-item-check" data-group="${gi}" data-index="${ii}" checked>
+            <code>${escapeHtml(item.column)}</code> — ${escapeHtml(item.question_text)}
+          </label>
+        `).join("")}
+      </div>
+    </div>
+  `;
+  }).join("");
+}
+
+document.getElementById("constructSearchGroups").addEventListener("change", (e) => {
+  if (!e.target.classList.contains("construct-group-check")) return;
+  const gi = e.target.dataset.group;
+  document.querySelectorAll(`.construct-item-check[data-group="${gi}"]`).forEach((cb) => {
+    cb.checked = e.target.checked;
+  });
+});
+
+document.getElementById("constructSearchRunBtn").addEventListener("click", async () => {
+  const errBox = document.getElementById("constructSearchError");
+  errBox.classList.add("hidden");
+  document.getElementById("constructSearchResults").classList.add("hidden");
+  const topic = document.getElementById("constructSearchTopic").value.trim();
+  if (!topic) {
+    errBox.textContent = t("s1_ai_construct_search_missing_topic");
+    errBox.classList.remove("hidden");
+    return;
+  }
+  const apiKey = document.getElementById("aiGenApiKey").value.trim();
+  if (!apiKey) {
+    errBox.textContent = t("s1_ai_config_missing_key");
+    errBox.classList.remove("hidden");
+    return;
+  }
+  const loading = document.getElementById("constructSearchLoading");
+  loading.classList.remove("hidden");
+  try {
+    const res = await fetch("/api/ai_data_gen/suggest_constructs", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        provider: aiGenState.provider,
+        api_key: apiKey,
+        model: document.getElementById("aiGenModel").value.trim() || AI_PROVIDERS[aiGenState.provider].defaultModel,
+        temperature: Number(aiGenTemperatureInput.value),
+        topic,
+        n_constructs: Number(document.getElementById("constructSearchCount").value) || 5,
+        lang: getLang(),
+      }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "search failed");
+    lastConstructSearchResults = data.constructs || [];
+    renderConstructSearchResults(lastConstructSearchResults);
+    document.getElementById("constructSearchDisclaimer").classList.toggle("hidden", lastConstructSearchResults.length === 0);
+    document.getElementById("constructSearchResults").classList.remove("hidden");
+  } catch (err) {
+    errBox.textContent = err.message;
+    errBox.classList.remove("hidden");
+  } finally {
+    loading.classList.add("hidden");
+  }
+});
+
+document.getElementById("constructSearchCancelBtn").addEventListener("click", () => {
+  document.getElementById("constructSearchResults").classList.add("hidden");
+});
+
+document.getElementById("constructSearchAddBtn").addEventListener("click", () => {
+  document.querySelectorAll(".construct-item-check:checked").forEach((cb) => {
+    const group = lastConstructSearchResults[Number(cb.dataset.group)];
+    const item = group.items[Number(cb.dataset.index)];
+    codebookAddRow(item.column, item.question_text, group.name);
+    if (group.theory) aiGenState.constructTheories[group.name] = group.theory;
+  });
+  document.getElementById("constructSearchResults").classList.add("hidden");
+  document.getElementById("constructSearchPanel").classList.add("hidden");
+});
+
+document.getElementById("codebookNextBtn").addEventListener("click", () => {
+  const errBox = document.getElementById("codebookValidationError");
+  errBox.classList.add("hidden");
+  const items = collectCodebook();
+  if (!items.length) {
+    errBox.textContent = t("s1_ai_codebook_min_rows");
+    errBox.classList.remove("hidden");
+    return;
+  }
+  const seen = new Set();
+  for (const item of items) {
+    if (seen.has(item.column)) {
+      errBox.textContent = t("s1_ai_codebook_duplicate_column", { name: item.column });
+      errBox.classList.remove("hidden");
+      return;
+    }
+    seen.add(item.column);
+  }
+  aiGenState.codebook = items;
+  aiGenGoToSubstep(2);
+});
+
+// ---- Sub-step 2: Respondent profile ----
+document.getElementById("demoBackBtn").addEventListener("click", () => aiGenGoToSubstep(1));
+
+// User-definable extra demographic attributes (beyond the fixed age/gender
+// above), e.g. "monthly income" (numeric) or "education level" (categorical).
+// Mirrors the codebook table's dynamic-row pattern; the server (not this
+// code) is the source of truth for validation and for deriving a stable
+// column name from the attribute's display name.
+function demoAttrAddRow(name, type, valueText) {
+  const tbody = document.getElementById("demoAttrsTableBody");
+  const tr = document.createElement("tr");
+
+  const nameInput = document.createElement("input");
+  nameInput.type = "text";
+  nameInput.className = "demo-attr-name-input";
+  nameInput.value = name || "";
+  const tdName = document.createElement("td");
+  tdName.appendChild(nameInput);
+
+  const typeSelect = document.createElement("select");
+  typeSelect.className = "demo-attr-type-select";
+  const optNumeric = document.createElement("option");
+  optNumeric.value = "numeric";
+  optNumeric.textContent = t("s1_ai_demo_attrs_type_numeric");
+  const optCategorical = document.createElement("option");
+  optCategorical.value = "categorical";
+  optCategorical.textContent = t("s1_ai_demo_attrs_type_categorical");
+  typeSelect.append(optNumeric, optCategorical);
+  typeSelect.value = type === "categorical" ? "categorical" : "numeric";
+  const tdType = document.createElement("td");
+  tdType.appendChild(typeSelect);
+
+  const valueInput = document.createElement("input");
+  valueInput.type = "text";
+  valueInput.className = "demo-attr-value-input";
+  valueInput.value = valueText || "";
+  const updateValuePlaceholder = () => {
+    valueInput.placeholder = t(
+      typeSelect.value === "categorical" ? "s1_ai_demo_attrs_value_placeholder_categorical" : "s1_ai_demo_attrs_value_placeholder_numeric"
+    );
+  };
+  updateValuePlaceholder();
+  typeSelect.addEventListener("change", updateValuePlaceholder);
+  const tdValue = document.createElement("td");
+  tdValue.appendChild(valueInput);
+
+  const tdRemove = document.createElement("td");
+  tdRemove.className = "codebook-remove-cell";
+  const removeBtn = document.createElement("button");
+  removeBtn.type = "button";
+  removeBtn.className = "codebook-row-remove";
+  removeBtn.textContent = t("s1_ai_codebook_remove");
+  removeBtn.addEventListener("click", () => tr.remove());
+  tdRemove.appendChild(removeBtn);
+
+  tr.append(tdName, tdType, tdValue, tdRemove);
+  tbody.appendChild(tr);
+}
+document.getElementById("demoAttrsAddRowBtn").addEventListener("click", () => demoAttrAddRow());
+
+// Returns { attrs, error } -- attrs is the payload shape the backend's
+// _validate_demo_attributes expects; error is a user-facing message if any
+// row's value doesn't parse for its declared type. Empty rows (no name) are
+// silently skipped, same as the codebook's collectCodebook().
+function collectDemoAttrs() {
+  const attrs = [];
+  for (const tr of document.querySelectorAll("#demoAttrsTableBody tr")) {
+    const name = tr.querySelector(".demo-attr-name-input").value.trim();
+    const type = tr.querySelector(".demo-attr-type-select").value;
+    const valueText = tr.querySelector(".demo-attr-value-input").value.trim();
+    if (!name) continue;
+    if (type === "numeric") {
+      const parts = valueText.split(/[-,]/).map((s) => s.trim()).filter(Boolean);
+      const min = Number(parts[0]);
+      const max = Number(parts[1]);
+      if (parts.length !== 2 || !Number.isFinite(min) || !Number.isFinite(max)) {
+        return { attrs: null, error: t("s1_ai_demo_attrs_invalid_numeric", { name }) };
+      }
+      attrs.push({ name, type: "numeric", min, max });
+    } else {
+      const options = valueText.split(",").map((s) => s.trim()).filter(Boolean);
+      if (options.length < 2) {
+        return { attrs: null, error: t("s1_ai_demo_attrs_invalid_categorical", { name }) };
+      }
+      attrs.push({ name, type: "categorical", options });
+    }
+  }
+  return { attrs, error: null };
+}
+
+function collectDemographics() {
+  return {
+    age_min: document.getElementById("demoAgeMin").value || null,
+    age_max: document.getElementById("demoAgeMax").value || null,
+    gender_mix: document.getElementById("demoGenderMix").value,
+    occupation: document.getElementById("demoOccupation").value.trim(),
+    location: document.getElementById("demoLocation").value.trim(),
+    target_population: document.getElementById("demoTargetPopulation").value.trim(),
+  };
+}
+
+document.getElementById("demoNextBtn").addEventListener("click", () => {
+  const errBox = document.getElementById("demoAttrsValidationError");
+  errBox.classList.add("hidden");
+  const { attrs, error } = collectDemoAttrs();
+  if (error) {
+    errBox.textContent = error;
+    errBox.classList.remove("hidden");
+    return;
+  }
+  aiGenState.demoAttributes = attrs;
+  aiGenState.demographics = collectDemographics();
+  aiGenGoToSubstep(3);
+  aiGenUserPromptEdited = false;
+  requestPromptSuggestion();
+});
+
+// ---- Sub-step 3: Generation settings + prompt ----
+document.getElementById("aiGenUserPrompt").addEventListener("input", () => {
+  aiGenUserPromptEdited = true;
+});
+let aiGenSystemPromptEdited = false;
+document.getElementById("aiGenSystemPromptPreview").addEventListener("input", () => {
+  aiGenSystemPromptEdited = true;
+});
+
+function renderAiGenProviderFields() {
+  document.getElementById("aiGenProviderTabs").innerHTML = AI_PROVIDER_ORDER.map(
+    (id) => `<button type="button" class="ai-provider-tab${id === aiGenState.provider ? " active" : ""}" data-provider="${id}">${aiReportEscapeHtml(AI_PROVIDERS[id].label)}</button>`,
+  ).join("");
+  applyAiGenProvider(aiGenState.provider);
+}
+// The provider/API key/model/temperature block is shared across the whole
+// wizard (visible from Step 1 onward), not just Step 3 -- render it once at
+// load instead of lazily on the Step 2 -> 3 transition, so the key is
+// available up front for the construct-search feature too.
+renderAiGenProviderFields();
+
+function applyAiGenProvider(providerId) {
+  aiGenState.provider = providerId;
+  document.querySelectorAll("#aiGenProviderTabs .ai-provider-tab").forEach((btn) => btn.classList.toggle("active", btn.dataset.provider === providerId));
+  const cfg = AI_PROVIDERS[providerId];
+  const stored = aiReportGetStoredKey(providerId);
+  const keyInput = document.getElementById("aiGenApiKey");
+  keyInput.value = stored;
+  keyInput.placeholder = cfg.keyPlaceholder;
+  document.getElementById("aiGenRememberKey").checked = !!stored;
+  document.getElementById("aiGenModel").value = cfg.defaultModel;
+  document.getElementById("aiGenModelSuggestions").innerHTML = cfg.modelSuggestions.map((m) => `<option value="${aiReportEscapeAttr(m)}">`).join("");
+  document.getElementById("aiGenApiKeyHint").textContent = t("ai_modal_api_key_hint", { provider: cfg.label });
+}
+
+document.getElementById("aiGenProviderTabs").addEventListener("click", (e) => {
+  const btn = e.target.closest(".ai-provider-tab");
+  if (btn) applyAiGenProvider(btn.dataset.provider);
+});
+document.getElementById("aiGenKeyToggle").addEventListener("click", () => {
+  const input = document.getElementById("aiGenApiKey");
+  input.type = input.type === "password" ? "text" : "password";
+});
+const aiGenTemperatureInput = document.getElementById("aiGenTemperature");
+aiGenTemperatureInput.addEventListener("input", () => {
+  document.getElementById("aiGenTemperatureValue").textContent = Number(aiGenTemperatureInput.value).toFixed(1);
+});
+
+function clampAiGenNRows() {
+  const input = document.getElementById("aiGenNRows");
+  let n = parseInt(input.value, 10);
+  if (!Number.isFinite(n)) n = 200;
+  n = Math.max(30, Math.min(500, n));
+  input.value = n;
+  return n;
+}
+function clampAiGenBatchSize() {
+  const input = document.getElementById("aiGenBatchSize");
+  let n = parseInt(input.value, 10);
+  if (!Number.isFinite(n)) n = 25;
+  n = Math.max(1, Math.min(50, n));
+  input.value = n;
+  return n;
+}
+function updateAiGenNRowsHint() {
+  document.getElementById("aiGenNRowsHint").textContent = t("s1_ai_config_n_rows_hint", { max: 500, batch: clampAiGenBatchSize() });
+}
+updateAiGenNRowsHint();
+// requestPromptSuggestion() itself only overwrites the *textarea value* when
+// the user hasn't hand-edited it (aiGenUserPromptEdited) -- so these
+// listeners always call it unconditionally, keeping the system-prompt
+// preview, first-batch preview and total-batches hint accurate even after
+// the user has customized the base prompt text.
+document.getElementById("aiGenNRows").addEventListener("change", () => {
+  clampAiGenNRows();
+  requestPromptSuggestion();
+});
+document.getElementById("aiGenBatchSize").addEventListener("change", () => {
+  clampAiGenBatchSize();
+  requestPromptSuggestion();
+});
+document.querySelectorAll('input[name="aiGenLikert"]').forEach((r) =>
+  r.addEventListener("change", () => requestPromptSuggestion()),
+);
+
+async function requestPromptSuggestion() {
+  const nRows = clampAiGenNRows();
+  const likertScale = Number(document.querySelector('input[name="aiGenLikert"]:checked').value);
+  const batchSize = clampAiGenBatchSize();
+  try {
+    const res = await fetch("/api/ai_data_gen/suggest_prompt", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        codebook: aiGenState.codebook,
+        demographics: aiGenState.demographics,
+        demo_attributes: aiGenState.demoAttributes,
+        n_rows: nRows,
+        likert_scale: likertScale,
+        batch_size: batchSize,
+        lang: getLang(),
+      }),
+    });
+    const data = await res.json();
+    if (!res.ok) return;
+    aiGenState.batchSize = data.batch_size;
+    aiGenState.totalBatches = data.total_batches;
+    aiGenState.firstBatchInstruction = data.first_batch_instruction || "";
+    if (!aiGenSystemPromptEdited) {
+      aiGenState.systemPrompt = data.system_prompt;
+      document.getElementById("aiGenSystemPromptPreview").value = data.system_prompt;
+    }
+    if (!aiGenUserPromptEdited) {
+      document.getElementById("aiGenUserPrompt").value = data.user_prompt;
+    }
+    updateAiGenNRowsHint();
+    updateAiGenFullPreview();
+  } catch {
+    // Best-effort preview only -- the actual "Generate data" click revalidates everything.
+  }
+}
+document.getElementById("aiGenRegenBtn").addEventListener("click", () => {
+  aiGenUserPromptEdited = false;
+  aiGenSystemPromptEdited = false;
+  requestPromptSuggestion();
+});
+
+// Exact WYSIWYG preview of what /batch will actually send for the first
+// call: the (possibly hand-edited) base user prompt plus the real
+// per-batch instruction suffix the server computed for it.
+function updateAiGenFullPreview() {
+  const base = document.getElementById("aiGenUserPrompt").value;
+  const instruction = aiGenState.firstBatchInstruction || "";
+  document.getElementById("aiGenFirstBatchPreview").textContent = instruction ? `${base}\n\n${instruction}` : base;
+}
+document.getElementById("aiGenUserPrompt").addEventListener("input", updateAiGenFullPreview);
+
+document.getElementById("configBackBtn").addEventListener("click", () => aiGenGoToSubstep(2));
+
+document.getElementById("aiGenStartBtn").addEventListener("click", () => {
+  const errBox = document.getElementById("aiGenConfigError");
+  errBox.classList.add("hidden");
+  const apiKey = document.getElementById("aiGenApiKey").value.trim();
+  if (!apiKey) {
+    errBox.textContent = t("s1_ai_config_missing_key");
+    errBox.classList.remove("hidden");
+    return;
+  }
+  const remember = document.getElementById("aiGenRememberKey").checked;
+  try {
+    const storageKey = AI_PROVIDERS[aiGenState.provider].keyStorageKey;
+    if (remember) localStorage.setItem(storageKey, apiKey);
+    else localStorage.removeItem(storageKey);
+  } catch {
+    // localStorage unavailable -- key just won't persist, not fatal.
+  }
+
+  aiGenState.apiKey = apiKey;
+  aiGenState.model = document.getElementById("aiGenModel").value.trim() || AI_PROVIDERS[aiGenState.provider].defaultModel;
+  aiGenState.temperature = Number(aiGenTemperatureInput.value);
+  aiGenState.systemPrompt = document.getElementById("aiGenSystemPromptPreview").value.trim();
+  aiGenState.userPrompt = document.getElementById("aiGenUserPrompt").value.trim();
+  const likertScale = Number(document.querySelector('input[name="aiGenLikert"]:checked').value);
+  aiGenState.likertMin = 1;
+  aiGenState.likertMax = likertScale;
+  aiGenState.columns = aiGenState.codebook.map((c) => c.column);
+  aiGenState.nRows = clampAiGenNRows();
+  aiGenState.batchSize = Math.min(clampAiGenBatchSize(), aiGenState.nRows);
+  aiGenState.totalBatches = Math.ceil(aiGenState.nRows / aiGenState.batchSize);
+  aiGenState.rows = [];
+  aiGenState.batchLog = [];
+  aiGenState.currentBatch = 0;
+
+  document.getElementById("aiGenError").classList.add("hidden");
+  document.getElementById("aiGenErrorActions").classList.add("hidden");
+  document.getElementById("aiGenProgressWrap").classList.remove("hidden");
+  aiGenGoToSubstep(4);
+  runAiGeneration();
+});
+
+// ---- Sub-step 4: Batched generation loop ----
+async function runAiGeneration() {
+  const bar = document.getElementById("aiGenProgressBar");
+  const text = document.getElementById("aiGenProgressText");
+  bar.max = aiGenState.totalBatches;
+
+  // Row ranges are computed from how many rows have ACTUALLY accumulated so
+  // far, not a fixed per-batch schedule -- a batch that comes back a few
+  // rows short (the AI slightly under-counting, not necessarily an error;
+  // see _parse_batch_csv) is accepted rather than discarded, and the next
+  // call simply asks for however many rows are still needed to reach
+  // nRows. totalBatches is only an ESTIMATE for the progress bar; a
+  // generous extra allowance on top of it keeps this resilient to a few
+  // short batches without letting a persistently misbehaving provider loop
+  // forever.
+  const maxIterations = aiGenState.totalBatches + 5;
+
+  while (aiGenState.rows.length < aiGenState.nRows && aiGenState.currentBatch < maxIterations) {
+    const startRow = aiGenState.rows.length + 1;
+    const endRow = Math.min(aiGenState.nRows, startRow + aiGenState.batchSize - 1);
+    bar.value = Math.min(aiGenState.currentBatch, aiGenState.totalBatches);
+    text.textContent = t("s1_ai_gen_progress", { done: aiGenState.currentBatch, total: aiGenState.totalBatches });
+
+    try {
+      const res = await fetch("/api/ai_data_gen/batch", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          provider: aiGenState.provider,
+          api_key: aiGenState.apiKey,
+          model: aiGenState.model,
+          temperature: aiGenState.temperature,
+          system_prompt: aiGenState.systemPrompt,
+          user_prompt: aiGenState.userPrompt,
+          columns: aiGenState.columns,
+          likert_min: aiGenState.likertMin,
+          likert_max: aiGenState.likertMax,
+          start_row: startRow,
+          end_row: endRow,
+          demo_age_min: document.getElementById("demoAgeMin").value || null,
+          demo_age_max: document.getElementById("demoAgeMax").value || null,
+          demo_attributes: aiGenState.demoAttributes,
+          lang: getLang(),
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "batch failed");
+      aiGenState.rows.push(...data.rows);
+      aiGenState.batchLog.push({
+        start_row: startRow,
+        // Reflects the rows actually received, not the range asked for --
+        // a partial batch (see above) means these can differ.
+        end_row: startRow + data.rows.length - 1,
+        system_prompt: data.used_system_prompt || aiGenState.systemPrompt,
+        user_prompt: data.used_user_prompt || aiGenState.userPrompt,
+      });
+      aiGenState.currentBatch += 1;
+    } catch (err) {
+      showAiGenBatchError(err.message);
+      return;
+    }
+  }
+
+  if (aiGenState.rows.length < aiGenState.nRows) {
+    showAiGenBatchError(t("s1_ai_gen_error_incomplete", { got: aiGenState.rows.length, total: aiGenState.nRows }));
+    return;
+  }
+
+  bar.value = aiGenState.totalBatches;
+  text.textContent = t("s1_ai_gen_finalizing");
+  await finalizeAiGeneration();
+}
+
+function showAiGenBatchError(message) {
+  document.getElementById("aiGenError").textContent = t("s1_ai_gen_error_batch", { detail: message });
+  document.getElementById("aiGenError").classList.remove("hidden");
+  document.getElementById("aiGenErrorActions").classList.remove("hidden");
+}
+document.getElementById("aiGenRetryBtn").addEventListener("click", () => {
+  document.getElementById("aiGenError").classList.add("hidden");
+  document.getElementById("aiGenErrorActions").classList.add("hidden");
+  runAiGeneration();
+});
+document.getElementById("aiGenCancelBtn").addEventListener("click", () => {
+  document.getElementById("aiGenError").classList.add("hidden");
+  document.getElementById("aiGenErrorActions").classList.add("hidden");
+  document.getElementById("aiGenProgressWrap").classList.add("hidden");
+  aiGenGoToSubstep(3);
+});
+
+async function finalizeAiGeneration() {
+  try {
+    const res = await fetch("/api/ai_data_gen/finalize", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        filename: "ai_generated_survey.csv",
+        columns: aiGenState.columns,
+        rows: aiGenState.rows,
+        codebook: aiGenState.codebook,
+        demographics: aiGenState.demographics,
+        demo_attributes: aiGenState.demoAttributes,
+        provider: aiGenState.provider,
+        model: aiGenState.model,
+        temperature: aiGenState.temperature,
+        likert_scale: aiGenState.likertMax,
+        batches: aiGenState.batchLog,
+        construct_theories: aiGenState.constructTheories,
+        lang: getLang(),
+      }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "finalize failed");
+    applyUploadResult(data);
+    // One-shot seed for Step 2's model canvas (consumed by initEditor() the
+    // first time it opens for this dataset) -- must be set AFTER
+    // applyUploadResult(), which clears it unconditionally at its top.
+    state.pendingConstructSeed = buildConstructGroupsFromCodebook(aiGenState.codebook).map((g) => ({
+      ...g, theory: aiGenState.constructTheories[g.name] || null,
+    }));
+    const dlLink = document.getElementById("aiGenDownloadLink");
+    dlLink.href = `/api/ai_data_gen/download?file_id=${encodeURIComponent(data.file_id)}`;
+    dlLink.classList.remove("hidden");
+    const exportBtn = document.getElementById("aiGenExportBtn");
+    exportBtn.href = `/api/ai_data_gen/export?file_id=${encodeURIComponent(data.file_id)}`;
+    exportBtn.classList.remove("hidden");
+    renderAiGenDemoSummary(data.demographics_summary, data.demo_attributes);
+    renderAiGenStatsTables(data.descriptive_stats);
+    renderAiGenTransparency(aiGenState.batchLog);
+    document.getElementById("aiGenResultExtra").classList.remove("hidden");
+    document.getElementById("aiGenProgressWrap").classList.add("hidden");
+    document.getElementById("dataPreviewWrap").scrollIntoView({ behavior: "smooth", block: "start" });
+  } catch (err) {
+    showAiGenBatchError(err.message);
+  }
+}
+
+function renderAiGenDemoSummary(demographics, demoAttributes) {
+  const el = document.getElementById("aiGenDemoSummary");
+  const d = demographics || {};
+  const ageRange = d.age_min || d.age_max ? `${d.age_min || "?"}-${d.age_max || "?"}` : "—";
+  const rows = [
+    [t("s1_ai_result_demo_occupation"), d.occupation || "—"],
+    [t("s1_ai_result_demo_location"), d.location || "—"],
+    [t("s1_ai_result_demo_target_population"), d.target_population || "—"],
+    [t("s1_ai_result_demo_age_range"), ageRange],
+    [t("s1_ai_result_demo_gender_mix"), d.gender_mix ? t(`s1_ai_demo_gender_${d.gender_mix}`) : "—"],
+  ];
+  for (const attr of demoAttributes || []) {
+    const desc = attr.type === "numeric" ? `${attr.min}-${attr.max}` : (attr.options || []).join(", ");
+    rows.push([attr.name, desc]);
+  }
+  el.innerHTML = `<dl>${rows.map(([k, v]) => `<dt>${escapeHtml(k)}</dt><dd>${escapeHtml(String(v))}</dd>`).join("")}</dl>`;
+}
+
+function renderAiGenStatsTables(stats) {
+  const el = document.getElementById("aiGenStatsTables");
+  if (!stats) {
+    el.innerHTML = "";
+    return;
+  }
+  const indicatorRows = Object.entries(stats.indicators || {})
+    .map(([col, s]) => `<tr><td>${escapeHtml(col)}</td><td>${s.mean}</td><td>${s.std}</td><td>${s.min}</td><td>${s.max}</td></tr>`)
+    .join("");
+  const age = (stats.demographics || {}).age || {};
+  const gender = (stats.demographics || {}).gender || {};
+  el.innerHTML = `
+    <div class="ai-gen-stats-table-title">${t("s1_ai_result_stats_indicators_title")}</div>
+    <div class="table-scroll"><table>
+      <thead><tr><th>${t("s1_ai_result_stats_col")}</th><th>${t("s1_ai_result_stats_mean")}</th><th>${t("s1_ai_result_stats_std")}</th><th>${t("s1_ai_result_stats_min")}</th><th>${t("s1_ai_result_stats_max")}</th></tr></thead>
+      <tbody>${indicatorRows}</tbody>
+    </table></div>
+    <div class="ai-gen-stats-table-title">${t("s1_ai_result_stats_demo_title")}</div>
+    <div class="table-scroll"><table>
+      <thead><tr><th>${t("s1_ai_result_stats_col")}</th><th>${t("s1_ai_result_stats_mean")}</th><th>${t("s1_ai_result_stats_std")}</th><th>${t("s1_ai_result_stats_min")}</th><th>${t("s1_ai_result_stats_max")}</th></tr></thead>
+      <tbody><tr><td>${t("s1_ai_result_stats_age_row")}</td><td>${age.mean ?? ""}</td><td>${age.std ?? ""}</td><td>${age.min ?? ""}</td><td>${age.max ?? ""}</td></tr></tbody>
+    </table></div>
+    <div class="table-scroll"><table>
+      <thead><tr><th>${t("s1_ai_result_stats_gender_col")}</th><th>${t("s1_ai_result_stats_count")}</th><th>${t("s1_ai_result_stats_pct")}</th></tr></thead>
+      <tbody>
+        <tr><td>${t("s1_ai_result_stats_gender_male")}</td><td>${(gender.male || {}).count ?? 0}</td><td>${(gender.male || {}).pct ?? 0}</td></tr>
+        <tr><td>${t("s1_ai_result_stats_gender_female")}</td><td>${(gender.female || {}).count ?? 0}</td><td>${(gender.female || {}).pct ?? 0}</td></tr>
+      </tbody>
+    </table></div>
+    ${((stats.demographics || {}).custom || []).map((attr) => renderAiGenCustomAttrStatsTable(attr)).join("")}
+  `;
+}
+
+function renderAiGenCustomAttrStatsTable(attr) {
+  const title = `<div class="ai-gen-stats-table-title">${escapeHtml(attr.name)}</div>`;
+  if (attr.type === "numeric") {
+    const s = attr.stats || {};
+    return `
+      ${title}
+      <div class="table-scroll"><table>
+        <thead><tr><th>${t("s1_ai_result_stats_col")}</th><th>${t("s1_ai_result_stats_mean")}</th><th>${t("s1_ai_result_stats_std")}</th><th>${t("s1_ai_result_stats_min")}</th><th>${t("s1_ai_result_stats_max")}</th></tr></thead>
+        <tbody><tr><td>${escapeHtml(attr.name)}</td><td>${s.mean ?? ""}</td><td>${s.std ?? ""}</td><td>${s.min ?? ""}</td><td>${s.max ?? ""}</td></tr></tbody>
+      </table></div>
+    `;
+  }
+  const rows = Object.entries(attr.counts || {})
+    .map(([opt, s]) => `<tr><td>${escapeHtml(opt)}</td><td>${s.count ?? 0}</td><td>${s.pct ?? 0}</td></tr>`)
+    .join("");
+  return `
+    ${title}
+    <div class="table-scroll"><table>
+      <thead><tr><th>${t("s1_ai_result_stats_option_col")}</th><th>${t("s1_ai_result_stats_count")}</th><th>${t("s1_ai_result_stats_pct")}</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table></div>
+  `;
+}
+
+function renderAiGenTransparency(batchLog) {
+  const el = document.getElementById("aiGenTransparency");
+  el.innerHTML = (batchLog || [])
+    .map((b, i) => `
+      <details${i === 0 ? " open" : ""}>
+        <summary>${escapeHtml(t("s1_ai_result_transparency_batch", { n: i + 1, start: b.start_row, end: b.end_row }))}</summary>
+        <p class="hint">${escapeHtml(t("s1_ai_result_transparency_system"))}</p>
+        <pre><code>${escapeHtml(b.system_prompt)}</code></pre>
+        <p class="hint">${escapeHtml(t("s1_ai_result_transparency_user"))}</p>
+        <pre><code>${escapeHtml(b.user_prompt)}</code></pre>
+      </details>
+    `)
+    .join("");
+}
+
+// ---- Export/import the entire wizard configuration as one CSV file ----
+// (codebook + respondent profile + custom demographic attributes +
+// generation settings) so a later session can restore everything with a
+// single import instead of re-entering each step. The API key is never
+// included -- same privacy rule as everywhere else in this module.
+function csvEscapeField(value) {
+  const s = value === undefined || value === null ? "" : String(value);
+  return /[",\r\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+}
+function buildCsv(rows) {
+  return rows.map((row) => row.map(csvEscapeField).join(",")).join("\r\n");
+}
+function parseCsv(text) {
+  const rows = [];
+  let row = [];
+  let field = "";
+  let inQuotes = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (inQuotes) {
+      if (c === '"') {
+        if (text[i + 1] === '"') {
+          field += '"';
+          i++;
+        } else {
+          inQuotes = false;
+        }
+      } else {
+        field += c;
+      }
+      continue;
+    }
+    if (c === '"') inQuotes = true;
+    else if (c === ",") {
+      row.push(field);
+      field = "";
+    } else if (c === "\r") continue;
+    else if (c === "\n") {
+      row.push(field);
+      rows.push(row);
+      row = [];
+      field = "";
+    } else field += c;
+  }
+  if (field.length || row.length) {
+    row.push(field);
+    rows.push(row);
+  }
+  return rows.filter((r) => !(r.length === 1 && r[0] === ""));
+}
+
+const AI_GEN_CONFIG_CSV_HEADER = ["section", "key", "value", "column", "question_text", "construct", "name", "type", "min", "max", "options"];
+
+document.getElementById("aiGenExportAllBtn").addEventListener("click", () => {
+  const codebook = collectCodebook();
+  const demographics = collectDemographics();
+  const { attrs } = collectDemoAttrs();
+  const rows = [AI_GEN_CONFIG_CSV_HEADER];
+
+  const metaEntries = [
+    ["provider", aiGenState.provider],
+    ["model", document.getElementById("aiGenModel").value.trim()],
+    ["temperature", String(Number(aiGenTemperatureInput.value))],
+    ["likert_scale", document.querySelector('input[name="aiGenLikert"]:checked').value],
+    ["n_rows", String(clampAiGenNRows())],
+    ["batch_size", String(clampAiGenBatchSize())],
+    ["user_prompt", document.getElementById("aiGenUserPrompt").value],
+    ["age_min", demographics.age_min || ""],
+    ["age_max", demographics.age_max || ""],
+    ["gender_mix", demographics.gender_mix || ""],
+    ["occupation", demographics.occupation || ""],
+    ["location", demographics.location || ""],
+    ["target_population", demographics.target_population || ""],
+  ];
+  for (const [key, value] of metaEntries) rows.push(["meta", key, value, "", "", "", "", "", "", "", ""]);
+  for (const item of codebook) rows.push(["codebook", "", "", item.column, item.question_text, item.construct || "", "", "", "", "", ""]);
+  for (const attr of attrs || []) {
+    rows.push([
+      "demo_attribute", "", "", "", "", "",
+      attr.name, attr.type,
+      attr.type === "numeric" ? attr.min : "",
+      attr.type === "numeric" ? attr.max : "",
+      attr.type === "categorical" ? attr.options.join("|") : "",
+    ]);
+  }
+
+  const blob = new Blob([buildCsv(rows)], { type: "text/csv" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "ai_gen_full_config.csv";
+  a.click();
+  URL.revokeObjectURL(url);
+});
+
+document.getElementById("aiGenImportAllBtn").addEventListener("click", () => {
+  document.getElementById("aiGenImportAllInput").click();
+});
+document.getElementById("aiGenImportAllInput").addEventListener("change", (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const errBox = document.getElementById("aiGenImportAllError");
+  const reader = new FileReader();
+  reader.onload = () => {
+    errBox.classList.add("hidden");
+    try {
+      const parsed = parseCsv(String(reader.result));
+      if (!parsed.length) throw new Error(t("s1_ai_codebook_min_rows"));
+      const header = parsed[0];
+      const body = parsed.slice(1);
+      // Soft lookup -- a column absent from the header (e.g. an older
+      // export made before a field like "construct" existed) yields "" for
+      // every row instead of failing the whole import.
+      const col = (name) => header.indexOf(name);
+      const at = (r, idx) => (idx === -1 ? "" : r[idx] || "");
+      const secIdx = header.indexOf("section");
+      if (secIdx === -1) throw new Error(t("s1_ai_all_config_import_bad_file"));
+      const keyIdx = col("key"), valIdx = col("value");
+      const colIdx = col("column"), qIdx = col("question_text"), constructIdx = col("construct");
+      const nameIdx = col("name"), typeIdx = col("type"), minIdx = col("min"), maxIdx = col("max"), optIdx = col("options");
+
+      const meta = {};
+      const codebookItems = [];
+      const demoAttrItems = [];
+      for (const r of body) {
+        const section = r[secIdx];
+        if (section === "meta") meta[at(r, keyIdx)] = at(r, valIdx);
+        else if (section === "codebook") {
+          codebookItems.push({ column: at(r, colIdx), question_text: at(r, qIdx), construct: at(r, constructIdx) });
+        }
+        else if (section === "demo_attribute") {
+          demoAttrItems.push({
+            name: r[nameIdx],
+            type: r[typeIdx],
+            min: r[minIdx],
+            max: r[maxIdx],
+            options: r[optIdx] ? r[optIdx].split("|") : [],
+          });
+        }
+      }
+      const cleanCodebookItems = codebookItems.filter((it) => it.column);
+      if (!cleanCodebookItems.length) throw new Error(t("s1_ai_codebook_min_rows"));
+
+      // Step 1: codebook
+      document.getElementById("codebookTableBody").innerHTML = "";
+      cleanCodebookItems.forEach((it) => codebookAddRow(it.column, it.question_text, it.construct));
+
+      // Step 2: respondent profile + custom demographic attributes
+      document.getElementById("demoAgeMin").value = meta.age_min || "";
+      document.getElementById("demoAgeMax").value = meta.age_max || "";
+      document.getElementById("demoGenderMix").value = meta.gender_mix || "any";
+      document.getElementById("demoOccupation").value = meta.occupation || "";
+      document.getElementById("demoLocation").value = meta.location || "";
+      document.getElementById("demoTargetPopulation").value = meta.target_population || "";
+      document.getElementById("demoAttrsTableBody").innerHTML = "";
+      demoAttrItems.forEach((attr) => {
+        const valueText = attr.type === "categorical" ? attr.options.join(", ") : `${attr.min},${attr.max}`;
+        demoAttrAddRow(attr.name, attr.type, valueText);
+      });
+
+      // Step 3: generation settings
+      if (meta.provider && AI_PROVIDERS[meta.provider]) aiGenState.provider = meta.provider;
+      renderAiGenProviderFields();
+      if (meta.model) document.getElementById("aiGenModel").value = meta.model;
+      if (meta.temperature) {
+        aiGenTemperatureInput.value = meta.temperature;
+        document.getElementById("aiGenTemperatureValue").textContent = Number(meta.temperature).toFixed(1);
+      }
+      if (meta.likert_scale) {
+        const radio = document.querySelector(`input[name="aiGenLikert"][value="${meta.likert_scale}"]`);
+        if (radio) radio.checked = true;
+      }
+      if (meta.n_rows) document.getElementById("aiGenNRows").value = meta.n_rows;
+      if (meta.batch_size) document.getElementById("aiGenBatchSize").value = meta.batch_size;
+      clampAiGenNRows();
+      clampAiGenBatchSize();
+      aiGenUserPromptEdited = false;
+      if (meta.user_prompt) {
+        document.getElementById("aiGenUserPrompt").value = meta.user_prompt;
+        aiGenUserPromptEdited = true;
+      }
+
+      // Commit the collected step 1/2 state (mirrors what clicking "Next"
+      // on each step would do), so the wizard stays consistent if the user
+      // navigates back to an earlier step before generating.
+      aiGenState.codebook = collectCodebook();
+      aiGenState.demographics = collectDemographics();
+      aiGenState.demoAttributes = demoAttrItems.map((attr) => (
+        attr.type === "categorical"
+          ? { name: attr.name, type: "categorical", options: attr.options }
+          : { name: attr.name, type: "numeric", min: Number(attr.min), max: Number(attr.max) }
+      ));
+
+      aiGenGoToSubstep(3);
+      requestPromptSuggestion();
+    } catch (err) {
+      errBox.textContent = t("s1_ai_all_config_import_failed", { msg: err.message });
+      errBox.classList.remove("hidden");
+    } finally {
+      e.target.value = "";
+    }
+  };
+  reader.readAsText(file);
+});
+
 // ---------------- Step 2: Model builder ----------------
 function initEditor() {
   const canvas = document.getElementById("modelCanvas");
@@ -212,6 +1292,24 @@ function initEditor() {
     onSelect: onConstructSelected,
     onChange: onEditorChange,
   });
+  // One-shot seed from the AI-gen codebook's Construct column, if any (see
+  // finalizeAiGeneration()/applyUploadResult()) -- only ever applied the
+  // FIRST time Step 2 opens for a dataset, since initEditor() itself is only
+  // ever called once (guarded by `if (!editor) initEditor();`). Consuming it
+  // here means later codebook edits never resync/overwrite manual canvas
+  // edits made after this point.
+  const seed = state.pendingConstructSeed;
+  state.pendingConstructSeed = null;
+  if (seed && seed.length) {
+    const constructs = seed.map((group) => ({
+      id: "c" + Math.random().toString(36).slice(2, 9),
+      name: group.name,
+      mode: "A",
+      indicators: group.indicators.filter((col) => state.numericColumns.includes(col)),
+      theory: group.theory || null,
+    }));
+    editor.loadFrom(circleLayout(constructs), []);
+  }
   renderModelSummary();
 }
 
@@ -354,6 +1452,14 @@ function onConstructSelected(sel) {
   form.classList.remove("hidden");
   const c = sel.construct;
   document.getElementById("cName").value = c.name;
+  const theoryBox = document.getElementById("cTheoryBox");
+  if (c.theory && c.theory.citation_apa) {
+    const citation = [c.theory.citation_apa, c.theory.doi ? `DOI: ${c.theory.doi}` : ""].filter(Boolean).join(" — ");
+    theoryBox.textContent = `📚 ${citation}`;
+    theoryBox.classList.remove("hidden");
+  } else {
+    theoryBox.classList.add("hidden");
+  }
   document.getElementById("cMode").value = c.mode;
   if (c.mode === "I") {
     document.getElementById("indicatorPickerSection").classList.add("hidden");

@@ -4,6 +4,7 @@ import os
 
 from flask import Flask, render_template
 
+from routes.ai_data_gen_api import ai_data_gen_api
 from routes.ai_report_api import ai_report_api
 from routes.api import api
 from routes.cbsem_api import cbsem_api
@@ -32,6 +33,7 @@ def create_app() -> Flask:
     app.register_blueprint(power_api)
     app.register_blueprint(ml_api)
     app.register_blueprint(ai_report_api)
+    app.register_blueprint(ai_data_gen_api)
 
     @app.get("/")
     def index():

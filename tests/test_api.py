@@ -59,6 +59,30 @@ def test_upload_analyze_export_round_trip(client, tam_df, tam_model_json):
         assert len(r.data) > 0
 
 
+def test_analyze_runs_with_single_indicator_reflective_construct(client, tam_df, tam_model_json):
+    """A single-indicator reflective (Mode A) construct must analyze
+    normally end-to-end, not just pass model validation -- Cronbach's alpha/
+    composite reliability are correctly omitted for it (undefined for a
+    1-item scale), but the construct still gets an outer loading and takes
+    part in the structural model like any other."""
+    payload = {
+        "constructs": [
+            dict(c, indicators=c["indicators"][:1]) if c["id"] == "peou" else c
+            for c in tam_model_json["constructs"]
+        ],
+        "paths": tam_model_json["paths"],
+    }
+    file_id = _upload(client, tam_df)
+    resp = client.post("/api/analyze", json={"file_id": file_id, "model": payload, "lang": "en"})
+    assert resp.status_code == 200, resp.get_json()
+    data = resp.get_json()
+    assert data["converged"] is True
+    measurement = data["measurement"]
+    assert "PEOU1" in measurement["outer_loadings"]
+    assert "peou" not in measurement["cronbachs_alpha"]
+    assert "peou" not in measurement["composite_reliability"]
+
+
 def test_upload_rejects_unsupported_extension(client):
     resp = client.post(
         "/api/upload",

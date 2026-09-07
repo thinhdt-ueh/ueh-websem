@@ -36,10 +36,6 @@ _CATALOG: dict[str, dict[str, str]] = {
         "err_construct_missing_id_name": "Mỗi construct cần có id và tên hợp lệ.",
         "err_construct_invalid_mode": "Construct '{name}': mode phải là 'A' (reflective) hoặc 'B' (formative).",
         "err_construct_min_indicators": "Construct '{name}' cần ít nhất 1 biến quan sát (indicator).",
-        "err_construct_reflective_min2": (
-            "Construct phản ánh (reflective) '{name}' cần tối thiểu 2 biến quan sát "
-            "để tính được độ tin cậy."
-        ),
         "err_construct_duplicate_id": "Trùng id construct: '{cid}'.",
         "err_indicator_duplicate": (
             "Biến quan sát '{ind}' được gán cho nhiều hơn 1 construct ('{a}' và '{b}')."
@@ -138,6 +134,19 @@ _CATALOG: dict[str, dict[str, str]] = {
         "err_ai_rate_limited": "Tài khoản đã vượt giới hạn tốc độ (rate limit) hoặc hết hạn mức sử dụng — vui lòng thử lại sau.",
         "err_ai_bad_model": "Tên model không hợp lệ hoặc tài khoản không có quyền dùng model này: {detail}",
         "err_ai_request_failed": "Lỗi khi gọi AI: {detail}",
+
+        # --- AI synthetic data generation (routes/ai_data_gen_api.py) ---
+        "err_ai_gen_missing_codebook": "Vui lòng định nghĩa ít nhất một biến quan sát (cột) với tên hợp lệ.",
+        "err_ai_gen_duplicate_column": "Tên cột bị trùng: {name}",
+        "err_ai_gen_invalid_n_rows": "Số quan sát phải trong khoảng {min}-{max}.",
+        "err_ai_gen_invalid_likert": "Thang đo Likert chỉ hỗ trợ 5 hoặc 7 mức.",
+        "err_ai_gen_bad_batch": "AI trả về dữ liệu không hợp lệ sau nhiều lần thử: {detail}",
+        "err_ai_gen_finalize_shape_mismatch": "Dữ liệu sinh ra không khớp với danh sách cột đã định nghĩa.",
+        "err_ai_gen_export_not_found": "Không tìm thấy thông tin sinh dữ liệu AI cho file này (có thể đây không phải dữ liệu do AI sinh ra).",
+        "err_ai_gen_invalid_demo_attr": "Thuộc tính demographic '{name}' không hợp lệ: {detail}",
+        "err_ai_gen_too_many_demo_attrs": "Tối đa {max} thuộc tính demographic bổ sung.",
+        "err_ai_gen_missing_topic": "Vui lòng nhập chủ đề / bối cảnh nghiên cứu.",
+        "err_ai_gen_bad_construct_search": "AI trả về dữ liệu không hợp lệ: {detail}",
 
         # --- shared report labels (pls/report.py & cbsem/report.py) ---
         "rpt_title_pls": "PLS-SEM — Báo cáo phân tích",
@@ -354,9 +363,6 @@ _CATALOG: dict[str, dict[str, str]] = {
         "err_construct_missing_id_name": "Every construct needs a valid id and name.",
         "err_construct_invalid_mode": "Construct '{name}': mode must be 'A' (reflective) or 'B' (formative).",
         "err_construct_min_indicators": "Construct '{name}' needs at least 1 indicator.",
-        "err_construct_reflective_min2": (
-            "Reflective construct '{name}' needs at least 2 indicators to compute reliability."
-        ),
         "err_construct_duplicate_id": "Duplicate construct id: '{cid}'.",
         "err_indicator_duplicate": (
             "Indicator '{ind}' is assigned to more than one construct ('{a}' and '{b}')."
@@ -450,6 +456,19 @@ _CATALOG: dict[str, dict[str, str]] = {
         "err_ai_rate_limited": "The account has hit its rate limit or usage quota — please try again later.",
         "err_ai_bad_model": "Invalid model name, or this account doesn't have access to it: {detail}",
         "err_ai_request_failed": "Error calling the AI provider: {detail}",
+
+        # --- AI synthetic data generation (routes/ai_data_gen_api.py) ---
+        "err_ai_gen_missing_codebook": "Please define at least one indicator (column) with a valid name.",
+        "err_ai_gen_duplicate_column": "Duplicate column name: {name}",
+        "err_ai_gen_invalid_n_rows": "Number of observations must be between {min} and {max}.",
+        "err_ai_gen_invalid_likert": "The Likert scale only supports 5 or 7 points.",
+        "err_ai_gen_bad_batch": "The AI returned invalid data after multiple attempts: {detail}",
+        "err_ai_gen_finalize_shape_mismatch": "The generated data doesn't match the defined column list.",
+        "err_ai_gen_export_not_found": "No AI-generation metadata found for this file (it may not be AI-generated data).",
+        "err_ai_gen_invalid_demo_attr": "Demographic attribute '{name}' is invalid: {detail}",
+        "err_ai_gen_too_many_demo_attrs": "At most {max} additional demographic attributes are allowed.",
+        "err_ai_gen_missing_topic": "Please enter a research topic / context.",
+        "err_ai_gen_bad_construct_search": "The AI returned invalid data: {detail}",
 
         "rpt_title_pls": "PLS-SEM — Analysis Report",
         "rpt_title_cbsem": "CB-SEM Analysis Report (Maximum Likelihood)",

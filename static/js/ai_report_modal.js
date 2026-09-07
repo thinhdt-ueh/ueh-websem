@@ -19,10 +19,16 @@ const AI_PROVIDERS = {
     keyStorageKey: "websem_openai_api_key",
     keyPlaceholder: "sk-...",
     defaultModel: "gpt-4o-mini",
+    // "-pro" reasoning models (o1-pro, o3-pro, ...) are deliberately excluded:
+    // OpenAI only serves them via the newer v1/responses API, not the
+    // v1/chat/completions endpoint _call_openai (routes/ai_report_api.py)
+    // implements -- picking one from this list fails every call with
+    // "This model is only supported in v1/responses...". Don't re-add a
+    // "-pro" model here unless that endpoint gets implemented too.
     modelSuggestions: [
       "gpt-4o-mini", "gpt-4o", "gpt-4.1", "gpt-4.1-mini", "gpt-4.1-nano", "gpt-4-turbo",
-      "gpt-5", "gpt-5-mini", "gpt-5-nano", "gpt-5-chat",
-      "o1", "o1-mini", "o1-pro", "o3", "o3-mini", "o3-pro", "o4-mini",
+      "gpt-5", "gpt-5-mini", "gpt-5-nano", "gpt-5-chat", "gpt-5.6-sol",
+      "o1", "o1-mini", "o3", "o3-mini", "o4-mini",
     ],
   },
   gemini: {

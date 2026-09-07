@@ -28,18 +28,257 @@
   <!-- STEP 1: DATA -->
   <section class="step-panel active" id="panel-1">
     <div class="panel-card">
-      <h2 data-i18n="s1_title">Tải lên dữ liệu khảo sát</h2>
-      <p class="hint" data-i18n="s1_hint">Hỗ trợ CSV hoặc Excel (.xlsx). Mỗi cột là một biến quan sát (item), mỗi dòng là một quan sát.</p>
-      <div class="dropzone" id="dropzone">
-        <input type="file" id="fileInput" accept=".csv,.xlsx,.xls" hidden>
-        <p><span data-i18n="s1_dropzone_text">Kéo thả file vào đây hoặc</span> <button class="link-btn" id="browseBtn" data-i18n="s1_browse">chọn file</button></p>
-        <p class="dz-filename" id="dzFilename"></p>
+      <div class="ai-provider-tabs" id="dataSourceTabs">
+        <button type="button" class="ai-provider-tab active" data-source="upload" data-i18n="s1_tab_upload">📁 Tải lên dữ liệu</button>
+        <button type="button" class="ai-provider-tab" data-source="ai_gen" data-i18n="s1_tab_ai_gen">🤖 Sinh dữ liệu bằng AI</button>
       </div>
-      <div id="uploadError" class="error-box hidden"></div>
+
+      <div id="uploadSourcePane">
+        <h2 data-i18n="s1_title">Tải lên dữ liệu khảo sát</h2>
+        <p class="hint" data-i18n="s1_hint">Hỗ trợ CSV hoặc Excel (.xlsx). Mỗi cột là một biến quan sát (item), mỗi dòng là một quan sát.</p>
+        <div class="dropzone" id="dropzone">
+          <input type="file" id="fileInput" accept=".csv,.xlsx,.xls" hidden>
+          <p><span data-i18n="s1_dropzone_text">Kéo thả file vào đây hoặc</span> <button class="link-btn" id="browseBtn" data-i18n="s1_browse">chọn file</button></p>
+          <p class="dz-filename" id="dzFilename"></p>
+        </div>
+        <div id="uploadError" class="error-box hidden"></div>
+      </div>
+
+      <div id="aiGenSourcePane" class="hidden">
+        <div class="ai-gen-steps" id="aiGenSteps">
+          <span class="ai-gen-step-dot active reached" data-substep="1"><span class="num">1</span></span>
+          <span class="ai-gen-step-dot" data-substep="2"><span class="num">2</span></span>
+          <span class="ai-gen-step-dot" data-substep="3"><span class="num">3</span></span>
+          <span class="ai-gen-step-dot" data-substep="4"><span class="num">4</span></span>
+        </div>
+
+        <div class="codebook-actions">
+          <button class="btn ghost" id="aiGenExportAllBtn" data-i18n="s1_ai_all_config_export">⬇ Xuất toàn bộ cấu hình (CSV)</button>
+          <button class="btn ghost" id="aiGenImportAllBtn" data-i18n="s1_ai_all_config_import">⬆ Nhập toàn bộ cấu hình (CSV)</button>
+          <input type="file" id="aiGenImportAllInput" accept=".csv" hidden>
+        </div>
+        <div id="aiGenImportAllError" class="error-box hidden"></div>
+
+        <div class="ai-gen-shared-provider">
+          <label data-i18n="ai_modal_provider_label">AI Provider</label>
+          <div class="ai-provider-tabs" id="aiGenProviderTabs"></div>
+
+          <label data-i18n="ai_modal_api_key_label">Your API key</label>
+          <div class="ai-key-row">
+            <input type="password" id="aiGenApiKey" autocomplete="off">
+            <button type="button" class="btn ghost" id="aiGenKeyToggle">👁</button>
+          </div>
+          <p class="hint" id="aiGenApiKeyHint"></p>
+          <label class="checkbox-row">
+            <input type="checkbox" id="aiGenRememberKey">
+            <span data-i18n="ai_modal_remember_key">Ghi nhớ key này trên trình duyệt này (localStorage)</span>
+          </label>
+
+          <label data-i18n="ai_modal_model_label">Model</label>
+          <input type="text" id="aiGenModel" list="aiGenModelSuggestions">
+          <datalist id="aiGenModelSuggestions"></datalist>
+          <p class="hint" data-i18n="ai_modal_model_hint">Đây là danh sách gợi ý, không giới hạn.</p>
+
+          <label><span data-i18n="ai_modal_temperature_label">Độ sáng tạo (temperature)</span> — <span id="aiGenTemperatureValue">1.0</span></label>
+          <div class="ai-temp-row">
+            <span class="ai-temp-endpoint" data-i18n="ai_modal_temperature_low">Chính xác</span>
+            <input type="range" id="aiGenTemperature" min="0" max="1" step="0.1" value="1">
+            <span class="ai-temp-endpoint" data-i18n="ai_modal_temperature_high">Sáng tạo</span>
+          </div>
+        </div>
+
+        <div class="ai-gen-substep active" id="aiGenStep1">
+          <h2 data-i18n="s1_ai_codebook_title">Bước 1: Định nghĩa câu hỏi khảo sát</h2>
+          <p class="hint" data-i18n="s1_ai_codebook_hint">Mỗi dòng là một biến quan sát (indicator).</p>
+
+          <div class="ai-gen-construct-search">
+            <button type="button" class="btn ghost" id="constructSearchToggleBtn" data-i18n="s1_ai_construct_search_toggle">🔍 Tìm construct &amp; indicator bằng AI (literature review)</button>
+            <div id="constructSearchPanel" class="hidden">
+              <label data-i18n="s1_ai_construct_search_topic_label">Chủ đề / bối cảnh nghiên cứu</label>
+              <textarea id="constructSearchTopic" rows="2" data-i18n-placeholder="s1_ai_construct_search_topic_placeholder"></textarea>
+              <div class="ai-gen-form-row">
+                <div>
+                  <label data-i18n="s1_ai_construct_search_count_label">Số construct mong muốn</label>
+                  <input type="number" id="constructSearchCount" min="1" max="10" value="5">
+                </div>
+              </div>
+              <button type="button" class="btn primary" id="constructSearchRunBtn" data-i18n="s1_ai_construct_search_run">Tìm construct</button>
+              <div id="constructSearchError" class="error-box hidden"></div>
+              <p class="hint hidden" id="constructSearchLoading" data-i18n="s1_ai_construct_search_loading">Đang tìm kiếm...</p>
+
+              <div id="constructSearchResults" class="hidden">
+                <p class="hint hidden" id="constructSearchDisclaimer" data-i18n="s1_ai_construct_search_disclaimer">⚠️ Trích dẫn do AI tạo ra — vui lòng kiểm chứng trước khi dùng chính thức.</p>
+                <div id="constructSearchGroups"></div>
+                <div class="ai-gen-nav">
+                  <button type="button" class="btn" id="constructSearchCancelBtn" data-i18n="s1_ai_construct_search_cancel">Huỷ</button>
+                  <button type="button" class="btn primary" id="constructSearchAddBtn" data-i18n="s1_ai_construct_search_add">+ Thêm mục đã chọn vào bảng</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="table-scroll">
+            <table class="codebook-table" id="codebookTable">
+              <thead>
+                <tr>
+                  <th data-i18n="s1_ai_codebook_col_column">Tên cột</th>
+                  <th data-i18n="s1_ai_codebook_col_construct">Construct</th>
+                  <th data-i18n="s1_ai_codebook_col_question">Nội dung câu hỏi phỏng vấn</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="codebookTableBody"></tbody>
+            </table>
+          </div>
+          <div class="codebook-actions">
+            <button class="btn" id="codebookAddRowBtn" data-i18n="s1_ai_codebook_add_row">+ Thêm biến quan sát</button>
+            <button class="btn ghost" id="codebookExportBtn" data-i18n="s1_ai_codebook_export">⬇ Xuất định nghĩa</button>
+            <button class="btn ghost" id="codebookImportBtn" data-i18n="s1_ai_codebook_import">⬆ Nhập định nghĩa</button>
+            <input type="file" id="codebookImportInput" accept=".json" hidden>
+          </div>
+          <div id="codebookImportError" class="error-box hidden"></div>
+          <div id="codebookValidationError" class="error-box hidden"></div>
+          <div class="ai-gen-nav">
+            <span></span>
+            <button class="btn primary" id="codebookNextBtn" data-i18n="s1_ai_next">Tiếp theo →</button>
+          </div>
+        </div>
+
+        <div class="ai-gen-substep" id="aiGenStep2">
+          <h2 data-i18n="s1_ai_demo_title">Bước 2: Đối tượng khảo sát</h2>
+          <p class="hint" data-i18n="s1_ai_demo_hint">Tất cả các trường đều tuỳ chọn.</p>
+          <div class="ai-gen-form-row">
+            <div>
+              <label data-i18n="s1_ai_demo_age">Độ tuổi</label>
+              <div style="display:flex;gap:8px;align-items:center;">
+                <input type="number" id="demoAgeMin" min="0" max="120">
+                <span data-i18n="s1_ai_demo_age_to">đến</span>
+                <input type="number" id="demoAgeMax" min="0" max="120">
+              </div>
+            </div>
+            <div>
+              <label data-i18n="s1_ai_demo_gender">Giới tính</label>
+              <select id="demoGenderMix">
+                <option value="any" data-i18n="s1_ai_demo_gender_any">Không giới hạn</option>
+                <option value="balanced" data-i18n="s1_ai_demo_gender_balanced">Cân bằng nam/nữ</option>
+                <option value="mostly_male" data-i18n="s1_ai_demo_gender_mostly_male">Chủ yếu nam</option>
+                <option value="mostly_female" data-i18n="s1_ai_demo_gender_mostly_female">Chủ yếu nữ</option>
+              </select>
+            </div>
+          </div>
+          <div class="ai-gen-form-row">
+            <div>
+              <label data-i18n="s1_ai_demo_occupation">Nghề nghiệp / học vấn</label>
+              <input type="text" id="demoOccupation" data-i18n-placeholder="s1_ai_demo_occupation_placeholder">
+            </div>
+            <div>
+              <label data-i18n="s1_ai_demo_location">Khu vực</label>
+              <input type="text" id="demoLocation" data-i18n-placeholder="s1_ai_demo_location_placeholder">
+            </div>
+          </div>
+          <label data-i18n="s1_ai_demo_target_population">Mô tả đặc thù đối tượng khảo sát</label>
+          <p class="hint" data-i18n="s1_ai_demo_target_population_hint">Mô tả càng chi tiết càng tốt.</p>
+          <textarea id="demoTargetPopulation" rows="3" data-i18n-placeholder="s1_ai_demo_target_population_placeholder"></textarea>
+
+          <h3 data-i18n="s1_ai_demo_attrs_title">Thuộc tính demographic bổ sung (tuỳ chọn)</h3>
+          <p class="hint" data-i18n="s1_ai_demo_attrs_hint">Số (khoảng min-max) hoặc phân loại (danh sách lựa chọn cách nhau bởi dấu phẩy).</p>
+          <div class="table-scroll">
+            <table class="codebook-table" id="demoAttrsTable">
+              <thead>
+                <tr>
+                  <th data-i18n="s1_ai_demo_attrs_col_name">Tên thuộc tính</th>
+                  <th data-i18n="s1_ai_demo_attrs_col_type">Kiểu</th>
+                  <th data-i18n="s1_ai_demo_attrs_col_value">Khoảng số hoặc danh sách lựa chọn</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="demoAttrsTableBody"></tbody>
+            </table>
+          </div>
+          <div class="codebook-actions">
+            <button class="btn" id="demoAttrsAddRowBtn" data-i18n="s1_ai_demo_attrs_add_row">+ Thêm thuộc tính</button>
+          </div>
+          <div id="demoAttrsValidationError" class="error-box hidden"></div>
+
+          <div class="ai-gen-nav">
+            <button class="btn" id="demoBackBtn" data-i18n="s1_ai_back">← Quay lại</button>
+            <button class="btn primary" id="demoNextBtn" data-i18n="s1_ai_next">Tiếp theo →</button>
+          </div>
+        </div>
+
+        <div class="ai-gen-substep" id="aiGenStep3">
+          <h2 data-i18n="s1_ai_config_title">Bước 3: Cấu hình &amp; Prompt</h2>
+
+          <div class="ai-gen-form-row">
+            <div>
+              <label data-i18n="s1_ai_config_n_rows">Số quan sát cần sinh</label>
+              <input type="number" id="aiGenNRows" min="30" max="500" value="200">
+              <p class="hint" id="aiGenNRowsHint"></p>
+            </div>
+            <div>
+              <label data-i18n="s1_ai_config_likert">Thang đo Likert</label>
+              <label class="radio-row"><input type="radio" name="aiGenLikert" value="5" checked> <span data-i18n="s1_ai_config_likert5">5 mức (1-5)</span></label>
+              <label class="radio-row"><input type="radio" name="aiGenLikert" value="7"> <span data-i18n="s1_ai_config_likert7">7 mức (1-7)</span></label>
+            </div>
+            <div>
+              <label data-i18n="s1_ai_config_batch_size">Số dòng mỗi lần gọi AI</label>
+              <input type="number" id="aiGenBatchSize" min="1" max="50" value="25">
+              <p class="hint" data-i18n="s1_ai_config_batch_size_hint">Từ 1 đến 50.</p>
+            </div>
+          </div>
+
+          <details open>
+            <summary data-i18n="s1_ai_config_system_prompt_label">Prompt hệ thống (có thể chỉnh sửa)</summary>
+            <textarea class="ai-gen-prompt-preview" id="aiGenSystemPromptPreview" rows="8"></textarea>
+          </details>
+
+          <label data-i18n="s1_ai_config_user_prompt_label">Yêu cầu gửi AI (có thể chỉnh sửa)</label>
+          <textarea id="aiGenUserPrompt" rows="4"></textarea>
+          <button class="btn ghost" id="aiGenRegenBtn" data-i18n="s1_ai_config_regenerate">🔄 Gợi ý lại</button>
+
+          <label data-i18n="s1_ai_config_first_batch_preview_label">Xem trước: nội dung thực tế gửi AI cho lô đầu tiên</label>
+          <div class="ai-gen-prompt-preview" id="aiGenFirstBatchPreview"></div>
+
+          <div id="aiGenConfigError" class="error-box hidden"></div>
+          <div class="ai-gen-nav">
+            <button class="btn" id="configBackBtn" data-i18n="s1_ai_back">← Quay lại</button>
+            <button class="btn primary" id="aiGenStartBtn" data-i18n="s1_ai_config_generate_btn">▶ Sinh dữ liệu</button>
+          </div>
+        </div>
+
+        <div class="ai-gen-substep" id="aiGenStep4">
+          <div class="ai-gen-progress-wrap" id="aiGenProgressWrap">
+            <progress id="aiGenProgressBar" max="1" value="0"></progress>
+            <p class="ai-gen-progress-text" id="aiGenProgressText"></p>
+          </div>
+          <div id="aiGenError" class="error-box hidden"></div>
+          <div class="ai-gen-result-actions hidden" id="aiGenErrorActions">
+            <button class="btn" id="aiGenRetryBtn" data-i18n="s1_ai_gen_retry_batch">Thử lại lô này</button>
+            <button class="btn ghost" id="aiGenCancelBtn" data-i18n="s1_ai_gen_cancel">Huỷ</button>
+          </div>
+        </div>
+      </div>
+
       <div id="dataPreviewWrap" class="hidden">
         <h3 id="previewTitle"></h3>
         <div class="table-scroll"><table id="previewTable"></table></div>
-        <button class="btn primary" id="toStep2Btn" data-i18n="s1_continue">Tiếp tục: Xây dựng mô hình →</button>
+        <div class="ai-gen-result-actions">
+          <button class="btn primary" id="toStep2Btn" data-i18n="s1_continue">Tiếp tục: Xây dựng mô hình →</button>
+          <a class="btn ghost hidden" id="aiGenDownloadLink" data-i18n="s1_ai_gen_download">⬇ Tải file CSV đã sinh</a>
+          <a class="btn ghost hidden" id="aiGenExportBtn" data-i18n="s1_ai_result_export_btn">⬇ Xuất toàn bộ (Excel)</a>
+        </div>
+      </div>
+
+      <div id="aiGenResultExtra" class="hidden">
+        <h3 data-i18n="s1_ai_result_demo_title">Đối tượng khảo sát</h3>
+        <div id="aiGenDemoSummary" class="ai-gen-demo-summary"></div>
+
+        <h3 data-i18n="s1_ai_result_stats_title">Thống kê mô tả</h3>
+        <div id="aiGenStatsTables"></div>
+
+        <h3 data-i18n="s1_ai_result_transparency_title">Minh bạch prompt theo lô</h3>
+        <p class="hint" data-i18n="s1_ai_result_transparency_hint">Mỗi lô sinh ra nhiều dòng từ CÙNG một prompt.</p>
+        <div id="aiGenTransparency" class="source-transparency"></div>
       </div>
     </div>
   </section>
@@ -74,6 +313,7 @@
         <div id="constructForm" class="hidden">
           <label data-i18n="s2_construct_name">Tên construct</label>
           <input type="text" id="cName">
+          <div id="cTheoryBox" class="hint construct-theory-hint hidden"></div>
           <label data-i18n="s2_measurement_type">Loại đo lường</label>
           <select id="cMode">
             <option value="A" data-i18n="s2_mode_reflective">Reflective (Mode A)</option>
