@@ -60,13 +60,19 @@ function captureMlChartImages(data) {
 }
 
 function buildMlReportContext(data) {
+  // See buildSemReportContext (app.js) for why this is localized -- the AI
+  // was leaking English headers into Vietnamese reports because this
+  // context was hardcoded in English regardless of `lang`. Fixed
+  // statistical/ML terms (R², RMSE, AUC, Accuracy) are left as-is.
+  const lang = getLang();
+  const L = (vi, en) => (lang === "vi" ? vi : en);
   const lines = [];
-  lines.push(`## Machine Learning Comparison (${data.method === "cbsem" ? "CB-SEM" : "PLS-SEM"})`);
-  lines.push(`k-fold = ${data.k}, algorithms: ${data.algorithms.map(algoLabel).join(", ")}`);
+  lines.push(`## ${L("So sánh Machine Learning", "Machine Learning Comparison")} (${data.method === "cbsem" ? "CB-SEM" : "PLS-SEM"})`);
+  lines.push(`k-fold = ${data.k}, ${L("thuật toán", "algorithms")}: ${data.algorithms.map(algoLabel).join(", ")}`);
 
   lines.push("");
-  lines.push("## SEM path coefficient vs. permutation importance, per target");
-  lines.push(`| Target | Predictor | SEM coefficient | ${data.algorithms.map(algoLabel).join(" | ")} |`);
+  lines.push(`## ${L("Hệ số đường dẫn SEM so với độ quan trọng hoán vị, theo từng biến đích", "SEM path coefficient vs. permutation importance, per target")}`);
+  lines.push(`| ${L("Biến đích", "Target")} | ${L("Biến dự báo", "Predictor")} | ${L("Hệ số SEM", "SEM coefficient")} | ${data.algorithms.map(algoLabel).join(" | ")} |`);
   lines.push(`|---|---|---|${data.algorithms.map(() => "---").join("|")}|`);
   data.targets.forEach((tr) => {
     tr.predictors.forEach((p) => {
@@ -80,7 +86,7 @@ function buildMlReportContext(data) {
   });
 
   lines.push("");
-  lines.push("## Per-algorithm fit metrics");
+  lines.push(`## ${L("Chỉ số phù hợp theo từng thuật toán", "Per-algorithm fit metrics")}`);
   data.algorithms.forEach((a) => {
     lines.push(`### ${algoLabel(a)}`);
     data.targets.forEach((tr) => {

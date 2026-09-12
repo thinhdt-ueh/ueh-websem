@@ -45,6 +45,7 @@ from routes.ai_report_api import (
     _call_openai,
 )
 from routes.api import _clean, _upload_dir
+from pls.model import Model, ModelError
 
 ai_data_gen_api = Blueprint("ai_data_gen_api", __name__, url_prefix="/api")
 
@@ -784,6 +785,292 @@ def suggest_constructs():
     if constructs is None:
         return jsonify(error=t("err_ai_gen_bad_construct_search", lang, detail=reason)), 422
     return jsonify(constructs=constructs)
+
+
+# ---- AI-assisted structural model drawing (Step 2) ----
+# Same one-shot contract as suggest_constructs above -- no corrective-retry
+# loop; a malformed response just 422s and the user re-runs from the modal.
+MIN_CONSTRUCTS_FOR_PATHS = 2  # matches Model.from_json's own err_model_min_constructs
+
+GEN_PATHS_SEARCH_SYSTEM = {
+    "vi": (
+        "Bạn là trợ lý nghiên cứu SEM (PLS-SEM/CB-SEM) am hiểu lý thuyết. Dưới đây là "
+        "danh sách các biến tiềm ẩn (construct) đã có, mỗi construct kèm tên và các biến "
+        "quan sát (indicator) của nó -- dựa vào tên construct và nội dung indicator, hãy "
+        "suy luận vai trò lý thuyết hợp lý nhất của từng construct (tiền đề/trung gian/"
+        "kết quả) và đề xuất một mô hình cấu trúc (structural model) hợp lý, PHI CHU TRÌNH "
+        "(không có vòng lặp nhân quả), gồm các đường dẫn (path) một chiều giữa các "
+        "construct, dựa trên logic lý thuyết đã được công nhận (VD chuỗi TAM/UTAUT-kiểu "
+        "PEOU->PU->Attitude->Intention, quan hệ trung gian, v.v.) phù hợp nhất với các "
+        "construct đã cho. Nếu dựa trên tên và nội dung indicator, bạn thấy một construct "
+        "nào đó có khả năng đóng vai trò BIẾN ĐIỀU TIẾT (moderator) cho một mối quan hệ nào "
+        "đó thay vì chỉ là một mắt xích trung gian trong chuỗi chính, hãy liệt kê construct "
+        "đó vào mảng \"moderator_suggestions\" (kèm lý do ngắn gọn) thay vì cố tạo đường dẫn "
+        "cho vai trò đó -- KHÔNG thể hiện vai trò điều tiết trong danh sách \"paths\" (mỗi "
+        "path vẫn chỉ là một đường dẫn trực tiếp một chiều giữa hai construct); nếu không có "
+        "construct nào phù hợp, trả về mảng rỗng.{interaction_note} Mỗi construct nên có ít "
+        "nhất một liên kết vào mạng lưới nếu hợp lý. TUYỆT ĐỐI không tạo chu trình (A->B->A "
+        "hoặc dài hơn). QUAN TRỌNG: trong \"source\"/\"target\"/\"construct_id\", PHẢI dùng "
+        "CHÍNH XÁC chuỗi id xuất hiện sau \"id=\" của từng construct bên dưới (copy y nguyên "
+        "từng ký tự) -- TUYỆT ĐỐI KHÔNG dùng tên construct ở đó. CHỈ xuất ra JSON hợp lệ, "
+        "không dùng markdown code fence, không giải thích thêm, đúng cấu trúc sau: "
+        '{{"paths": [{{"source": "<id construct>", "target": "<id construct>"}}], '
+        '"moderator_suggestions": [{{"construct_id": "<id construct>", "reason": "<lý do '
+        'ngắn gọn bằng tiếng Việt>"}}], '
+        '"rationale": "<đoạn văn xuôi giải thích logic lý thuyết vì sao chọn mô hình này, '
+        'bằng tiếng Việt, KHÔNG dùng markdown>"}}'
+    ),
+    "en": (
+        "You are a theory-grounded SEM (PLS-SEM/CB-SEM) research assistant. Below is the "
+        "list of existing latent constructs, each with its name and measurement indicators "
+        "-- based on each construct's name and indicator wording, infer its most plausible "
+        "theoretical role (antecedent/mediator/outcome) and propose a plausible, ACYCLIC "
+        "structural model: one-directional paths between constructs, grounded in "
+        "established theoretical logic (e.g. a TAM/UTAUT-style PEOU->PU->Attitude->"
+        "Intention chain, mediation, etc.) that best fits the given constructs. If, based on "
+        "a construct's name and indicator wording, you judge it more likely to play a "
+        "MODERATING role for some relationship rather than just being another link in the "
+        "main chain, list that construct in the \"moderator_suggestions\" array (with a "
+        "brief reason) instead of forcing it into a path for that role -- do NOT try to "
+        "represent a moderating role in the \"paths\" list itself (each path is still just a "
+        "direct one-directional link between two constructs); return an empty array if none "
+        "apply.{interaction_note} Every construct should have at least one connection into "
+        "the network where sensible. NEVER create a cycle (A->B->A or longer). IMPORTANT: "
+        "in \"source\"/\"target\"/\"construct_id\", you MUST use EXACTLY the id string shown "
+        "after \"id=\" for each construct below (copy it character-for-character) -- NEVER "
+        "put the construct's name there. Output ONLY valid JSON, no markdown code fence, no "
+        "explanation, in exactly this shape: "
+        '{{"paths": [{{"source": "<construct id>", "target": "<construct id>"}}], '
+        '"moderator_suggestions": [{{"construct_id": "<construct id>", "reason": "<brief '
+        'reason in English>"}}], '
+        '"rationale": "<a prose paragraph explaining the theoretical logic behind this '
+        'model, in English, NO markdown>"}}'
+    ),
+}
+
+GEN_PATHS_INTERACTION_NOTE = {
+    "vi": (
+        " LƯU Ý về construct tương tác/điều tiết (đã liệt kê nguồn của nó bên dưới): nó CHỈ "
+        "được là NGUỒN của một đường dẫn, KHÔNG BAO GIỜ là ĐÍCH; và bất kỳ construct nào nó "
+        "trỏ tới cũng PHẢI nhận thêm đường dẫn trực tiếp từ CẢ HAI construct nguồn của nó "
+        "(hiệu ứng chính/main effect), nếu không mô hình sẽ không hợp lệ."
+    ),
+    "en": (
+        " NOTE on any interaction/moderation construct (its two source constructs are "
+        "listed below it): it can ONLY be a path SOURCE, NEVER a target; and whatever "
+        "construct it points to MUST also receive a direct path from BOTH of its own "
+        "source constructs (the main effects), or the model will be rejected as invalid."
+    ),
+}
+
+
+def _format_constructs_for_paths(constructs: list[dict], indicator_descriptions: dict, lang: str) -> tuple[str, bool]:
+    """Returns (formatted description, has_interaction) for the given raw
+    construct dicts (same shape /api/analyze accepts). indicator_descriptions
+    maps indicator column -> question wording (from the AI Lab codebook, if
+    any) so the AI can reason about each indicator's actual scale content,
+    not just its column name."""
+    by_id = {str(c.get("id", "")).strip(): c for c in constructs}
+    indicator_descriptions = indicator_descriptions or {}
+    lines = []
+    has_interaction = False
+    for c in constructs:
+        cid = str(c.get("id", "")).strip()
+        name = str(c.get("name", "")).strip()
+        mode = str(c.get("mode", "A")).strip().upper()
+        indicators = [str(i).strip() for i in (c.get("indicators") or []) if str(i).strip()]
+        if mode == "I":
+            has_interaction = True
+            raw_pair = [str(x).strip() for x in (c.get("interaction_of") or [])]
+            pair_names = [by_id[p]["name"] for p in raw_pair if p in by_id]
+            src_desc = " x ".join(pair_names) if pair_names else "?"
+            lines.append(f"- id={cid}, name=\"{name}\" (interaction/moderation of: {src_desc})")
+        else:
+            if indicators:
+                ind_parts = []
+                for col in indicators:
+                    desc = str(indicator_descriptions.get(col, "")).strip()
+                    ind_parts.append(f'{col} ("{desc}")' if desc else col)
+                ind_desc = ", ".join(ind_parts)
+            else:
+                ind_desc = "(no indicators)"
+            lines.append(f"- id={cid}, name=\"{name}\", indicators: {ind_desc}")
+    return "\n".join(lines), has_interaction
+
+
+def _build_paths_search_messages(
+    constructs: list[dict], extra_context: str, indicator_descriptions: dict, lang: str
+) -> tuple[str, str]:
+    constructs_desc, has_interaction = _format_constructs_for_paths(constructs, indicator_descriptions, lang)
+    interaction_note = GEN_PATHS_INTERACTION_NOTE.get(lang, GEN_PATHS_INTERACTION_NOTE["en"]) if has_interaction else ""
+    system_msg = GEN_PATHS_SEARCH_SYSTEM.get(lang, GEN_PATHS_SEARCH_SYSTEM["en"]).format(interaction_note=interaction_note)
+    system_msg += "\n\n" + {
+        "vi": "Danh sách construct:",
+        "en": "Constructs:",
+    }.get(lang, "Constructs:") + "\n" + constructs_desc
+    extra_context = (extra_context or "").strip()
+    user_msg = {
+        "vi": "Hãy đề xuất mô hình cấu trúc cho các construct trên.",
+        "en": "Please propose a structural model for the constructs above.",
+    }.get(lang, "Please propose a structural model for the constructs above.")
+    if extra_context:
+        user_msg += "\n\n" + {
+            "vi": f"Bối cảnh nghiên cứu bổ sung: {extra_context}",
+            "en": f"Additional research context: {extra_context}",
+        }.get(lang, f"Additional research context: {extra_context}")
+    return system_msg, user_msg
+
+
+def _resolve_construct_refs(paths: list[dict], moderator_suggestions: list[dict], constructs: list[dict]):
+    """Despite the prompt insisting on the exact id string, a model sometimes
+    echoes a construct's NAME (or a case/whitespace-mangled id) in
+    source/target/construct_id instead -- resolve those against the known
+    constructs (exact id match first, then case-insensitive name match)
+    before validating, rather than hard-failing an otherwise-correct
+    proposal. Anything that still doesn't resolve is left as-is, so
+    Model.from_json's "unknown construct" error still fires for a genuinely
+    invented id."""
+    by_id = set()
+    by_name = {}
+    for c in constructs:
+        cid = str(c.get("id", "")).strip()
+        name = str(c.get("name", "")).strip()
+        if cid:
+            by_id.add(cid)
+        if name:
+            by_name.setdefault(name.lower(), cid)
+
+    def resolve(raw: str) -> str:
+        raw = str(raw or "").strip()
+        if raw in by_id:
+            return raw
+        return by_name.get(raw.lower(), raw)
+
+    resolved_paths = [{"source": resolve(p["source"]), "target": resolve(p["target"])} for p in paths]
+    resolved_suggestions = [
+        {"construct_id": resolve(m["construct_id"]), "reason": m.get("reason", "")} for m in moderator_suggestions
+    ]
+    return resolved_paths, resolved_suggestions
+
+
+def _parse_paths_search_json(text: str):
+    """Returns (paths, rationale, moderator_suggestions, None) on success or
+    (None, None, None, reason) on structural failure -- never raises.
+    Cycle/interaction/self-loop/unknown-construct rules for `paths` are NOT
+    re-checked here; the caller validates them via Model.from_json, reusing
+    that real logic. moderator_suggestions entries are only lightly shaped
+    here -- the caller drops any referring to an unknown or already-
+    interaction construct id, since that needs the construct list."""
+    cleaned = _extract_json_block(text)
+    try:
+        data = json.loads(cleaned)
+    except json.JSONDecodeError as exc:
+        return None, None, None, f"could not parse as JSON ({exc})"
+
+    if not isinstance(data, dict):
+        return None, None, None, "response was not a JSON object"
+    raw_paths = data.get("paths")
+    rationale = str(data.get("rationale") or "").strip()
+    if not isinstance(raw_paths, list) or not raw_paths:
+        return None, None, None, "missing or empty 'paths' list"
+    if not rationale:
+        return None, None, None, "missing or empty 'rationale'"
+
+    paths = []
+    for raw_path in raw_paths:
+        source = str((raw_path or {}).get("source") or "").strip()
+        target = str((raw_path or {}).get("target") or "").strip()
+        if not source or not target:
+            return None, None, None, "each path needs a non-empty 'source' and 'target'"
+        paths.append({"source": source, "target": target})
+
+    moderator_suggestions = []
+    for raw in data.get("moderator_suggestions") or []:
+        construct_id = str((raw or {}).get("construct_id") or "").strip()
+        if not construct_id:
+            continue
+        reason = str((raw or {}).get("reason") or "").strip()
+        moderator_suggestions.append({"construct_id": construct_id, "reason": reason})
+
+    return paths, rationale, moderator_suggestions, None
+
+
+@ai_data_gen_api.post("/ai_data_gen/suggest_paths_prompt")
+def suggest_paths_prompt():
+    """Builds the system/user prompt text for the AI-drawn-model feature
+    without calling any AI provider, so the frontend can show it to the
+    user for review/editing before /suggest_paths actually sends it --
+    mirrors suggest_prompt's relationship to /batch."""
+    payload = request.get_json(force=True, silent=True) or {}
+    lang = get_lang(payload)
+    constructs = payload.get("constructs") or []
+    extra_context = payload.get("extra_context") or ""
+    indicator_descriptions = payload.get("indicator_descriptions") or {}
+
+    if not isinstance(constructs, list) or len(constructs) < MIN_CONSTRUCTS_FOR_PATHS:
+        return jsonify(error=t("err_ai_gen_missing_constructs", lang, min=MIN_CONSTRUCTS_FOR_PATHS)), 400
+    if not isinstance(indicator_descriptions, dict):
+        indicator_descriptions = {}
+
+    system_msg, user_msg = _build_paths_search_messages(constructs, extra_context, indicator_descriptions, lang)
+    return jsonify(system_prompt=system_msg, user_prompt=user_msg)
+
+
+@ai_data_gen_api.post("/ai_data_gen/suggest_paths")
+def suggest_paths():
+    payload = request.get_json(force=True, silent=True) or {}
+    lang = get_lang(payload)
+    provider = (payload.get("provider") or "openai").strip().lower()
+    api_key = (payload.get("api_key") or "").strip()
+    model = (payload.get("model") or DEFAULT_MODELS.get(provider, DEFAULT_MODELS["openai"])).strip()
+    constructs = payload.get("constructs") or []
+    system_msg = (payload.get("system_prompt") or "").strip()
+    user_msg = (payload.get("user_prompt") or "").strip()
+    try:
+        temperature = float(payload.get("temperature", DEFAULT_TEMPERATURE))
+    except (TypeError, ValueError):
+        temperature = DEFAULT_TEMPERATURE
+    temperature = max(MIN_TEMPERATURE, min(MAX_TEMPERATURE, temperature))
+
+    if provider not in DEFAULT_MODELS:
+        return jsonify(error=t("err_ai_bad_provider", lang)), 400
+    if not api_key:
+        return jsonify(error=t("err_ai_missing_key", lang)), 400
+    if not isinstance(constructs, list) or len(constructs) < MIN_CONSTRUCTS_FOR_PATHS:
+        return jsonify(error=t("err_ai_gen_missing_constructs", lang, min=MIN_CONSTRUCTS_FOR_PATHS)), 400
+    if not system_msg or not user_msg:
+        return jsonify(error=t("err_ai_missing_prompt", lang)), 400
+
+    text, err_response = _call_ai_provider_mapped(provider, api_key, model, system_msg, user_msg, temperature, lang)
+    if err_response is not None:
+        return err_response
+
+    paths, rationale, moderator_suggestions, reason = _parse_paths_search_json(text)
+    if paths is None:
+        return jsonify(error=t("err_ai_gen_bad_paths", lang, detail=reason)), 422
+    paths, moderator_suggestions = _resolve_construct_refs(paths, moderator_suggestions, constructs)
+
+    # Reuse the real structural-validity rules (cycles, interaction-target/
+    # main-effect requirements, self-loops, unknown constructs) instead of
+    # re-implementing any of them -- Model.from_json already enforces every
+    # one of them for /api/analyze.
+    try:
+        Model.from_json({"constructs": constructs, "paths": paths}, lang=lang)
+    except ModelError as exc:
+        return jsonify(error=t("err_ai_gen_bad_paths", lang, detail=str(exc))), 422
+
+    # Drop suggestions for a construct id the AI made up, or one that's
+    # already an interaction/moderation construct (nothing actionable left
+    # to do with those in the UI).
+    known_ids = {str(c.get("id", "")).strip() for c in constructs}
+    interaction_ids = {
+        str(c.get("id", "")).strip() for c in constructs if str(c.get("mode", "A")).strip().upper() == "I"
+    }
+    moderator_suggestions = [
+        m for m in moderator_suggestions if m["construct_id"] in known_ids and m["construct_id"] not in interaction_ids
+    ]
+
+    return jsonify(paths=paths, rationale=rationale, moderator_suggestions=moderator_suggestions)
 
 
 @ai_data_gen_api.post("/ai_data_gen/suggest_prompt")

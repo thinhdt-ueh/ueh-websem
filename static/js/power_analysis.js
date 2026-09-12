@@ -77,13 +77,22 @@ document.getElementById("powerAiReportBtn").addEventListener("click", () => {
 });
 
 function buildPowerReportContext(data) {
+  // See buildSemReportContext (app.js) for why this is localized -- the AI
+  // was leaking English headers into Vietnamese reports because this
+  // context was hardcoded in English regardless of `lang`. Fixed
+  // statistical terms (Power, n) are left as-is.
+  const lang = getLang();
+  const L = (vi, en) => (lang === "vi" ? vi : en);
   const lines = [];
-  lines.push(`## Monte Carlo Power Analysis (${data.method === "cbsem" ? "CB-SEM" : "PLS-SEM"})`);
-  lines.push(`n_mc replicates per point = ${data.n_mc}${data.n_boot_inner ? `, inner bootstrap resamples = ${data.n_boot_inner}` : ""}, sample sizes tested: ${data.sample_sizes.join(", ")}`);
-  lines.push(`Power threshold convention: 0.8 (80%) is considered adequate.`);
+  lines.push(`## ${L("Phân tích Power Monte Carlo", "Monte Carlo Power Analysis")} (${data.method === "cbsem" ? "CB-SEM" : "PLS-SEM"})`);
+  lines.push(`${L("Số lần lặp Monte Carlo mỗi điểm", "n_mc replicates per point")} = ${data.n_mc}${data.n_boot_inner ? `, ${L("số mẫu lặp lại bootstrap nội bộ", "inner bootstrap resamples")} = ${data.n_boot_inner}` : ""}, ${L("các cỡ mẫu đã kiểm tra", "sample sizes tested")}: ${data.sample_sizes.join(", ")}`);
+  lines.push(L(
+    "Quy ước ngưỡng Power: 0.8 (80%) được xem là đạt yêu cầu.",
+    "Power threshold convention: 0.8 (80%) is considered adequate.",
+  ));
   lines.push("");
-  lines.push("## Power by path and sample size");
-  lines.push("| Path | n | Declared/estimated coefficient | Power | Converged replicates |");
+  lines.push(`## ${L("Power theo đường dẫn và cỡ mẫu", "Power by path and sample size")}`);
+  lines.push(`| ${L("Đường dẫn", "Path")} | n | ${L("Hệ số khai báo/ước lượng", "Declared/estimated coefficient")} | Power | ${L("Số lần lặp hội tụ", "Converged replicates")} |`);
   lines.push("|---|---|---|---|---|");
   data.points.forEach((p) => {
     lines.push(`| ${p.source_name}->${p.target_name} | ${p.n} | ${fmt(p.mean_estimate)} | ${fmt(p.power, 4)} | ${p.n_converged}/${p.n_replicates} |`);

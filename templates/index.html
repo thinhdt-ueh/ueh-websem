@@ -136,10 +136,11 @@
             <button class="btn ghost" id="codebookImportBtn" data-i18n="s1_ai_codebook_import">⬆ Nhập định nghĩa</button>
             <input type="file" id="codebookImportInput" accept=".json" hidden>
           </div>
+          <p class="hint" data-i18n="s1_ai_codebook_import_hint">Chấp nhận file định nghĩa (JSON) hoặc file mô hình đã xuất ở Bước 2 (construct + indicator).</p>
           <div id="codebookImportError" class="error-box hidden"></div>
           <div id="codebookValidationError" class="error-box hidden"></div>
           <div class="ai-gen-nav">
-            <span></span>
+            <button class="btn ghost" id="skipToModelBtn" data-i18n="s2_ai_draw_paths_skip_shortcut">⏭ Bỏ qua, sang bước tạo mô hình</button>
             <button class="btn primary" id="codebookNextBtn" data-i18n="s1_ai_next">Tiếp theo →</button>
           </div>
         </div>
@@ -290,15 +291,26 @@
         <div class="toolbar">
           <button class="btn" id="addConstructBtn" data-i18n="s2_add_construct">+ Construct</button>
           <button class="btn" id="pathModeBtn" data-i18n="s2_draw_path">↗ Vẽ đường dẫn (Path)</button>
+          <button class="btn" id="aiDrawPathsBtn" data-i18n="s2_ai_draw_paths">🤖 AI vẽ mô hình</button>
           <button class="btn danger" id="deleteSelBtn" data-i18n="s2_delete_selected">🗑 Xoá mục chọn</button>
           <span class="toolbar-sep"></span>
           <button class="btn" id="exportModelBtn" data-i18n="s2_export_model">⬇ Xuất mô hình</button>
           <button class="btn" id="importModelBtn" data-i18n="s2_import_model">⬆ Nhập mô hình</button>
           <input type="file" id="importModelInput" accept=".json" hidden>
+          <button class="btn primary" id="saveAllProposalsBtn" data-i18n="s2_ai_paths_save_all">💾 Lưu toàn bộ đề xuất</button>
           <span class="toolbar-hint" id="toolbarHint"></span>
         </div>
         <div id="modelImportError" class="error-box hidden"></div>
         <canvas id="modelCanvas" width="1000" height="560"></canvas>
+        <div id="modelRationalePanel" class="reading-guide hidden">
+          <details open>
+            <summary data-i18n="s2_ai_rationale_title">📖 Giải thích mô hình (AI)</summary>
+            <div class="reading-guide-body">
+              <p class="hint" data-i18n="s2_ai_rationale_hint">Do AI tạo ra — vui lòng kiểm chứng trước khi dùng chính thức.</p>
+              <p id="modelRationaleText" style="white-space: pre-wrap;"></p>
+            </div>
+          </details>
+        </div>
       </div>
       <aside class="side-panel" id="constructPanel">
         <h3 data-i18n="s2_method_title">Phương pháp ước lượng</h3>

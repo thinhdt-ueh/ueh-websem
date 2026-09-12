@@ -8,6 +8,10 @@ class PathDiagram {
     this.editable = !!opts.editable;
     this.onSelect = opts.onSelect || (() => {});
     this.onChange = opts.onChange || (() => {});
+    // Looked up live (not cached) so it always reflects the caller's current
+    // codebook/state -- returns the indicator's question wording, or a
+    // falsy value if none is known (e.g. a plain upload with no codebook).
+    this.getIndicatorDescription = opts.getIndicatorDescription || (() => null);
 
     this.constructs = []; // {id, name, mode, indicators:[], x, y}
     this.paths = []; // {source, target}
@@ -237,6 +241,25 @@ class PathDiagram {
     return null;
   }
 
+  // Shows each indicator's actual scale wording (from getIndicatorDescription)
+  // in a native tooltip on hover, so the user doesn't have to reopen the
+  // codebook just to remember what "PEOU2" actually asked.
+  _updateHoverTooltip(pt) {
+    const node = this._nodeAt(pt.x, pt.y);
+    if (!node) {
+      this.canvas.title = "";
+      return;
+    }
+    const lines = [node.name];
+    if (node.mode !== "I") {
+      for (const col of node.indicators || []) {
+        const desc = this.getIndicatorDescription(col);
+        lines.push(desc ? `• ${col}: ${desc}` : `• ${col}`);
+      }
+    }
+    this.canvas.title = lines.join("\n");
+  }
+
   _edgeAt(x, y) {
     const THRESH = 8;
     for (const p of this.paths) {
@@ -285,6 +308,16 @@ class PathDiagram {
     c.addEventListener("mousedown", (e) => this._pointerDown(this._canvasPoint(e)));
     window.addEventListener("mousemove", (e) => this._pointerMove(this._canvasPoint(e)));
     window.addEventListener("mouseup", () => this._pointerUp());
+    // Native browser tooltip (canvas `title`), kept separate from the
+    // window-wide drag-move listener above so it only updates while the
+    // pointer is actually over this canvas and never fights a drag in
+    // progress.
+    c.addEventListener("mousemove", (e) => {
+      if (!this.dragging) this._updateHoverTooltip(this._canvasPoint(e));
+    });
+    c.addEventListener("mouseleave", () => {
+      this.canvas.title = "";
+    });
 
     let lastTapAt = 0;
     c.addEventListener("touchstart", (e) => {

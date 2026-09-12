@@ -302,6 +302,239 @@ def test_suggest_constructs_clamps_n_constructs(client, monkeypatch):
     assert str(ai_data_gen_api.MAX_CONSTRUCTS) in captured["system_msg"]
 
 
+# ---------------- suggest_paths ----------------
+
+def _tam_constructs():
+    return [
+        {"id": "peou", "name": "Perceived Ease of Use", "mode": "A", "indicators": ["PEOU1", "PEOU2"]},
+        {"id": "pu", "name": "Perceived Usefulness", "mode": "A", "indicators": ["PU1", "PU2"]},
+        {"id": "att", "name": "Attitude", "mode": "A", "indicators": ["ATT1", "ATT2"]},
+        {"id": "int", "name": "Behavioral Intention", "mode": "A", "indicators": ["INT1", "INT2"]},
+    ]
+
+
+def _paths_search_payload(**overrides):
+    payload = {
+        "provider": "openai",
+        "api_key": "sk-test-123",
+        "model": "gpt-4o-mini",
+        "temperature": 0.7,
+        "constructs": _tam_constructs(),
+        "system_prompt": "You are a structural-model expert.",
+        "user_prompt": "Please propose a structural model for the constructs above.",
+        "lang": "en",
+    }
+    payload.update(overrides)
+    return payload
+
+
+def _paths_search_json(paths, rationale="Because established TAM theory says so.", moderator_suggestions=None):
+    body = {"paths": paths, "rationale": rationale}
+    if moderator_suggestions is not None:
+        body["moderator_suggestions"] = moderator_suggestions
+    return json.dumps(body)
+
+
+def test_suggest_paths_success(client, monkeypatch):
+    tam_paths = [
+        {"source": "peou", "target": "pu"},
+        {"source": "peou", "target": "att"},
+        {"source": "pu", "target": "att"},
+        {"source": "pu", "target": "int"},
+        {"source": "att", "target": "int"},
+    ]
+    monkeypatch.setattr(ai_data_gen_api, "_call_openai", lambda *a, **k: _paths_search_json(tam_paths))
+    resp = client.post("/api/ai_data_gen/suggest_paths", json=_paths_search_payload())
+    assert resp.status_code == 200, resp.get_json()
+    data = resp.get_json()
+    assert data["paths"] == tam_paths
+    assert data["rationale"]
+    assert data["moderator_suggestions"] == []
+
+
+def test_suggest_paths_returns_moderator_suggestions(client, monkeypatch):
+    tam_paths = [{"source": "peou", "target": "pu"}]
+    suggestions = [{"construct_id": "att", "reason": "Attitude may moderate PU->Intention instead of mediating it."}]
+    monkeypatch.setattr(
+        ai_data_gen_api, "_call_openai",
+        lambda *a, **k: _paths_search_json(tam_paths, moderator_suggestions=suggestions),
+    )
+    resp = client.post("/api/ai_data_gen/suggest_paths", json=_paths_search_payload())
+    assert resp.status_code == 200, resp.get_json()
+    assert resp.get_json()["moderator_suggestions"] == suggestions
+
+
+def test_suggest_paths_drops_moderator_suggestion_for_unknown_construct(client, monkeypatch):
+    tam_paths = [{"source": "peou", "target": "pu"}]
+    suggestions = [{"construct_id": "does-not-exist", "reason": "hallucinated id"}]
+    monkeypatch.setattr(
+        ai_data_gen_api, "_call_openai",
+        lambda *a, **k: _paths_search_json(tam_paths, moderator_suggestions=suggestions),
+    )
+    resp = client.post("/api/ai_data_gen/suggest_paths", json=_paths_search_payload())
+    assert resp.status_code == 200, resp.get_json()
+    assert resp.get_json()["moderator_suggestions"] == []
+
+
+def test_suggest_paths_drops_moderator_suggestion_for_interaction_construct(client, monkeypatch):
+    constructs = _tam_constructs() + [
+        {"id": "mod", "name": "PEOU x PU", "mode": "I", "interaction_of": ["peou", "pu"]},
+    ]
+    tam_paths = [{"source": "peou", "target": "pu"}, {"source": "mod", "target": "att"},
+                 {"source": "peou", "target": "att"}, {"source": "pu", "target": "att"}]
+    suggestions = [{"construct_id": "mod", "reason": "already an interaction construct"}]
+    monkeypatch.setattr(
+        ai_data_gen_api, "_call_openai",
+        lambda *a, **k: _paths_search_json(tam_paths, moderator_suggestions=suggestions),
+    )
+    resp = client.post("/api/ai_data_gen/suggest_paths", json=_paths_search_payload(constructs=constructs))
+    assert resp.status_code == 200, resp.get_json()
+    assert resp.get_json()["moderator_suggestions"] == []
+
+
+def test_suggest_paths_wraps_markdown_code_fence(client, monkeypatch):
+    body = _paths_search_json([{"source": "peou", "target": "pu"}])
+    monkeypatch.setattr(ai_data_gen_api, "_call_openai", lambda *a, **k: f"```json\n{body}\n```")
+    resp = client.post("/api/ai_data_gen/suggest_paths", json=_paths_search_payload())
+    assert resp.status_code == 200, resp.get_json()
+
+
+def test_suggest_paths_resolves_construct_name_used_instead_of_id(client, monkeypatch):
+    # A model sometimes echoes a construct's NAME instead of its id in
+    # source/target despite the prompt insisting on the id -- this used to
+    # hard-fail as "path references a construct that doesn't exist" even
+    # though the intended model was perfectly valid.
+    paths_by_name = [
+        {"source": "Perceived Ease of Use", "target": "pu"},
+        {"source": "pu", "target": "Attitude"},
+    ]
+    monkeypatch.setattr(ai_data_gen_api, "_call_openai", lambda *a, **k: _paths_search_json(paths_by_name))
+    resp = client.post("/api/ai_data_gen/suggest_paths", json=_paths_search_payload())
+    assert resp.status_code == 200, resp.get_json()
+    assert resp.get_json()["paths"] == [{"source": "peou", "target": "pu"}, {"source": "pu", "target": "att"}]
+
+
+def test_suggest_paths_resolves_construct_name_in_moderator_suggestion(client, monkeypatch):
+    tam_paths = [{"source": "peou", "target": "pu"}]
+    suggestions = [{"construct_id": "Attitude", "reason": "May moderate instead of mediate."}]
+    monkeypatch.setattr(
+        ai_data_gen_api, "_call_openai",
+        lambda *a, **k: _paths_search_json(tam_paths, moderator_suggestions=suggestions),
+    )
+    resp = client.post("/api/ai_data_gen/suggest_paths", json=_paths_search_payload())
+    assert resp.status_code == 200, resp.get_json()
+    assert resp.get_json()["moderator_suggestions"] == [{"construct_id": "att", "reason": "May moderate instead of mediate."}]
+
+
+def test_suggest_paths_rejects_cycle(client, monkeypatch):
+    cyclic = [{"source": "peou", "target": "pu"}, {"source": "pu", "target": "peou"}]
+    monkeypatch.setattr(ai_data_gen_api, "_call_openai", lambda *a, **k: _paths_search_json(cyclic))
+    resp = client.post("/api/ai_data_gen/suggest_paths", json=_paths_search_payload())
+    assert resp.status_code == 422
+    assert "cycle" in resp.get_json()["error"].lower()
+
+
+def test_suggest_paths_rejects_interaction_as_target(client, monkeypatch):
+    constructs = _tam_constructs() + [
+        {"id": "mod", "name": "PEOU x PU", "mode": "I", "interaction_of": ["peou", "pu"]},
+    ]
+    # "mod" (an interaction/moderation construct) can never receive an
+    # incoming path -- proves Model.from_json's real rule is enforced here,
+    # not a hand-rolled approximation of it.
+    bad_paths = [{"source": "peou", "target": "pu"}, {"source": "pu", "target": "mod"}]
+    monkeypatch.setattr(ai_data_gen_api, "_call_openai", lambda *a, **k: _paths_search_json(bad_paths))
+    resp = client.post("/api/ai_data_gen/suggest_paths", json=_paths_search_payload(constructs=constructs))
+    assert resp.status_code == 422
+    assert "incoming path" in resp.get_json()["error"].lower()
+
+
+def test_suggest_paths_missing_rationale_rejected(client, monkeypatch):
+    body = json.dumps({"paths": [{"source": "peou", "target": "pu"}], "rationale": ""})
+    monkeypatch.setattr(ai_data_gen_api, "_call_openai", lambda *a, **k: body)
+    resp = client.post("/api/ai_data_gen/suggest_paths", json=_paths_search_payload())
+    assert resp.status_code == 422
+
+
+def test_suggest_paths_missing_api_key_rejected(client):
+    resp = client.post("/api/ai_data_gen/suggest_paths", json=_paths_search_payload(api_key=""))
+    assert resp.status_code == 400
+
+
+def test_suggest_paths_too_few_constructs_rejected(client):
+    resp = client.post("/api/ai_data_gen/suggest_paths", json=_paths_search_payload(constructs=_tam_constructs()[:1]))
+    assert resp.status_code == 400
+
+
+def test_suggest_paths_provider_http_error_maps(client, monkeypatch):
+    def raise_401(*a, **k):
+        raise urllib.error.HTTPError("url", 401, "unauthorized", {}, io.BytesIO(b"{}"))
+
+    monkeypatch.setattr(ai_data_gen_api, "_call_openai", raise_401)
+    resp = client.post("/api/ai_data_gen/suggest_paths", json=_paths_search_payload())
+    assert resp.status_code == 400
+
+
+def test_suggest_paths_missing_system_prompt_rejected(client):
+    resp = client.post("/api/ai_data_gen/suggest_paths", json=_paths_search_payload(system_prompt=""))
+    assert resp.status_code == 400
+
+
+def test_suggest_paths_missing_user_prompt_rejected(client):
+    resp = client.post("/api/ai_data_gen/suggest_paths", json=_paths_search_payload(user_prompt=""))
+    assert resp.status_code == 400
+
+
+# ---------------- suggest_paths_prompt ----------------
+
+def test_suggest_paths_prompt_returns_prompt_text_with_no_ai_call(client, monkeypatch):
+    def fail_if_called(*a, **k):
+        raise AssertionError("suggest_paths_prompt must not call the AI provider")
+
+    monkeypatch.setattr(ai_data_gen_api, "_call_openai", fail_if_called)
+    monkeypatch.setattr(ai_data_gen_api, "_call_gemini", fail_if_called)
+    monkeypatch.setattr(ai_data_gen_api, "_call_claude", fail_if_called)
+    resp = client.post(
+        "/api/ai_data_gen/suggest_paths_prompt",
+        json={"constructs": _tam_constructs(), "extra_context": "B2B SaaS adoption study", "lang": "en"},
+    )
+    assert resp.status_code == 200, resp.get_json()
+    data = resp.get_json()
+    assert data["system_prompt"]
+    assert data["user_prompt"]
+    assert "B2B SaaS adoption study" in data["user_prompt"]
+
+
+def test_suggest_paths_prompt_too_few_constructs_rejected(client):
+    resp = client.post(
+        "/api/ai_data_gen/suggest_paths_prompt",
+        json={"constructs": _tam_constructs()[:1], "lang": "en"},
+    )
+    assert resp.status_code == 400
+
+
+def test_suggest_paths_prompt_includes_indicator_descriptions(client):
+    resp = client.post(
+        "/api/ai_data_gen/suggest_paths_prompt",
+        json={
+            "constructs": _tam_constructs(),
+            "indicator_descriptions": {"PEOU1": "Learning to use the system would be easy for me"},
+            "lang": "en",
+        },
+    )
+    assert resp.status_code == 200, resp.get_json()
+    data = resp.get_json()
+    assert "Learning to use the system would be easy for me" in data["system_prompt"]
+
+
+def test_suggest_paths_prompt_mentions_moderator_possibility(client):
+    resp = client.post(
+        "/api/ai_data_gen/suggest_paths_prompt",
+        json={"constructs": _tam_constructs(), "lang": "en"},
+    )
+    assert resp.status_code == 200, resp.get_json()
+    assert "moderat" in resp.get_json()["system_prompt"].lower()
+
+
 # ---------------- batch ----------------
 
 def test_batch_success_single_attempt(client, monkeypatch):

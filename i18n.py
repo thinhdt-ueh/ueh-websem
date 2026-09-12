@@ -147,6 +147,8 @@ _CATALOG: dict[str, dict[str, str]] = {
         "err_ai_gen_too_many_demo_attrs": "Tối đa {max} thuộc tính demographic bổ sung.",
         "err_ai_gen_missing_topic": "Vui lòng nhập chủ đề / bối cảnh nghiên cứu.",
         "err_ai_gen_bad_construct_search": "AI trả về dữ liệu không hợp lệ: {detail}",
+        "err_ai_gen_missing_constructs": "Cần ít nhất {min} construct để đề xuất mô hình.",
+        "err_ai_gen_bad_paths": "AI đề xuất mô hình không hợp lệ: {detail}",
 
         # --- shared report labels (pls/report.py & cbsem/report.py) ---
         "rpt_title_pls": "PLS-SEM — Báo cáo phân tích",
@@ -469,6 +471,8 @@ _CATALOG: dict[str, dict[str, str]] = {
         "err_ai_gen_too_many_demo_attrs": "At most {max} additional demographic attributes are allowed.",
         "err_ai_gen_missing_topic": "Please enter a research topic / context.",
         "err_ai_gen_bad_construct_search": "The AI returned invalid data: {detail}",
+        "err_ai_gen_missing_constructs": "At least {min} constructs are needed to suggest a model.",
+        "err_ai_gen_bad_paths": "The AI's proposed model is invalid: {detail}",
 
         "rpt_title_pls": "PLS-SEM — Analysis Report",
         "rpt_title_cbsem": "CB-SEM Analysis Report (Maximum Likelihood)",

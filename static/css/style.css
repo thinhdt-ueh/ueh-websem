@@ -344,6 +344,15 @@ textarea.ai-gen-prompt-preview { color: var(--text); resize: vertical; max-heigh
 .construct-search-group { margin-bottom: 12px; padding-bottom: 10px; border-bottom: 1px solid var(--border); }
 .construct-search-group:last-child { border-bottom: none; }
 .construct-search-items { margin-left: 22px; display: flex; flex-direction: column; gap: 2px; }
+.paths-review-list { display: flex; flex-direction: column; gap: 4px; margin: 8px 0 14px; }
+.paths-review-rationale { white-space: pre-wrap; }
+.moderator-suggestions-box { display: flex; flex-direction: column; gap: 8px; margin: 4px 0 14px; }
+.moderator-suggestion-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 8px 10px; border: 1px solid var(--border); border-radius: 6px;
+}
+.moderator-suggestion-row .hint { margin: 2px 0 0; }
+.moderator-suggestion-row button { flex-shrink: 0; }
 .construct-theory-hint { margin: 2px 0 6px 22px; font-style: italic; }
 #cTheoryBox.construct-theory-hint { margin-left: 0; margin-top: -6px; margin-bottom: 10px; }
 

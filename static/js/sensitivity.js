@@ -93,6 +93,14 @@ function captureSensitivityChartImages(data) {
 }
 
 function buildSensitivityReportContext(data) {
+  // See buildSemReportContext (app.js) for why this is localized: the AI is
+  // told to write the whole report in the app's current language, but it
+  // was leaking English section headers/words when this context -- the
+  // "data and figures" it's told to write ONLY from -- was hardcoded in
+  // English regardless of `lang`. Fixed statistical terms (R², p-value)
+  // are left as-is, matching this app's own convention elsewhere.
+  const lang = getLang();
+  const L = (vi, en) => (lang === "vi" ? vi : en);
   const converged = data.points.filter((p) => p.converged);
   // Cap to ~12 evenly-spaced points so a dense run (up to 150 steps)
   // doesn't balloon the prompt sent to the AI.
@@ -101,10 +109,10 @@ function buildSensitivityReportContext(data) {
   const sampled = converged.filter((_, i) => i % stride === 0);
 
   const lines = [];
-  lines.push(`## Sample Size Sensitivity (${data.method === "cbsem" ? "CB-SEM" : "PLS-SEM"})`);
-  lines.push(`Original n = ${data.n_total}, step = ${data.step}, has p-values = ${data.has_p_values}${data.n_boot ? `, bootstrap resamples per step = ${data.n_boot}` : ""}`);
+  lines.push(`## ${L("Độ nhạy theo Cỡ mẫu", "Sample Size Sensitivity")} (${data.method === "cbsem" ? "CB-SEM" : "PLS-SEM"})`);
+  lines.push(`${L("Cỡ mẫu gốc", "Original n")} = ${data.n_total}, step = ${data.step}, ${L("có p-value", "has p-values")} = ${L(data.has_p_values ? "có" : "không", data.has_p_values)}${data.n_boot ? `, ${L("số mẫu lặp lại bootstrap mỗi bước", "bootstrap resamples per step")} = ${data.n_boot}` : ""}`);
   lines.push("");
-  lines.push("## R² by sample size");
+  lines.push(`## R² ${L("theo cỡ mẫu", "by sample size")}`);
   const rSquaredIds = data.constructs.map((c) => c.id);
   lines.push(`| n | ${data.constructs.map((c) => c.name).join(" | ")} |`);
   lines.push(`|---|${data.constructs.map(() => "---").join("|")}|`);
@@ -113,7 +121,7 @@ function buildSensitivityReportContext(data) {
   });
 
   lines.push("");
-  lines.push("## Path coefficients by sample size" + (data.has_p_values ? " (with p-value)" : ""));
+  lines.push(`## ${L("Hệ số đường dẫn theo cỡ mẫu", "Path coefficients by sample size")}` + (data.has_p_values ? L(" (kèm p-value)", " (with p-value)") : ""));
   lines.push(`| n | ${data.paths.map((p) => `${p.source_name}->${p.target_name}`).join(" | ")} |`);
   lines.push(`|---|${data.paths.map(() => "---").join("|")}|`);
   sampled.forEach((p) => {
@@ -128,7 +136,13 @@ function buildSensitivityReportContext(data) {
   });
 
   const nonConverged = data.points.length - converged.length;
-  if (nonConverged > 0) lines.push(`\n${nonConverged} of ${data.points.length} sample sizes tested failed to converge.`);
+  if (nonConverged > 0) {
+    lines.push("");
+    lines.push(L(
+      `${nonConverged} trong số ${data.points.length} cỡ mẫu được kiểm tra không hội tụ.`,
+      `${nonConverged} of ${data.points.length} sample sizes tested failed to converge.`,
+    ));
+  }
 
   return lines.join("\n");
 }

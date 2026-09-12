@@ -31,6 +31,7 @@ function updateGuideLink() {
   if (link) link.href = `/static/docs/user_guide_${getLang()}.html`;
 }
 document.getElementById("runAnalysisBtn").textContent = t("s2_run_pls");
+updateRunAnalysisBtnState();
 document.getElementById("toolbarHint").textContent = t("s2_toolbar_hint_default");
 document.getElementById("methodHint").textContent = t("s2_method_hint_pls");
 document.getElementById("resultsLoadingMsg").textContent = t("s3_loading_pls");
@@ -52,6 +53,7 @@ function refreshUIForLanguage() {
   document.getElementById("methodHint").textContent =
     t(method === "cbsem" ? "s2_method_hint_cbsem" : "s2_method_hint_pls");
   document.getElementById("runAnalysisBtn").textContent = t(method === "cbsem" ? "s2_run_cbsem" : "s2_run_pls");
+  updateRunAnalysisBtnState();
   document.getElementById("toolbarHint").textContent =
     t(editor && editor.pathMode ? "s2_toolbar_hint_path_mode" : "s2_toolbar_hint_default");
 
@@ -199,6 +201,7 @@ function applyUploadResult(data) {
   document.getElementById("aiGenExportBtn").classList.add("hidden");
   document.getElementById("aiGenResultExtra").classList.add("hidden");
   goToStep2Enable();
+  updateRunAnalysisBtnState();
 }
 
 function updatePreviewTitle() {
@@ -266,6 +269,9 @@ const aiGenState = {
   batchLog: [],
 };
 let aiGenUserPromptEdited = false;
+// Latest AI-drawn-model rationale (renderAiPathsReview's Apply handler), if
+// any -- folded into the "save all proposals" model export alongside it.
+let lastPathsRationale = null;
 
 document.getElementById("dataSourceTabs").addEventListener("click", (e) => {
   const btn = e.target.closest(".ai-provider-tab");
@@ -406,6 +412,37 @@ document.getElementById("codebookExportBtn").addEventListener("click", () => {
 document.getElementById("codebookImportBtn").addEventListener("click", () => {
   document.getElementById("codebookImportInput").click();
 });
+// Accepts either a codebook export (format: "pls-sem-web-codebook", a flat
+// {column, construct, question_text} list) or a full model export (format:
+// "pls-sem-web-model" -- constructs + indicators, produced by exportModelBtn/
+// "Save all proposals") -- so a model designed earlier can be reopened here
+// to (re)generate synthetic data matching its exact construct/indicator
+// structure, indicator wording included when the model export carried it.
+function codebookItemsFromModelExport(parsed) {
+  // "Save all proposals" (buildModelExportPayload) carries the full original
+  // codebook when one exists -- prefer it exactly as-is, since it also
+  // covers rows not currently assigned to any construct in the model
+  // (reconstructing purely from constructs/indicators would silently drop
+  // those). Fall back to rebuilding from constructs + indicator_descriptions
+  // for a model exported without a codebook (e.g. hand-built from a plain
+  // upload, or from an older export).
+  if (Array.isArray(parsed.codebook) && parsed.codebook.length) {
+    return parsed.codebook;
+  }
+  const descriptions = parsed.indicator_descriptions || {};
+  const items = [];
+  (parsed.constructs || []).forEach((c) => {
+    if (!c || c.mode === "I") return; // interaction constructs have no raw indicators to import
+    const name = String(c.name || "").trim();
+    (c.indicators || []).forEach((rawCol) => {
+      const column = String(rawCol || "").trim();
+      if (!column) return;
+      items.push({ column, construct: name, question_text: descriptions[column] || "" });
+    });
+  });
+  return items;
+}
+
 document.getElementById("codebookImportInput").addEventListener("change", (e) => {
   const file = e.target.files[0];
   if (!file) return;
@@ -415,8 +452,10 @@ document.getElementById("codebookImportInput").addEventListener("change", (e) =>
     errBox.classList.add("hidden");
     try {
       const parsed = JSON.parse(reader.result);
-      if (!Array.isArray(parsed.items)) throw new Error(t("s1_ai_codebook_min_rows"));
-      const cleanItems = parsed.items.filter((it) => it && String(it.column || "").trim());
+      const isModelExport = parsed.format === "pls-sem-web-model" || Array.isArray(parsed.constructs);
+      const rawItems = isModelExport ? codebookItemsFromModelExport(parsed) : parsed.items;
+      if (!Array.isArray(rawItems)) throw new Error(t("s1_ai_codebook_min_rows"));
+      const cleanItems = rawItems.filter((it) => it && String(it.column || "").trim());
       if (!cleanItems.length) throw new Error(t("s1_ai_codebook_min_rows"));
       document.getElementById("codebookTableBody").innerHTML = "";
       cleanItems.forEach((it) => codebookAddRow(it.column, it.question_text || "", it.construct || ""));
@@ -553,6 +592,57 @@ document.getElementById("codebookNextBtn").addEventListener("click", () => {
   }
   aiGenState.codebook = items;
   aiGenGoToSubstep(2);
+});
+
+// Shortcut for a user who just wants to design the model (constructs +
+// structural paths + AI rationale) without walking through the rest of the
+// data-generation wizard -- e.g. real data will be uploaded later, or the
+// model is only being drafted for now. Reuses the same codebook validation
+// as codebookNextBtn and the same one-shot construct-seeding mechanism as
+// finalizeAiGeneration(), just without any data-generation step in between.
+document.getElementById("skipToModelBtn").addEventListener("click", () => {
+  const errBox = document.getElementById("codebookValidationError");
+  errBox.classList.add("hidden");
+  const items = collectCodebook();
+  if (!items.length) {
+    errBox.textContent = t("s1_ai_codebook_min_rows");
+    errBox.classList.remove("hidden");
+    return;
+  }
+  const seen = new Set();
+  for (const item of items) {
+    if (seen.has(item.column)) {
+      errBox.textContent = t("s1_ai_codebook_duplicate_column", { name: item.column });
+      errBox.classList.remove("hidden");
+      return;
+    }
+    seen.add(item.column);
+  }
+  aiGenState.codebook = items;
+
+  // Draft mode: no real rows yet, so #runAnalysisBtn stays disabled (see
+  // updateRunAnalysisBtnState) until a real upload/AI-generated dataset
+  // supplies actual data -- but the codebook's columns are still real
+  // enough to populate as candidate indicators in Step 2.
+  state.fileId = null;
+  state.filename = null;
+  state.columns = items.map((i) => i.column);
+  state.numericColumns = state.columns;
+  state.previewRows = [];
+  state.nRows = 0;
+  document.getElementById("aiGenDownloadLink").classList.add("hidden");
+  document.getElementById("aiGenExportBtn").classList.add("hidden");
+  document.getElementById("aiGenResultExtra").classList.add("hidden");
+  document.getElementById("dataPreviewWrap").classList.add("hidden");
+
+  state.pendingConstructSeed = buildConstructGroupsFromCodebook(aiGenState.codebook).map((g) => ({
+    ...g, theory: aiGenState.constructTheories[g.name] || null,
+  }));
+
+  goToStep2Enable();
+  goToStep(2);
+  if (!editor) initEditor();
+  updateRunAnalysisBtnState();
 });
 
 // ---- Sub-step 2: Respondent profile ----
@@ -1291,6 +1381,7 @@ function initEditor() {
     editable: true,
     onSelect: onConstructSelected,
     onChange: onEditorChange,
+    getIndicatorDescription: (col) => buildIndicatorDescriptions()[col] || null,
   });
   // One-shot seed from the AI-gen codebook's Construct column, if any (see
   // finalizeAiGeneration()/applyUploadResult()) -- only ever applied the
@@ -1438,6 +1529,295 @@ function openAddConstructModal(pos) {
     renderModelSummary();
   };
   document.getElementById("modalCName").focus();
+}
+
+// ---- AI-assisted structural model drawing ----
+// New, purpose-built modal rather than generalizing openAiReportModal --
+// this app's convention is small, self-contained, per-feature modals
+// rather than one do-everything modal (see ai_report_modal.js's own header
+// comment). Reuses the shared AI_PROVIDERS/aiReportGetStoredKey/
+// aiReportEscapeHtml/aiReportEscapeAttr helpers from that file.
+document.getElementById("aiDrawPathsBtn").addEventListener("click", () => {
+  if (editor.constructs.length >= 2) openAiPathsModal();
+});
+
+function openAiPathsModal() {
+  const root = document.getElementById("modalRoot");
+  let currentProvider = "openai";
+
+  const providerTabsHtml = AI_PROVIDER_ORDER.map((id) =>
+    `<button type="button" class="ai-provider-tab${id === currentProvider ? " active" : ""}" data-provider="${id}">${aiReportEscapeHtml(AI_PROVIDERS[id].label)}</button>`,
+  ).join("");
+
+  root.innerHTML = `
+    <div class="modal-backdrop">
+      <div class="modal-box modal-wide">
+        <h3>${t("s2_ai_paths_modal_title")}</h3>
+        <p class="hint">${t("s2_ai_paths_modal_hint")}</p>
+
+        <label>${t("ai_modal_provider_label")}</label>
+        <div class="ai-provider-tabs" id="aiPathsProviderTabs">${providerTabsHtml}</div>
+
+        <label>${t("ai_modal_api_key_label")}</label>
+        <div class="ai-key-row">
+          <input type="password" id="aiPathsApiKey" autocomplete="off">
+          <button type="button" class="btn ghost" id="aiPathsKeyToggle">👁</button>
+        </div>
+        <p class="hint" id="aiPathsApiKeyHint"></p>
+        <label class="checkbox-row">
+          <input type="checkbox" id="aiPathsRememberKey">
+          ${t("ai_modal_remember_key")}
+        </label>
+
+        <label>${t("ai_modal_model_label")}</label>
+        <input type="text" id="aiPathsModel" list="aiPathsModelSuggestions">
+        <datalist id="aiPathsModelSuggestions"></datalist>
+        <p class="hint">${t("ai_modal_model_hint")}</p>
+
+        <label>${t("ai_modal_temperature_label")} — <span id="aiPathsTemperatureValue">1.0</span></label>
+        <div class="ai-temp-row">
+          <span class="ai-temp-endpoint">${t("ai_modal_temperature_low")}</span>
+          <input type="range" id="aiPathsTemperature" min="0" max="1" step="0.1" value="1">
+          <span class="ai-temp-endpoint">${t("ai_modal_temperature_high")}</span>
+        </div>
+
+        <label>${t("s2_ai_paths_context_label")}</label>
+        <textarea id="aiPathsContext" rows="3" placeholder="${aiReportEscapeAttr(t("s2_ai_paths_context_placeholder"))}"></textarea>
+
+        <div id="aiPathsError" class="error-box hidden"></div>
+        <p class="hint hidden" id="aiPathsLoading">${t("s2_ai_paths_loading")}</p>
+        <div class="modal-actions">
+          <button class="btn" id="aiPathsCancel">${t("modal_cancel")}</button>
+          <button class="btn primary" id="aiPathsRun">${t("s2_ai_paths_run")}</button>
+        </div>
+      </div>
+    </div>`;
+
+  const keyInput = document.getElementById("aiPathsApiKey");
+  const modelInput = document.getElementById("aiPathsModel");
+  const modelDatalist = document.getElementById("aiPathsModelSuggestions");
+  const rememberCheckbox = document.getElementById("aiPathsRememberKey");
+  const keyHint = document.getElementById("aiPathsApiKeyHint");
+  const temperatureInput = document.getElementById("aiPathsTemperature");
+
+  function applyProvider(providerId) {
+    currentProvider = providerId;
+    document.querySelectorAll("#aiPathsProviderTabs .ai-provider-tab").forEach((btn) => btn.classList.toggle("active", btn.dataset.provider === providerId));
+    const cfg = AI_PROVIDERS[providerId];
+    const stored = aiReportGetStoredKey(providerId);
+    keyInput.value = stored;
+    keyInput.placeholder = cfg.keyPlaceholder;
+    rememberCheckbox.checked = !!stored;
+    modelInput.value = cfg.defaultModel;
+    modelDatalist.innerHTML = cfg.modelSuggestions.map((m) => `<option value="${aiReportEscapeAttr(m)}">`).join("");
+    keyHint.textContent = t("ai_modal_api_key_hint", { provider: cfg.label });
+  }
+  applyProvider(currentProvider);
+
+  document.getElementById("aiPathsProviderTabs").addEventListener("click", (e) => {
+    const btn = e.target.closest(".ai-provider-tab");
+    if (btn) applyProvider(btn.dataset.provider);
+  });
+  document.getElementById("aiPathsKeyToggle").onclick = () => {
+    keyInput.type = keyInput.type === "password" ? "text" : "password";
+  };
+  temperatureInput.addEventListener("input", () => {
+    document.getElementById("aiPathsTemperatureValue").textContent = Number(temperatureInput.value).toFixed(1);
+  });
+  document.getElementById("aiPathsCancel").onclick = () => (root.innerHTML = "");
+
+  document.getElementById("aiPathsRun").onclick = async () => {
+    const errBox = document.getElementById("aiPathsError");
+    errBox.classList.add("hidden");
+    const apiKey = keyInput.value.trim();
+    if (!apiKey) {
+      errBox.textContent = t("s1_ai_config_missing_key");
+      errBox.classList.remove("hidden");
+      return;
+    }
+    const model = modelInput.value.trim() || AI_PROVIDERS[currentProvider].defaultModel;
+    const temperature = Number(temperatureInput.value);
+    const remember = rememberCheckbox.checked;
+    try {
+      const storageKey = AI_PROVIDERS[currentProvider].keyStorageKey;
+      if (remember) localStorage.setItem(storageKey, apiKey);
+      else localStorage.removeItem(storageKey);
+    } catch {
+      // localStorage unavailable -- key just won't persist, not fatal.
+    }
+
+    const constructsPayload = editor.constructs.map((c) => ({
+      id: c.id, name: c.name, mode: c.mode, indicators: c.indicators || [],
+      interaction_of: c.interaction_of || null,
+    }));
+    const extraContext = document.getElementById("aiPathsContext").value.trim();
+
+    document.getElementById("aiPathsLoading").classList.remove("hidden");
+    try {
+      // Build the prompt text first with no AI call -- the user reviews/edits
+      // it in the next phase before it's actually sent, since moderator/
+      // interaction assignment can be semantically ambiguous and worth a
+      // human check before spending an AI call on it.
+      const res = await fetch("/api/ai_data_gen/suggest_paths_prompt", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          constructs: constructsPayload, extra_context: extraContext,
+          indicator_descriptions: buildIndicatorDescriptions(), lang: getLang(),
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "request failed");
+      renderAiPathsPromptReview(constructsPayload, currentProvider, apiKey, model, temperature, data.system_prompt, data.user_prompt);
+      return; // renderAiPathsPromptReview already replaced this whole modal's DOM
+    } catch (err) {
+      errBox.textContent = err.message;
+      errBox.classList.remove("hidden");
+    }
+    document.getElementById("aiPathsLoading").classList.add("hidden");
+  };
+}
+
+function renderAiPathsPromptReview(constructsPayload, provider, apiKey, model, temperature, systemPrompt, userPrompt) {
+  const root = document.getElementById("modalRoot");
+  root.innerHTML = `
+    <div class="modal-backdrop">
+      <div class="modal-box modal-wide">
+        <h3>${t("s2_ai_paths_prompt_review_title")}</h3>
+        <p class="hint">${t("s2_ai_paths_prompt_review_hint")}</p>
+
+        <details open>
+          <summary>${t("s1_ai_config_system_prompt_label")}</summary>
+          <textarea class="ai-gen-prompt-preview" id="aiPathsSystemPrompt" rows="8"></textarea>
+        </details>
+
+        <label>${t("s1_ai_config_user_prompt_label")}</label>
+        <textarea id="aiPathsUserPrompt" rows="4"></textarea>
+
+        <div id="aiPathsPromptError" class="error-box hidden"></div>
+        <p class="hint hidden" id="aiPathsPromptLoading">${t("s2_ai_paths_loading")}</p>
+        <div class="modal-actions">
+          <button class="btn" id="aiPathsPromptBack">${t("s2_ai_paths_back")}</button>
+          <button class="btn primary" id="aiPathsPromptSend">${t("s2_ai_paths_send")}</button>
+        </div>
+      </div>
+    </div>`;
+
+  document.getElementById("aiPathsSystemPrompt").value = systemPrompt;
+  document.getElementById("aiPathsUserPrompt").value = userPrompt;
+  document.getElementById("aiPathsPromptBack").onclick = () => openAiPathsModal();
+  document.getElementById("aiPathsPromptSend").onclick = async () => {
+    const errBox = document.getElementById("aiPathsPromptError");
+    errBox.classList.add("hidden");
+    const editedSystemPrompt = document.getElementById("aiPathsSystemPrompt").value.trim();
+    const editedUserPrompt = document.getElementById("aiPathsUserPrompt").value.trim();
+    document.getElementById("aiPathsPromptLoading").classList.remove("hidden");
+    try {
+      const res = await fetch("/api/ai_data_gen/suggest_paths", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          provider, api_key: apiKey, model, temperature,
+          constructs: constructsPayload,
+          system_prompt: editedSystemPrompt, user_prompt: editedUserPrompt,
+          lang: getLang(),
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "request failed");
+      renderAiPathsReview(constructsPayload, data.paths, data.rationale, data.moderator_suggestions || []);
+      return; // renderAiPathsReview already replaced this whole modal's DOM
+    } catch (err) {
+      errBox.textContent = err.message;
+      errBox.classList.remove("hidden");
+    }
+    document.getElementById("aiPathsPromptLoading").classList.add("hidden");
+  };
+}
+
+function renderAiPathsReview(constructsPayload, paths, rationale, moderatorSuggestions = []) {
+  const root = document.getElementById("modalRoot");
+  const nameById = {};
+  constructsPayload.forEach((c) => { nameById[c.id] = c.name; });
+
+  root.innerHTML = `
+    <div class="modal-backdrop">
+      <div class="modal-box modal-wide">
+        <h3>${t("s2_ai_paths_review_title")}</h3>
+        <div class="paths-review-list">
+          ${paths.map((p, i) => `
+            <label class="checkbox-row">
+              <input type="checkbox" class="ai-path-check" data-index="${i}" checked>
+              ${escapeHtml(nameById[p.source] || p.source)} → ${escapeHtml(nameById[p.target] || p.target)}
+            </label>
+          `).join("")}
+        </div>
+        ${moderatorSuggestions.length ? `
+          <label>${t("s2_ai_moderator_suggestions_label")}</label>
+          <p class="hint">${t("s2_ai_moderator_suggestions_hint")}</p>
+          <div class="moderator-suggestions-box">
+            ${moderatorSuggestions.map((m, i) => `
+              <div class="moderator-suggestion-row" data-index="${i}">
+                <div>
+                  <strong>${escapeHtml(nameById[m.construct_id] || m.construct_id)}</strong>
+                  ${m.reason ? `<p class="hint">${escapeHtml(m.reason)}</p>` : ""}
+                </div>
+                <button type="button" class="btn ghost ai-moderator-convert" data-construct-id="${escapeAttr(m.construct_id)}">${t("s2_ai_moderator_convert_btn")}</button>
+              </div>
+            `).join("")}
+          </div>
+        ` : ""}
+        <label>${t("s2_ai_paths_rationale_label")}</label>
+        <p class="paths-review-rationale">${escapeHtml(rationale)}</p>
+        <div class="modal-actions">
+          <button class="btn" id="aiPathsBack">${t("s2_ai_paths_back")}</button>
+          <button class="btn primary" id="aiPathsApply">${t("s2_ai_paths_apply")}</button>
+        </div>
+      </div>
+    </div>`;
+
+  root.querySelectorAll(".ai-moderator-convert").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const c = editor.getConstruct(btn.dataset.constructId);
+      if (!c) return;
+      if (eligibleInteractionSources(c.id).length < 2) {
+        showModelMessage(t("s2_interaction_not_enough"));
+        return;
+      }
+      // Same transition the mode dropdown in the construct edit panel does:
+      // an interaction/moderation term is always exogenous, computed from
+      // two OTHER constructs' scores, so it keeps no raw indicators of its
+      // own and can't remain the target of any existing path.
+      c.mode = "I";
+      c.indicators = [];
+      editor.paths = editor.paths.filter((p) => p.target !== c.id);
+      editor.render();
+      renderModelSummary();
+      btn.disabled = true;
+      btn.textContent = t("s2_ai_moderator_converted");
+    });
+  });
+
+  document.getElementById("aiPathsBack").onclick = () => openAiPathsModal();
+  document.getElementById("aiPathsApply").onclick = () => {
+    let applied = 0;
+    let checkedCount = 0;
+    document.querySelectorAll(".ai-path-check:checked").forEach((cb) => {
+      checkedCount++;
+      const p = paths[Number(cb.dataset.index)];
+      if (editor.addPath(p.source, p.target)) applied++;
+    });
+    root.innerHTML = "";
+    lastPathsRationale = rationale;
+    document.getElementById("modelRationaleText").textContent = rationale;
+    document.getElementById("modelRationalePanel").classList.remove("hidden");
+    // Only worth a heads-up when something was actually skipped (e.g. the
+    // client-side addPath guard rejected a path the user left checked) --
+    // a full, unremarkable success needs no red-styled banner.
+    if (applied < checkedCount) {
+      showModelMessage(t("s2_ai_paths_applied", { applied, total: checkedCount }));
+    }
+  };
 }
 
 function onConstructSelected(sel) {
@@ -1603,7 +1983,26 @@ function interactionOfLabel(c) {
   return a && b ? `${a.name} × ${b.name}` : t("lbl_dash");
 }
 
+function updateAiDrawPathsBtnState() {
+  const btn = document.getElementById("aiDrawPathsBtn");
+  const enough = editor.constructs.length >= 2;
+  btn.disabled = !enough;
+  btn.title = enough ? "" : t("s2_ai_draw_paths_disabled_hint");
+}
+
+// Model design (constructs/paths/AI rationale) is allowed with no real
+// dataset yet (see the skip-to-model shortcut) -- but actually running PLS
+// needs real rows, so keep the run button disabled with a hint until
+// state.fileId names an uploaded/generated dataset.
+function updateRunAnalysisBtnState() {
+  const btn = document.getElementById("runAnalysisBtn");
+  const hasData = !!state.fileId;
+  btn.disabled = !hasData;
+  btn.title = hasData ? "" : t("s2_run_no_data_hint");
+}
+
 function renderModelSummary() {
+  updateAiDrawPathsBtnState();
   const ul = document.getElementById("modelSummary");
   const parts = editor.constructs.map((c) => {
     const isInteraction = c.mode === "I";
@@ -1668,8 +2067,32 @@ function buildModelFromJson(model) {
 }
 
 // ---------------- Model import / export (JSON) ----------------
-document.getElementById("exportModelBtn").addEventListener("click", () => {
-  if (!editor || editor.constructs.length === 0) return;
+function downloadJson(obj, filename) {
+  const blob = new Blob([JSON.stringify(obj, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+// Additive fields only -- pls/model.py's Model.from_json (used by both
+// /api/analyze and importModelBtn) ignores unknown keys, so folding the
+// codebook's question wording and the AI's structural rationale in here
+// doesn't touch the model's real schema or round-trip behavior.
+// column -> question wording, from the AI Lab codebook (if any) -- shared by
+// the model export enrichment and by the AI-drawn-model prompt, which needs
+// the actual scale content (not just column names) to reason accurately.
+function buildIndicatorDescriptions() {
+  const descriptions = {};
+  (aiGenState.codebook || []).forEach((item) => {
+    if (item.column && item.question_text) descriptions[item.column] = item.question_text;
+  });
+  return descriptions;
+}
+
+function buildModelExportPayload() {
   const payload = {
     format: "pls-sem-web-model",
     version: 1,
@@ -1677,13 +2100,31 @@ document.getElementById("exportModelBtn").addEventListener("click", () => {
     constructs: editor.constructs,
     paths: editor.paths,
   };
-  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = "pls_model.json";
-  a.click();
-  URL.revokeObjectURL(url);
+  // Full codebook (column + construct + question wording, same shape as
+  // codebookExportBtn's own export) -- not just the subset of indicators
+  // currently wired into the model, so a row the user hasn't assigned to
+  // any construct yet isn't silently lost from the "save everything" export.
+  if (aiGenState.codebook && aiGenState.codebook.length) payload.codebook = aiGenState.codebook;
+  const descriptions = buildIndicatorDescriptions();
+  if (Object.keys(descriptions).length) payload.indicator_descriptions = descriptions;
+  if (lastPathsRationale) payload.rationale = lastPathsRationale;
+  return payload;
+}
+
+document.getElementById("exportModelBtn").addEventListener("click", () => {
+  if (!editor || editor.constructs.length === 0) return;
+  downloadJson(buildModelExportPayload(), "pls_model.json");
+});
+
+// "Save all proposals": one click downloads the (enriched) model JSON and,
+// only when the current dataset was AI-generated (i.e. #aiGenExportBtn's
+// Excel export link is populated), also triggers that download -- two
+// separate export formats, same as today, just both from one button.
+document.getElementById("saveAllProposalsBtn").addEventListener("click", () => {
+  if (!editor || editor.constructs.length === 0) return;
+  downloadJson(buildModelExportPayload(), "pls_model.json");
+  const dataExportBtn = document.getElementById("aiGenExportBtn");
+  if (!dataExportBtn.classList.contains("hidden")) dataExportBtn.click();
 });
 
 document.getElementById("importModelBtn").addEventListener("click", () => {
@@ -2359,33 +2800,50 @@ async function openMlComparisonModal(method) {
 }
 
 function buildSemReportContext(data, method) {
+  // The AI is instructed (SYSTEM_PROMPT in routes/ai_report_api.py) to write
+  // the whole report in whatever language the app is currently in -- but it
+  // was still leaking English fragments into Vietnamese reports because
+  // this context (the "data and figures" it's told to write ONLY from) was
+  // hardcoded in English regardless of `lang`, and it tends to echo section
+  // headers/labels verbatim from its source material. Narrative headers and
+  // connective words are localized below; genuinely fixed statistical/
+  // methodological terms (Cronbach's α, AVE, HTMT, VIF, R², CFI/TLI/RMSEA,
+  // p-value, Reflective (Mode A)/Formative (Mode B), etc.) are left as-is,
+  // matching how this app's OWN UI already keeps those identical in both
+  // languages (see s2_mode_reflective/s2_mode_formative in i18n.js) --
+  // that's standard academic convention, not English leaking in.
+  const lang = getLang();
+  const L = (vi, en) => (lang === "vi" ? vi : en);
   const idToName = {};
   data.constructs.forEach((c) => (idToName[c.id] = c.name));
   const lines = [];
-  const modeLabel = { A: "Reflective (Mode A)", B: "Formative (Mode B)", I: "Interaction/Moderation" };
+  const modeLabel = {
+    A: "Reflective (Mode A)", B: "Formative (Mode B)",
+    I: L("Biến tương tác/điều tiết", "Interaction/Moderation"),
+  };
+  const yesNo = (v) => (v === undefined ? "—" : v ? L("có", "yes") : L("không", "no"));
 
-  lines.push(`## Model overview (${method === "cbsem" ? "CB-SEM" : "PLS-SEM"})`);
-  lines.push(`n = ${data.n_obs}, converged = ${data.converged}${data.iterations ? `, iterations = ${data.iterations}` : ""}`);
-  if (data.bootstrap) lines.push(`Bootstrap: ${data.bootstrap.valid}/${data.bootstrap.requested} valid resamples`);
+  lines.push(`## ${L("Tổng quan mô hình", "Model overview")} (${method === "cbsem" ? "CB-SEM" : "PLS-SEM"})`);
+  lines.push(`n = ${data.n_obs}, ${L("hội tụ", "converged")} = ${yesNo(data.converged)}${data.iterations ? `, ${L("số vòng lặp", "iterations")} = ${data.iterations}` : ""}`);
+  if (data.bootstrap) lines.push(`Bootstrap: ${data.bootstrap.valid}/${data.bootstrap.requested} ${L("mẫu lặp lại hợp lệ", "valid resamples")}`);
   lines.push("");
-  lines.push("Constructs:");
+  lines.push(L("Các biến tiềm ẩn (construct):", "Constructs:"));
   data.constructs.forEach((c) => {
-    lines.push(`- ${c.name} (${modeLabel[c.mode] || c.mode}), indicators: ${c.indicators.join(", ") || "—"}`);
+    lines.push(`- ${c.name} (${modeLabel[c.mode] || c.mode}), ${L("biến quan sát", "indicators")}: ${c.indicators.join(", ") || "—"}`);
   });
 
   lines.push("");
-  lines.push("## Structural model — path coefficients");
-  lines.push("| Path | Coefficient | p-value | Significant | f² |");
+  lines.push(`## ${L("Mô hình cấu trúc — hệ số đường dẫn", "Structural model — path coefficients")}`);
+  lines.push(`| ${L("Đường dẫn", "Path")} | ${L("Hệ số", "Coefficient")} | p-value | ${L("Có ý nghĩa", "Significant")} | f² |`);
   lines.push("|---|---|---|---|---|");
   data.structural.paths.forEach((p) => {
     const coef = method === "cbsem" ? p.std : p.coefficient;
-    const sig = p.significant === undefined ? "—" : (p.significant ? "yes" : "no");
-    lines.push(`| ${p.source_name} -> ${p.target_name} | ${fmt(coef)} | ${fmt(p.p_value, 4)} | ${sig} | ${fmt(p.f_squared)} |`);
+    lines.push(`| ${p.source_name} -> ${p.target_name} | ${fmt(coef)} | ${fmt(p.p_value, 4)} | ${yesNo(p.significant)} | ${fmt(p.f_squared)} |`);
   });
 
   lines.push("");
   lines.push("## R²" + (method === "pls" ? " / Q²" : ""));
-  lines.push(method === "pls" ? "| Construct | R² | Q² |" : "| Construct | R² |");
+  lines.push(method === "pls" ? `| ${L("Construct", "Construct")} | R² | Q² |` : `| ${L("Construct", "Construct")} | R² |`);
   lines.push(method === "pls" ? "|---|---|---|" : "|---|---|");
   Object.keys(data.structural.r_squared || {}).forEach((cid) => {
     if (method === "pls") {
@@ -2399,8 +2857,8 @@ function buildSemReportContext(data, method) {
   const m = data.measurement;
   if (m && m.cronbachs_alpha) {
     lines.push("");
-    lines.push("## Reliability & convergent validity");
-    lines.push("| Construct | Cronbach's α | Composite Reliability | AVE |");
+    lines.push(`## ${L("Độ tin cậy & giá trị hội tụ", "Reliability & convergent validity")}`);
+    lines.push(`| ${L("Construct", "Construct")} | Cronbach's α | Composite Reliability | AVE |`);
     lines.push("|---|---|---|---|");
     data.constructs.filter((c) => c.mode === "A").forEach((c) => {
       lines.push(`| ${c.name} | ${fmt(m.cronbachs_alpha[c.id])} | ${fmt(m.composite_reliability[c.id])} | ${fmt(m.ave[c.id])} |`);
@@ -2410,8 +2868,8 @@ function buildSemReportContext(data, method) {
   const teRows = (data.structural.total_effects || []);
   if (teRows.length) {
     lines.push("");
-    lines.push("## Total & Indirect Effects (mediation)");
-    lines.push("| Path | Direct | Indirect | Total |");
+    lines.push(`## ${L("Hiệu ứng Tổng & Gián tiếp (trung gian)", "Total & Indirect Effects (mediation)")}`);
+    lines.push(`| ${L("Đường dẫn", "Path")} | ${L("Trực tiếp", "Direct")} | ${L("Gián tiếp", "Indirect")} | ${L("Tổng", "Total")} |`);
     lines.push("|---|---|---|---|");
     teRows.forEach((e) => lines.push(`| ${e.source_name} -> ${e.target_name} | ${fmt(e.direct)} | ${fmt(e.indirect)} | ${fmt(e.total)} |`));
   }
@@ -2419,25 +2877,25 @@ function buildSemReportContext(data, method) {
   const siRows = (data.structural.specific_indirect_effects || []);
   if (siRows.length) {
     lines.push("");
-    lines.push("## Specific Indirect Effects");
-    lines.push("| Route | Effect | p-value | Significant |");
+    lines.push(`## ${L("Hiệu ứng Gián tiếp Cụ thể", "Specific Indirect Effects")}`);
+    lines.push(`| ${L("Chuỗi trung gian", "Route")} | ${L("Hiệu ứng", "Effect")} | p-value | ${L("Có ý nghĩa", "Significant")} |`);
     lines.push("|---|---|---|---|");
-    siRows.forEach((r) => lines.push(`| ${r.path_names.join(" -> ")} | ${fmt(r.effect)} | ${r.p_value !== undefined ? fmt(r.p_value, 4) : "—"} | ${r.significant === undefined ? "—" : (r.significant ? "yes" : "no")} |`));
+    siRows.forEach((r) => lines.push(`| ${r.path_names.join(" -> ")} | ${fmt(r.effect)} | ${r.p_value !== undefined ? fmt(r.p_value, 4) : "—"} | ${yesNo(r.significant)} |`));
   }
 
   const mmRows = (data.structural.moderated_mediation || []);
   if (mmRows.length) {
     lines.push("");
-    lines.push("## Index of Moderated Mediation (Hayes, 2015)");
-    lines.push("| Route | Moderator | Index | p-value | Significant |");
+    lines.push(`## ${L("Chỉ số Trung gian có Điều tiết (Hayes, 2015)", "Index of Moderated Mediation (Hayes, 2015)")}`);
+    lines.push(`| ${L("Chuỗi trung gian", "Route")} | ${L("Biến điều tiết", "Moderator")} | ${L("Chỉ số", "Index")} | p-value | ${L("Có ý nghĩa", "Significant")} |`);
     lines.push("|---|---|---|---|---|");
-    mmRows.forEach((r) => lines.push(`| ${r.path_names.join(" -> ")} | ${r.moderator_name} | ${fmt(r.index)} | ${r.p_value !== undefined ? fmt(r.p_value, 4) : "—"} | ${r.significant === undefined ? "—" : (r.significant ? "yes" : "no")} |`));
+    mmRows.forEach((r) => lines.push(`| ${r.path_names.join(" -> ")} | ${r.moderator_name} | ${fmt(r.index)} | ${r.p_value !== undefined ? fmt(r.p_value, 4) : "—"} | ${yesNo(r.significant)} |`));
   }
 
   if (method === "cbsem" && data.fit_indices) {
     const fi = data.fit_indices;
     lines.push("");
-    lines.push("## CB-SEM fit indices");
+    lines.push(`## ${L("Chỉ số phù hợp mô hình CB-SEM", "CB-SEM fit indices")}`);
     lines.push(`chi-square = ${fmt(fi.chi_square)} (df = ${fi.df}, p = ${fmt(fi.chi_square_p_value, 4)}), CFI = ${fmt(fi.cfi)}, TLI = ${fmt(fi.tli)}, RMSEA = ${fmt(fi.rmsea)}, SRMR = ${fmt(fi.srmr)}, GFI = ${fmt(fi.gfi)}, AGFI = ${fmt(fi.agfi)}, NFI = ${fmt(fi.nfi)}, AIC = ${fmt(fi.aic)}, BIC = ${fmt(fi.bic)}`);
   }
 
@@ -2445,8 +2903,11 @@ function buildSemReportContext(data, method) {
   if (dv && dv.fornell_larcker) {
     const flIds = Object.keys(dv.fornell_larcker);
     lines.push("");
-    lines.push("## Discriminant Validity — Fornell-Larcker Criterion");
-    lines.push("Diagonal = sqrt(AVE); should exceed this construct's correlation with every other construct (off-diagonal, same row/column).");
+    lines.push(`## ${L("Giá trị phân biệt — Tiêu chí Fornell-Larcker", "Discriminant Validity — Fornell-Larcker Criterion")}`);
+    lines.push(L(
+      "Đường chéo = căn bậc hai của AVE; phải lớn hơn tương quan của construct này với mọi construct khác (ngoài đường chéo, cùng hàng/cột).",
+      "Diagonal = sqrt(AVE); should exceed this construct's correlation with every other construct (off-diagonal, same row/column).",
+    ));
     lines.push(`| | ${flIds.map((id) => idToName[id]).join(" | ")} |`);
     lines.push(`|---|${flIds.map(() => "---").join("|")}|`);
     flIds.forEach((rid) => lines.push(`| ${idToName[rid]} | ${flIds.map((cid) => fmt(dv.fornell_larcker[cid][rid])).join(" | ")} |`));
@@ -2454,8 +2915,11 @@ function buildSemReportContext(data, method) {
   if (dv && dv.htmt) {
     const htmtIds = Object.keys(dv.htmt);
     lines.push("");
-    lines.push("## Discriminant Validity — HTMT (Heterotrait-Monotrait Ratio)");
-    lines.push("Should stay below 0.85 (strict) or 0.90 (lenient) for every construct pair.");
+    lines.push(`## ${L("Giá trị phân biệt — HTMT (Heterotrait-Monotrait Ratio)", "Discriminant Validity — HTMT (Heterotrait-Monotrait Ratio)")}`);
+    lines.push(L(
+      "Nên nhỏ hơn 0.85 (nghiêm ngặt) hoặc 0.90 (nới lỏng) cho mọi cặp construct.",
+      "Should stay below 0.85 (strict) or 0.90 (lenient) for every construct pair.",
+    ));
     lines.push(`| | ${htmtIds.map((id) => idToName[id]).join(" | ")} |`);
     lines.push(`|---|${htmtIds.map(() => "---").join("|")}|`);
     htmtIds.forEach((rid) => lines.push(`| ${idToName[rid]} | ${htmtIds.map((cid) => fmt(dv.htmt[cid][rid])).join(" | ")} |`));
@@ -2470,9 +2934,12 @@ function buildSemReportContext(data, method) {
     });
     if (vifRows.length) {
       lines.push("");
-      lines.push("## Structural Multicollinearity (Inner VIF)");
-      lines.push("Should stay below 3.3-5; higher values suggest problematic collinearity among a target's predictors.");
-      lines.push("| Predictor | Target | VIF |");
+      lines.push(`## ${L("Đa cộng tuyến Cấu trúc (Inner VIF)", "Structural Multicollinearity (Inner VIF)")}`);
+      lines.push(L(
+        "Nên nhỏ hơn 3.3-5; giá trị cao hơn cho thấy đa cộng tuyến đáng lo ngại giữa các biến dự báo của một construct.",
+        "Should stay below 3.3-5; higher values suggest problematic collinearity among a target's predictors.",
+      ));
+      lines.push(`| ${L("Biến dự báo", "Predictor")} | ${L("Biến đích", "Target")} | VIF |`);
       lines.push("|---|---|---|");
       vifRows.forEach(([p, tt, v]) => lines.push(`| ${p} | ${tt} | ${fmt(v)} |`));
     }
@@ -2481,12 +2948,17 @@ function buildSemReportContext(data, method) {
   const cmb = data.common_method_bias;
   if (cmb && cmb.vif) {
     lines.push("");
-    lines.push("## Common Method Bias — Full Collinearity Test (Kock, 2015)");
-    lines.push(`Every construct regressed on all others (not just its structural predictors); threshold = ${fmt(cmb.threshold, 1)} -- a VIF above this on ANY construct suggests a single latent "method" factor may be inflating variances.`);
-    lines.push("| Construct | Full collinearity VIF | Assessment |");
+    lines.push(`## ${L("Sai lệch Phương pháp Chung — Kiểm tra Đa cộng tuyến Toàn phần (Kock, 2015)", "Common Method Bias — Full Collinearity Test (Kock, 2015)")}`);
+    lines.push(L(
+      `Mỗi construct được hồi quy trên TẤT CẢ construct khác (không chỉ các biến dự báo cấu trúc của nó); ngưỡng = ${fmt(cmb.threshold, 1)} -- VIF vượt ngưỡng này ở BẤT KỲ construct nào cho thấy có thể có một yếu tố "phương pháp" tiềm ẩn làm phóng đại phương sai.`,
+      `Every construct regressed on all others (not just its structural predictors); threshold = ${fmt(cmb.threshold, 1)} -- a VIF above this on ANY construct suggests a single latent "method" factor may be inflating variances.`,
+    ));
+    lines.push(`| ${L("Construct", "Construct")} | ${L("VIF đa cộng tuyến toàn phần", "Full collinearity VIF")} | ${L("Đánh giá", "Assessment")} |`);
     lines.push("|---|---|---|");
     Object.entries(cmb.vif).forEach(([cid, v]) => {
-      const assessment = v !== null && v !== undefined && v > cmb.threshold ? "Possible CMB concern" : "OK";
+      const assessment = v !== null && v !== undefined && v > cmb.threshold
+        ? L("Có thể có sai lệch phương pháp chung (CMB)", "Possible CMB concern")
+        : L("Đạt", "OK");
       lines.push(`| ${idToName[cid]} | ${fmt(v)} | ${assessment} |`);
     });
   }
@@ -2494,16 +2966,19 @@ function buildSemReportContext(data, method) {
   const slopeCards = buildSimpleSlopesCards(data, method, idToName);
   if (slopeCards.length) {
     lines.push("");
-    lines.push("## Simple Slopes (moderation interpretation, Aiken & West 1991)");
-    lines.push("Slope of the focal predictor on the target at three levels of the moderator (mean ± 1 SD); a chart per interaction is attached above.");
+    lines.push(`## ${L("Độ dốc đơn giản (diễn giải điều tiết, Aiken & West 1991)", "Simple Slopes (moderation interpretation, Aiken & West 1991)")}`);
+    lines.push(L(
+      "Độ dốc của biến dự báo chính lên biến đích tại ba mức của biến điều tiết (trung bình ± 1 độ lệch chuẩn); biểu đồ cho mỗi tương tác đã được đính kèm ở trên.",
+      "Slope of the focal predictor on the target at three levels of the moderator (mean ± 1 SD); a chart per interaction is attached above.",
+    ));
     slopeCards.forEach((c) => {
       lines.push("");
       lines.push(`### ${c.modName} × ${c.focalName} → ${c.targetName}`);
-      lines.push("| Moderator level | Simple slope (β) |");
+      lines.push(`| ${L("Mức biến điều tiết", "Moderator level")} | ${L("Độ dốc đơn giản (β)", "Simple slope (β)")} |`);
       lines.push("|---|---|");
-      lines.push(`| ${c.modName} at −1 SD | ${fmt(c.slopeLow)} |`);
-      lines.push(`| ${c.modName} at Mean | ${fmt(c.slopeMean)} |`);
-      lines.push(`| ${c.modName} at +1 SD | ${fmt(c.slopeHigh)} |`);
+      lines.push(`| ${c.modName} ${L("tại −1 SD", "at −1 SD")} | ${fmt(c.slopeLow)} |`);
+      lines.push(`| ${c.modName} ${L("tại Trung bình", "at Mean")} | ${fmt(c.slopeMean)} |`);
+      lines.push(`| ${c.modName} ${L("tại +1 SD", "at +1 SD")} | ${fmt(c.slopeHigh)} |`);
     });
   }
 
