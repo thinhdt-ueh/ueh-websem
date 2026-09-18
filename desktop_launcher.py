@@ -1,12 +1,14 @@
-"""Entry point for the packaged Windows desktop launcher (see build_exe.bat).
+"""Entry point for the packaged desktop launcher (see build_exe.bat for
+Windows, build_macos.sh / .github/workflows/build-macos.yml for macOS).
 
 Runs the Flask app locally with Werkzeug's built-in server — appropriate here
 because the app only ever listens on 127.0.0.1 for a single local user, unlike
 the gunicorn-based Procfile/Dockerfile used for actual internet-facing
-deployment (gunicorn itself doesn't run on Windows). Opens the default browser
-to the app once the server is confirmed to be accepting connections, and
-keeps uploaded data in a persistent per-user folder instead of PyInstaller's
-onefile temp extraction directory, which is deleted when the process exits.
+deployment (gunicorn itself doesn't run on Windows, and isn't needed for a
+single local user on macOS either). Opens the default browser to the app once
+the server is confirmed to be accepting connections, and keeps uploaded data
+in a persistent per-user folder instead of PyInstaller's onefile temp
+extraction directory, which is deleted when the process exits.
 """
 
 from __future__ import annotations
@@ -24,7 +26,10 @@ PORT = 5000
 
 
 def _persistent_upload_dir() -> str:
-    root = os.environ.get("LOCALAPPDATA") or os.path.expanduser("~")
+    if sys.platform == "darwin":
+        root = os.path.expanduser("~/Library/Application Support")
+    else:
+        root = os.environ.get("LOCALAPPDATA") or os.path.expanduser("~")
     path = os.path.join(root, "AI-SEM", "uploads")
     os.makedirs(path, exist_ok=True)
     return path

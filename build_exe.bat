@@ -1,5 +1,5 @@
 @echo off
-REM Builds dist\UEH-WebSEM.exe: a self-contained Windows launcher that starts
+REM Builds dist\AI-SEM.exe: a self-contained Windows launcher that starts
 REM the app locally and opens it in the default browser. No Python install
 REM needed on the machine that runs the .exe — everything is bundled.
 REM
@@ -16,7 +16,8 @@ if not exist ".venv\Scripts\python.exe" (
 )
 
 .venv\Scripts\python.exe -m PyInstaller ^
-  --name UEH-WebSEM ^
+  --name AI-SEM ^
+  --icon "static\img\logo-ai-sem.ico" ^
   --onefile ^
   --console ^
   --noconfirm ^
@@ -34,5 +35,5 @@ if not exist ".venv\Scripts\python.exe" (
   desktop_launcher.py
 
 echo.
-echo Done. The executable is at dist\UEH-WebSEM.exe
+echo Done. The executable is at dist\AI-SEM.exe
 endlocal

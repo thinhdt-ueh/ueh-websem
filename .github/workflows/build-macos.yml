@@ -1,0 +1,58 @@
+name: Build macOS app
+
+# PyInstaller can't cross-compile -- a macOS binary has to be built ON
+# macOS. This workflow does that on GitHub's hosted macos-latest runner,
+# since no Mac is available for a local build.
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  build-macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pyinstaller
+
+      - name: Build with PyInstaller
+        run: |
+          pyinstaller \
+            --name AI-SEM \
+            --onefile \
+            --console \
+            --noconfirm \
+            --add-data "templates:templates" \
+            --add-data "static:static" \
+            --add-data "sample_data:sample_data" \
+            --hidden-import semopy \
+            --collect-submodules semopy \
+            --collect-data semopy \
+            --collect-all sklearn \
+            --collect-data xgboost \
+            --collect-binaries xgboost \
+            --collect-all lightgbm \
+            --collect-all catboost \
+            desktop_launcher.py
+
+      - name: Make the binary executable and zip it
+        run: |
+          chmod +x dist/AI-SEM
+          cd dist
+          zip -y AI-SEM-macos.zip AI-SEM
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: AI-SEM-macos
+          path: dist/AI-SEM-macos.zip
+          retention-days: 90
