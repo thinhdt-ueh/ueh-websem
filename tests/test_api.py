@@ -22,7 +22,7 @@ def _upload(client, df, lang="en"):
 def test_index_page_loads(client):
     resp = client.get("/")
     assert resp.status_code == 200
-    assert b"WebSEM" in resp.data
+    assert b"AI-SEM" in resp.data
 
 
 def test_sensitivity_page_loads(client):

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>UEH-WebSEM — User Guide</title>
+<title>AI-SEM — User Guide</title>
 <style>
   :root {
     --bg: #f4f6fb; --card: #ffffff; --border: #e1e6f0; --text: #1c2333; --muted: #6b7385;
@@ -89,8 +89,8 @@
 <body>
 
 <header class="topbar">
-  <img src="../img/logo-ueh.png" alt="UEH">
-  <div class="brand"><span>WebSEM</span> User Guide</div>
+  <img src="../img/logo-ai-sem-icon.png" alt="AI-SEM">
+  <div class="brand"><span>AI-SEM</span> User Guide</div>
   <nav>
     <a class="back" href="../../">← Back to app</a>
     <a class="pill" href="user_guide_vi.html">Tiếng Việt</a>
@@ -101,7 +101,7 @@
 <div class="layout">
   <aside class="toc">
     <h3>Contents</h3>
-    <a href="#intro">1. What is UEH-WebSEM?</a>
+    <a href="#intro">1. What is AI-SEM?</a>
     <a href="#workflow">2. Three-step workflow</a>
     <a href="#model">3. Building a model</a>
     <a class="sub" href="#reflective-formative">Reflective vs. formative</a>
@@ -131,7 +131,7 @@
   </aside>
 
   <main class="doc">
-    <h1>UEH-WebSEM User Guide</h1>
+    <h1>AI-SEM User Guide</h1>
     <p class="subtitle">How to build a model, run PLS-SEM / CB-SEM, and read every result table — illustrated throughout with the built-in TAM sample dataset (n = 250) and real numbers produced by this tool.</p>
 
     <div class="callout tip">
@@ -139,8 +139,8 @@
       This page is a quick operating guide. For a fuller treatment — SEM theory, original academic citations behind every metric, and step-by-step worked examples — see the <a href="/static/docs/handbook.html" target="_blank" rel="noopener"><strong>full handbook (Vietnamese–English)</strong></a>.
     </div>
 
-    <h2 id="intro">1. What is UEH-WebSEM?</h2>
-    <p>UEH-WebSEM is a browser-based structural equation modeling (SEM) tool supporting two estimation approaches on the same visual model:</p>
+    <h2 id="intro">1. What is AI-SEM?</h2>
+    <p>AI-SEM is a browser-based structural equation modeling (SEM) tool supporting two estimation approaches on the same visual model:</p>
     <ul>
       <li><strong>PLS-SEM</strong> (Partial Least Squares) — composite-based, robust with non-normal data and smaller samples, supports formative measurement, and is the estimator used for bootstrapping, Q² (blindfolding), and Common Method Bias testing.</li>
       <li><strong>CB-SEM</strong> (Covariance-Based, Maximum Likelihood) — produces classic model-fit indices (CFI, RMSEA, SRMR, …) and exact standard errors, but only supports reflective measurement.</li>
@@ -171,7 +171,7 @@ Attitude (ATT)                <span class="arrow">──▶</span> Behavioral In
 
     <h2 id="mediator">4. Mediator constructs</h2>
     <p>A <strong>mediator</strong> is an endogenous (dependent) construct that sits <em>between</em> a predictor and an outcome, transmitting part or all of the predictor's effect. In the TAM model, <strong>Perceived Usefulness</strong> and <strong>Attitude</strong> both act as mediators between PEOU and Behavioral Intention.</p>
-    <p>You don't need a separate "mediator" construct type — any construct that is simultaneously a target of one path and the source of another is automatically a mediator. UEH-WebSEM detects every such indirect route on its own and reports it in the <strong>Total &amp; Indirect Effects</strong> table, computed as:</p>
+    <p>You don't need a separate "mediator" construct type — any construct that is simultaneously a target of one path and the source of another is automatically a mediator. AI-SEM detects every such indirect route on its own and reports it in the <strong>Total &amp; Indirect Effects</strong> table, computed as:</p>
     <div class="callout">
       <strong class="label">Formula</strong>
       Indirect effect (X → Y) = Σ, over every indirect route from X to Y, of the product of the path coefficients along that route.<br>
@@ -233,7 +233,7 @@ Attitude (ATT)                <span class="arrow">──▶</span> Behavioral In
     </div>
 
     <h2 id="moderator">6. Moderator constructs (interaction terms)</h2>
-    <p>A <strong>moderator</strong> changes the <em>strength</em> of a relationship between two other constructs, rather than sitting on a causal chain like a mediator. UEH-WebSEM tests moderation with the standard <strong>two-stage approach</strong> (Henseler &amp; Chin, 2010; Henseler &amp; Fassott, 2010):</p>
+    <p>A <strong>moderator</strong> changes the <em>strength</em> of a relationship between two other constructs, rather than sitting on a causal chain like a mediator. AI-SEM tests moderation with the standard <strong>two-stage approach</strong> (Henseler &amp; Chin, 2010; Henseler &amp; Fassott, 2010):</p>
     <ol>
       <li><strong>Stage 1</strong> — the base model (without the interaction) is estimated to obtain standardized construct scores.</li>
       <li><strong>Stage 2</strong> — an interaction term is formed as the standardized product of the two moderating constructs' Stage-1 scores, then the structural model is re-estimated with this term included as a predictor.</li>
@@ -295,14 +295,14 @@ Attitude (ATT)                <span class="arrow">──▶</span> Behavioral In
         <tr><td>≥ 0.025</td><td>Large</td><td>Small</td></tr>
       </tbody>
     </table></div>
-    <p>UEH-WebSEM applies the moderation scale automatically to any path whose source is an interaction term (marked with a <span class="badge mod">Moderation</span> badge in the path table and export), so the reported f² = 0.013 for PU × Attitude → Intention is correctly labeled <strong>“Medium”</strong>, not “Negligible”.</p>
+    <p>AI-SEM applies the moderation scale automatically to any path whose source is an interaction term (marked with a <span class="badge mod">Moderation</span> badge in the path table and export), so the reported f² = 0.013 for PU × Attitude → Intention is correctly labeled <strong>“Medium”</strong>, not “Negligible”.</p>
     <div class="callout">
       <strong class="label">Why Q² is skipped for models with a moderator</strong>
       Blindfolding (used to compute Q²) systematically omits and re-predicts raw indicator values, but an interaction term has no indicators of its own — it is a derived product of two other constructs' scores. Because of this, Q² is automatically skipped (with an explanatory note) for any model containing an interaction term; every other output (path coefficients, R², f², bootstrapping) is unaffected.
     </div>
 
     <h2 id="moderated-mediation">7. Index of Moderated Mediation (Hayes, 2015)</h2>
-    <p>A mediator explains <em>why</em> or <em>how</em> X affects Y; a moderator explains <em>when</em> or <em>for whom</em> a relationship is stronger or weaker. <strong>Moderated mediation</strong> combines both questions: does the strength of an <em>indirect</em> effect itself depend on a moderator? UEH-WebSEM detects this automatically whenever a model contains a mediated route (X → M → Y) in which exactly one edge is the target of an interaction term, and reports Hayes' (2015) <strong>Index of Moderated Mediation</strong> — the slope of the indirect effect with respect to the moderator, i.e. how much the indirect effect changes per one-unit increase in the moderator.</p>
+    <p>A mediator explains <em>why</em> or <em>how</em> X affects Y; a moderator explains <em>when</em> or <em>for whom</em> a relationship is stronger or weaker. <strong>Moderated mediation</strong> combines both questions: does the strength of an <em>indirect</em> effect itself depend on a moderator? AI-SEM detects this automatically whenever a model contains a mediated route (X → M → Y) in which exactly one edge is the target of an interaction term, and reports Hayes' (2015) <strong>Index of Moderated Mediation</strong> — the slope of the indirect effect with respect to the moderator, i.e. how much the indirect effect changes per one-unit increase in the moderator.</p>
     <p>This is scoped to routes with <em>exactly one</em> moderated edge. If both the a-path and the b-path of a route are moderated at once, the indirect effect becomes a bilinear (not linear) function of the two moderators, and Hayes doesn't define a single scalar index for that case — Hayes' own PROCESS macro handles it the same way, via conditional indirect effects evaluated at chosen moderator values instead of one index.</p>
     <h3>Worked example</h3>
     <p>Using Hayes' own notation — X (predictor), W (moderator), M (mediator), Y (outcome) — a small model with paths <code>X → M</code>, <code>W → M</code>, <code>X × W → M</code> (an interaction moderating the a-path), and <code>M → Y</code> gives:</p>
@@ -367,7 +367,7 @@ Attitude (ATT)                <span class="arrow">──▶</span> Behavioral In
     <p>Every construct (including any interaction term) is regressed on <em>every other</em> construct, regardless of the drawn structural paths, and the resulting VIF is checked against 3.3 (Kock, 2015) — the WarpPLS full-collinearity technique for detecting a single latent “method” factor inflating all variances at once.</p>
     <div class="callout">
       <strong class="label">3.3 versus 5</strong>
-      The app applies Kock's (2015) strict VIF ≤ 3.3 cutoff for the OK/Warning label. Values between 3.3 and 5 are still often treated as "acceptable" under the general VIF convention (Kock &amp; Lynn, 2012) — but UEH-WebSEM flags a warning as soon as 3.3 is exceeded, not at 5, so read a "Warning" in that range as "worth a closer look," not necessarily "a serious problem."
+      The app applies Kock's (2015) strict VIF ≤ 3.3 cutoff for the OK/Warning label. Values between 3.3 and 5 are still often treated as "acceptable" under the general VIF convention (Kock &amp; Lynn, 2012) — but AI-SEM flags a warning as soon as 3.3 is exceeded, not at 5, so read a "Warning" in that range as "worth a closer look," not necessarily "a serious problem."
     </div>
     <div class="table-wrap"><table>
       <thead><tr><th>Construct</th><th class="num">Full collinearity VIF</th><th>Assessment</th></tr></thead>
@@ -468,7 +468,7 @@ Attitude (ATT)                <span class="arrow">──▶</span> Behavioral In
     </div>
 
     <h2 id="power">12. Monte Carlo Power Analysis</h2>
-    <p>Sample Size Sensitivity (§11) works backwards from data you already have. <strong>Power Analysis</strong> works forwards, before data collection: given a <em>hypothesized</em> population model (expected path coefficients and average indicator loadings) and a candidate sample size, what's the probability of correctly detecting each effect as statistically significant? No PLS-SEM software has a closed-form formula for this — PLS has no maximum-likelihood standard error to plug into one — so UEH-WebSEM answers it the only rigorous way available: Monte Carlo simulation.</p>
+    <p>Sample Size Sensitivity (§11) works backwards from data you already have. <strong>Power Analysis</strong> works forwards, before data collection: given a <em>hypothesized</em> population model (expected path coefficients and average indicator loadings) and a candidate sample size, what's the probability of correctly detecting each effect as statistically significant? No PLS-SEM software has a closed-form formula for this — PLS has no maximum-likelihood standard error to plug into one — so AI-SEM answers it the only rigorous way available: Monte Carlo simulation.</p>
     <p>For each candidate sample size n, repeated many times (n_mc replicates):</p>
     <ol>
       <li>Generate a synthetic dataset of size n from your declared population path coefficients and average loadings (reflective indicators only).</li>
@@ -573,7 +573,7 @@ Attitude (ATT)                <span class="arrow">──▶</span> Behavioral In
   </main>
 </div>
 
-<footer class="doc-footer">© 2026 UEH-WebSEM — University of Economics Ho Chi Minh City (UEH). All example numbers on this page are real output from the built-in TAM sample dataset.</footer>
+<footer class="doc-footer">AI-SEM - Open source for everyone. All example numbers on this page are real output from the built-in TAM sample dataset.</footer>
 
 </body>
 </html>

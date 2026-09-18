@@ -1,4 +1,6 @@
-# UEH-WebSEM
+# AI-SEM
+
+*AI-Enabled for SEM*
 
 Ứng dụng web (Flask + Python) chạy phân tích **SEM** (Structural Equation
 Modeling) theo cả hai trường phái phổ biến nhất — **PLS-SEM** (Partial Least

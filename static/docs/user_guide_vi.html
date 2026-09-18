@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>UEH-WebSEM — Hướng dẫn sử dụng</title>
+<title>AI-SEM — Hướng dẫn sử dụng</title>
 <style>
   :root {
     --bg: #f4f6fb; --card: #ffffff; --border: #e1e6f0; --text: #1c2333; --muted: #6b7385;
@@ -89,8 +89,8 @@
 <body>
 
 <header class="topbar">
-  <img src="../img/logo-ueh.png" alt="UEH">
-  <div class="brand"><span>WebSEM</span> Hướng dẫn sử dụng</div>
+  <img src="../img/logo-ai-sem-icon.png" alt="AI-SEM">
+  <div class="brand"><span>AI-SEM</span> Hướng dẫn sử dụng</div>
   <nav>
     <a class="back" href="../../">← Về trang ứng dụng</a>
     <a class="pill active" href="user_guide_vi.html">Tiếng Việt</a>
@@ -101,7 +101,7 @@
 <div class="layout">
   <aside class="toc">
     <h3>Mục lục</h3>
-    <a href="#intro">1. UEH-WebSEM là gì?</a>
+    <a href="#intro">1. AI-SEM là gì?</a>
     <a href="#workflow">2. Quy trình 3 bước</a>
     <a href="#model">3. Xây dựng mô hình</a>
     <a class="sub" href="#reflective-formative">Reflective và formative</a>
@@ -131,7 +131,7 @@
   </aside>
 
   <main class="doc">
-    <h1>Hướng dẫn sử dụng UEH-WebSEM</h1>
+    <h1>Hướng dẫn sử dụng AI-SEM</h1>
     <p class="subtitle">Cách xây dựng mô hình, chạy PLS-SEM / CB-SEM, và đọc hiểu từng bảng kết quả — minh hoạ xuyên suốt bằng bộ dữ liệu mẫu TAM (n = 250) và các con số thật do chính công cụ này tính ra.</p>
 
     <div class="callout tip">
@@ -139,8 +139,8 @@
       Trang này là hướng dẫn thao tác nhanh. Nếu cần bản đầy đủ hơn — kèm nền tảng lý thuyết SEM, trích dẫn học thuật gốc cho từng chỉ số, và các ví dụ tính tay từng bước — xem <a href="/static/docs/handbook.html" target="_blank" rel="noopener"><strong>Sách hướng dẫn đầy đủ (Việt–Anh)</strong></a>.
     </div>
 
-    <h2 id="intro">1. UEH-WebSEM là gì?</h2>
-    <p>UEH-WebSEM là công cụ phân tích mô hình cấu trúc (SEM) chạy trên trình duyệt, hỗ trợ hai phương pháp ước lượng trên cùng một sơ đồ mô hình:</p>
+    <h2 id="intro">1. AI-SEM là gì?</h2>
+    <p>AI-SEM là công cụ phân tích mô hình cấu trúc (SEM) chạy trên trình duyệt, hỗ trợ hai phương pháp ước lượng trên cùng một sơ đồ mô hình:</p>
     <ul>
       <li><strong>PLS-SEM</strong> (Partial Least Squares) — dựa trên composite, phù hợp với dữ liệu không chuẩn hoặc cỡ mẫu nhỏ, hỗ trợ đo lường formative, và là phương pháp dùng cho bootstrapping, Q² (blindfolding) và kiểm định Common Method Bias.</li>
       <li><strong>CB-SEM</strong> (Covariance-Based, Maximum Likelihood) — cho ra các chỉ số phù hợp mô hình kinh điển (CFI, RMSEA, SRMR...) và sai số chuẩn chính xác, nhưng chỉ hỗ trợ đo lường reflective.</li>
@@ -171,7 +171,7 @@ Thái độ (ATT)                 <span class="arrow">──▶</span> Ý địn
 
     <h2 id="mediator">4. Biến trung gian (Mediator)</h2>
     <p><strong>Mediator (biến trung gian)</strong> là một construct nội sinh (endogenous) nằm <em>giữa</em> một biến dự báo và một biến kết quả, truyền tải một phần hoặc toàn bộ tác động của biến dự báo. Trong mô hình TAM, cả <strong>Nhận thức hữu ích (PU)</strong> và <strong>Thái độ (ATT)</strong> đều đóng vai trò trung gian giữa PEOU và Ý định hành vi.</p>
-    <p>Bạn không cần tạo riêng một loại construct "mediator" — bất kỳ construct nào vừa là đích của một path vừa là nguồn của một path khác đều tự động là biến trung gian. UEH-WebSEM tự phát hiện mọi đường đi gián tiếp như vậy và báo cáo trong bảng <strong>Total &amp; Indirect Effects</strong>, được tính như sau:</p>
+    <p>Bạn không cần tạo riêng một loại construct "mediator" — bất kỳ construct nào vừa là đích của một path vừa là nguồn của một path khác đều tự động là biến trung gian. AI-SEM tự phát hiện mọi đường đi gián tiếp như vậy và báo cáo trong bảng <strong>Total &amp; Indirect Effects</strong>, được tính như sau:</p>
     <div class="callout">
       <strong class="label">Công thức</strong>
       Hiệu ứng gián tiếp (X → Y) = Tổng, trên mọi đường đi gián tiếp từ X đến Y, của tích các path coefficient dọc theo đường đi đó.<br>
@@ -233,7 +233,7 @@ Thái độ (ATT)                 <span class="arrow">──▶</span> Ý địn
     </div>
 
     <h2 id="moderator">6. Biến điều tiết (Moderator / biến tương tác)</h2>
-    <p><strong>Moderator (biến điều tiết)</strong> làm thay đổi <em>độ mạnh</em> của mối quan hệ giữa hai construct khác, thay vì nằm trên một chuỗi nhân quả như mediator. UEH-WebSEM kiểm định moderation bằng phương pháp chuẩn <strong>Two-Stage Approach</strong> (Henseler &amp; Chin, 2010; Henseler &amp; Fassott, 2010):</p>
+    <p><strong>Moderator (biến điều tiết)</strong> làm thay đổi <em>độ mạnh</em> của mối quan hệ giữa hai construct khác, thay vì nằm trên một chuỗi nhân quả như mediator. AI-SEM kiểm định moderation bằng phương pháp chuẩn <strong>Two-Stage Approach</strong> (Henseler &amp; Chin, 2010; Henseler &amp; Fassott, 2010):</p>
     <ol>
       <li><strong>Giai đoạn 1</strong> — ước lượng mô hình gốc (chưa có biến tương tác) để lấy điểm số construct đã chuẩn hoá.</li>
       <li><strong>Giai đoạn 2</strong> — tạo biến tương tác bằng tích chuẩn hoá của điểm số hai construct điều tiết ở Giai đoạn 1, rồi ước lượng lại mô hình cấu trúc với biến tương tác này như một biến dự báo.</li>
@@ -295,14 +295,14 @@ Thái độ (ATT)                 <span class="arrow">──▶</span> Ý địn
         <tr><td>≥ 0.025</td><td>Lớn</td><td>Nhỏ</td></tr>
       </tbody>
     </table></div>
-    <p>UEH-WebSEM tự động áp dụng thang moderation cho bất kỳ path nào có nguồn là biến tương tác (đánh dấu bằng nhãn <span class="badge mod">Điều tiết</span> trong bảng path và bản xuất), nên f² = 0.013 của PU × Thái độ → Ý định được gắn nhãn đúng là <strong>"Trung bình"</strong>, chứ không phải "Không đáng kể".</p>
+    <p>AI-SEM tự động áp dụng thang moderation cho bất kỳ path nào có nguồn là biến tương tác (đánh dấu bằng nhãn <span class="badge mod">Điều tiết</span> trong bảng path và bản xuất), nên f² = 0.013 của PU × Thái độ → Ý định được gắn nhãn đúng là <strong>"Trung bình"</strong>, chứ không phải "Không đáng kể".</p>
     <div class="callout">
       <strong class="label">Vì sao Q² bị bỏ qua với mô hình có biến điều tiết</strong>
       Blindfolding (dùng để tính Q²) lược bỏ và dự đoán lại giá trị indicator gốc một cách có hệ thống, nhưng biến tương tác không có indicator riêng — nó là tích số được suy ra từ điểm số của hai construct khác. Vì vậy, Q² sẽ tự động bị bỏ qua (kèm ghi chú giải thích) với bất kỳ mô hình nào chứa biến tương tác; mọi kết quả khác (path coefficient, R², f², bootstrapping) không bị ảnh hưởng.
     </div>
 
     <h2 id="moderated-mediation">7. Index of Moderated Mediation (Hayes, 2015)</h2>
-    <p>Mediator (biến trung gian) giải thích <em>vì sao</em> hoặc <em>bằng cách nào</em> X tác động đến Y; moderator (biến điều tiết) giải thích <em>khi nào</em> hoặc <em>với ai</em> một mối quan hệ mạnh hơn hay yếu hơn. <strong>Moderated mediation (trung gian có điều tiết)</strong> kết hợp cả hai câu hỏi: liệu độ mạnh của một hiệu ứng <em>gián tiếp</em> có phụ thuộc vào một biến điều tiết hay không? UEH-WebSEM tự động phát hiện trường hợp này bất cứ khi nào mô hình có một đường đi trung gian (X → M → Y) mà đúng một đoạn (edge) của nó là đích của một biến tương tác, và báo cáo <strong>Index of Moderated Mediation</strong> của Hayes (2015) — độ dốc của hiệu ứng gián tiếp theo biến điều tiết, tức là hiệu ứng gián tiếp thay đổi bao nhiêu khi biến điều tiết tăng thêm 1 đơn vị.</p>
+    <p>Mediator (biến trung gian) giải thích <em>vì sao</em> hoặc <em>bằng cách nào</em> X tác động đến Y; moderator (biến điều tiết) giải thích <em>khi nào</em> hoặc <em>với ai</em> một mối quan hệ mạnh hơn hay yếu hơn. <strong>Moderated mediation (trung gian có điều tiết)</strong> kết hợp cả hai câu hỏi: liệu độ mạnh của một hiệu ứng <em>gián tiếp</em> có phụ thuộc vào một biến điều tiết hay không? AI-SEM tự động phát hiện trường hợp này bất cứ khi nào mô hình có một đường đi trung gian (X → M → Y) mà đúng một đoạn (edge) của nó là đích của một biến tương tác, và báo cáo <strong>Index of Moderated Mediation</strong> của Hayes (2015) — độ dốc của hiệu ứng gián tiếp theo biến điều tiết, tức là hiệu ứng gián tiếp thay đổi bao nhiêu khi biến điều tiết tăng thêm 1 đơn vị.</p>
     <p>Chỉ số này chỉ áp dụng cho đường đi có <em>đúng một</em> đoạn bị điều tiết. Nếu cả đoạn a lẫn đoạn b của một đường đi cùng bị điều tiết, hiệu ứng gián tiếp trở thành hàm song tuyến tính (bilinear), không còn tuyến tính theo hai biến điều tiết nữa, và Hayes không định nghĩa một chỉ số vô hướng (scalar) duy nhất cho trường hợp đó — chính macro PROCESS của Hayes cũng xử lý trường hợp này theo cách tương tự, bằng hiệu ứng gián tiếp có điều kiện (conditional indirect effects) tính tại các giá trị được chọn của biến điều tiết, thay vì một chỉ số duy nhất.</p>
     <h3>Ví dụ minh hoạ</h3>
     <p>Dùng đúng ký hiệu của Hayes — X (biến dự báo), W (biến điều tiết), M (biến trung gian), Y (biến kết quả) — một mô hình nhỏ với các path <code>X → M</code>, <code>W → M</code>, <code>X × W → M</code> (biến tương tác điều tiết đoạn a), và <code>M → Y</code> cho kết quả:</p>
@@ -367,7 +367,7 @@ Thái độ (ATT)                 <span class="arrow">──▶</span> Ý địn
     <p>Mỗi construct (kể cả biến tương tác nếu có) được hồi quy trên <em>tất cả</em> construct còn lại, bất kể các path cấu trúc đã vẽ, và VIF thu được được so với ngưỡng 3.3 (Kock, 2015) — kỹ thuật full-collinearity của WarpPLS để phát hiện một nhân tố "phương pháp" (method factor) tiềm ẩn duy nhất làm phóng đại toàn bộ phương sai cùng lúc.</p>
     <div class="callout">
       <strong class="label">Ngưỡng 3.3 so với 5</strong>
-      Phần mềm áp dụng đúng ngưỡng nghiêm ngặt VIF ≤ 3.3 của Kock (2015) để gắn nhãn "Đạt/Cảnh báo". Trong khoảng 3.3–5, nhiều tài liệu vẫn xem là "chấp nhận được" theo quy ước VIF tổng quát (Kock &amp; Lynn, 2012) — nhưng UEH-WebSEM sẽ gắn nhãn cảnh báo ngay khi vượt 3.3, không đợi đến 5, nên hãy đọc nhãn "Cảnh báo" trong khoảng này là "cần xem xét thêm" chứ không hẳn là "mô hình có vấn đề nghiêm trọng".
+      Phần mềm áp dụng đúng ngưỡng nghiêm ngặt VIF ≤ 3.3 của Kock (2015) để gắn nhãn "Đạt/Cảnh báo". Trong khoảng 3.3–5, nhiều tài liệu vẫn xem là "chấp nhận được" theo quy ước VIF tổng quát (Kock &amp; Lynn, 2012) — nhưng AI-SEM sẽ gắn nhãn cảnh báo ngay khi vượt 3.3, không đợi đến 5, nên hãy đọc nhãn "Cảnh báo" trong khoảng này là "cần xem xét thêm" chứ không hẳn là "mô hình có vấn đề nghiêm trọng".
     </div>
     <div class="table-wrap"><table>
       <thead><tr><th>Construct</th><th class="num">Full collinearity VIF</th><th>Đánh giá</th></tr></thead>
@@ -468,7 +468,7 @@ Thái độ (ATT)                 <span class="arrow">──▶</span> Ý địn
     </div>
 
     <h2 id="power">12. Power Analysis (mô phỏng Monte Carlo)</h2>
-    <p>Phân tích độ nhạy theo cỡ mẫu (mục 11) đi ngược từ dữ liệu đã có sẵn. <strong>Power Analysis</strong> đi xuôi, trước khi thu thập dữ liệu: với một mô hình quần thể (population model) <em>giả định</em> — hệ số path và loading trung bình kỳ vọng — và một cỡ mẫu ứng viên, xác suất phát hiện đúng từng hiệu ứng ở mức ý nghĩa thống kê là bao nhiêu? Không phần mềm PLS-SEM nào có công thức đóng cho việc này — PLS không có sai số chuẩn kiểu maximum-likelihood để đưa vào công thức — nên UEH-WebSEM trả lời bằng cách nghiêm ngặt duy nhất hiện có: mô phỏng Monte Carlo.</p>
+    <p>Phân tích độ nhạy theo cỡ mẫu (mục 11) đi ngược từ dữ liệu đã có sẵn. <strong>Power Analysis</strong> đi xuôi, trước khi thu thập dữ liệu: với một mô hình quần thể (population model) <em>giả định</em> — hệ số path và loading trung bình kỳ vọng — và một cỡ mẫu ứng viên, xác suất phát hiện đúng từng hiệu ứng ở mức ý nghĩa thống kê là bao nhiêu? Không phần mềm PLS-SEM nào có công thức đóng cho việc này — PLS không có sai số chuẩn kiểu maximum-likelihood để đưa vào công thức — nên AI-SEM trả lời bằng cách nghiêm ngặt duy nhất hiện có: mô phỏng Monte Carlo.</p>
     <p>Với mỗi cỡ mẫu ứng viên n, lặp lại nhiều lần (n_mc lần mô phỏng):</p>
     <ol>
       <li>Sinh một bộ dữ liệu tổng hợp cỡ n từ các hệ số path và loading trung bình bạn khai báo (chỉ áp dụng cho indicator reflective).</li>
@@ -573,7 +573,7 @@ Thái độ (ATT)                 <span class="arrow">──▶</span> Ý địn
   </main>
 </div>
 
-<footer class="doc-footer">© 2026 UEH-WebSEM — Trường Đại học Kinh tế TP. Hồ Chí Minh (UEH). Toàn bộ số liệu ví dụ trên trang này là kết quả thật, xuất ra từ bộ dữ liệu mẫu TAM có sẵn trong ứng dụng.</footer>
+<footer class="doc-footer">AI-SEM - Open source for everyone. Toàn bộ số liệu ví dụ trên trang này là kết quả thật, xuất ra từ bộ dữ liệu mẫu TAM có sẵn trong ứng dụng.</footer>
 
 </body>
 </html>

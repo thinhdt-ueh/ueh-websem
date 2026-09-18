@@ -53,8 +53,9 @@ body {
 }
 
 .brand-logo { height: 34px; width: auto; flex-shrink: 0; }
-.brand { font-weight: 700; font-size: 18px; }
+.brand { font-weight: 700; font-size: 18px; display: flex; flex-direction: column; line-height: 1.15; }
 .brand span { color: var(--primary); }
+.brand-slogan { font-weight: 400; font-size: 11px; color: var(--muted); letter-spacing: .02em; }
 
 .steps { display: flex; gap: 6px; flex: 1; }
 .step-btn {
@@ -389,6 +390,7 @@ textarea.ai-gen-prompt-preview { color: var(--text); resize: vertical; max-heigh
   .topbar { flex-wrap: wrap; gap: 8px 12px; padding: 10px 14px; }
   .brand-logo { height: 26px; }
   .brand { font-size: 15px; }
+  .brand-slogan { display: none; }
   .steps { order: 3; flex-basis: 100%; justify-content: space-between; gap: 4px; }
   .step-btn { flex: 1; padding: 7px 4px; font-size: 12.5px; text-align: center; }
   #sampleBtn { font-size: 12.5px; padding: 7px 10px; }

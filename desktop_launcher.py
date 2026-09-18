@@ -11,6 +11,7 @@ onefile temp extraction directory, which is deleted when the process exits.
 
 from __future__ import annotations
 
+import logging
 import os
 import socket
 import sys
@@ -24,7 +25,7 @@ PORT = 5000
 
 def _persistent_upload_dir() -> str:
     root = os.environ.get("LOCALAPPDATA") or os.path.expanduser("~")
-    path = os.path.join(root, "UEH-WebSEM", "uploads")
+    path = os.path.join(root, "AI-SEM", "uploads")
     os.makedirs(path, exist_ok=True)
     return path
 
@@ -56,7 +57,20 @@ def main():
 
     threading.Thread(target=_open_browser_when_ready, daemon=True).start()
 
-    print(f"UEH-WebSEM is starting at http://{HOST}:{PORT}/")
+    # Werkzeug's own startup banner ("WARNING: This is a development
+    # server...") and per-request access log both log at INFO through the
+    # "werkzeug" logger -- appropriate noise for local web development, but
+    # this is the packaged offline desktop build, so it just makes the
+    # finished product's console window look like an unfinished test run.
+    logging.getLogger("werkzeug").setLevel(logging.ERROR)
+    # Flask's own " * Serving Flask app '...'" / " * Debug mode: off" lines
+    # are printed directly via click.echo (not through logging), so the
+    # logger-level change above doesn't touch them -- silence them the same
+    # documented way Flask deployment guides do.
+    import flask.cli
+    flask.cli.show_server_banner = lambda *args, **kwargs: None
+
+    print(f"AI-SEM is starting at http://{HOST}:{PORT}/")
     print("Closing this window will stop the server.")
     try:
         app.run(host=HOST, port=PORT, debug=False, use_reloader=False)

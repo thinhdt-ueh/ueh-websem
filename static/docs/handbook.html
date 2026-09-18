@@ -1,5 +1,5 @@
-<title>UEH-WebSEM Handbook</title>
-<meta name="description" content="Bilingual theory and practice handbook for the UEH-WebSEM PLS-SEM/CB-SEM software.">
+<title>AI-SEM Handbook</title>
+<meta name="description" content="Bilingual theory and practice handbook for the AI-SEM PLS-SEM/CB-SEM software.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,500;8..60,600;8..60,700&family=Be+Vietnam+Pro:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
 <style>
@@ -170,11 +170,11 @@ td .stat{font-weight:600;}
 
 <div class="topbar">
   <button class="menu-btn" id="menuBtn" aria-label="Toggle chapter list">☰</button>
-  <div class="topbar-brand">UEH-WebSEM <small>Handbook</small></div>
+  <div class="topbar-brand">AI-SEM <small>Handbook</small></div>
   <div class="spacer"></div>
   <div class="lang-toggle" role="group" aria-label="Language">
-    <button id="btnVi" aria-pressed="true">Tiếng Việt</button>
-    <button id="btnEn" aria-pressed="false">English</button>
+    <button id="btnVi" aria-pressed="false">Tiếng Việt</button>
+    <button id="btnEn" aria-pressed="true">English</button>
   </div>
 </div>
 
@@ -189,7 +189,7 @@ td .stat{font-weight:600;}
 <div class="shell">
 <nav class="sidebar" id="sidebar">
   <div class="side-part vi">Phần 0 — Giới thiệu</div><div class="side-part en">Part 0 — Introduction</div>
-  <a class="side-link" href="#ch1"><span class="side-num">1</span><span class="vi">UEH-WebSEM là gì</span><span class="en">What is UEH-WebSEM</span></a>
+  <a class="side-link" href="#ch1"><span class="side-num">1</span><span class="vi">AI-SEM là gì</span><span class="en">What is AI-SEM</span></a>
   <a class="side-link" href="#ch2"><span class="side-num">2</span><span class="vi">Cài đặt &amp; khởi chạy</span><span class="en">Install &amp; launch</span></a>
 
   <div class="side-part vi">Phần 1 — Nền tảng lý thuyết SEM</div><div class="side-part en">Part 1 — SEM foundations</div>
@@ -247,9 +247,9 @@ td .stat{font-weight:600;}
 
 <article class="chapter" id="ch1">
   <div class="chapter-eyebrow">01</div>
-  <h3 class="vi">UEH-WebSEM là gì</h3><h3 class="en">What is UEH-WebSEM</h3>
-  <p class="vi">UEH-WebSEM là phần mềm phân tích Mô hình phương trình cấu trúc (Structural Equation Modeling — SEM) chạy trên nền web, hỗ trợ đồng thời hai hướng ước lượng phổ biến nhất trong nghiên cứu khoa học xã hội và quản trị kinh doanh: <strong>PLS-SEM</strong> (Partial Least Squares SEM) và <strong>CB-SEM</strong> (Covariance-Based SEM). Phần mềm cho phép tải dữ liệu khảo sát, xây dựng mô hình đo lường và mô hình cấu trúc bằng thao tác kéo-thả trực quan, chạy ước lượng, đọc kết quả kèm diễn giải, và xuất báo cáo — kể cả báo cáo do AI viết — mà không cần cài đặt phần mềm thống kê chuyên dụng hay biết lập trình.</p>
-  <p class="en">UEH-WebSEM is a browser-based Structural Equation Modeling (SEM) analysis tool that supports both major estimation traditions used in social-science and business research: <strong>PLS-SEM</strong> (Partial Least Squares SEM) and <strong>CB-SEM</strong> (Covariance-Based SEM). It lets you upload survey data, build a measurement and structural model with a visual drag-and-drop canvas, run the estimation, read the annotated results, and export a report — including one drafted by AI — without installing dedicated statistical software or writing code.</p>
+  <h3 class="vi">AI-SEM là gì</h3><h3 class="en">What is AI-SEM</h3>
+  <p class="vi">AI-SEM là phần mềm phân tích Mô hình phương trình cấu trúc (Structural Equation Modeling — SEM) chạy trên nền web, hỗ trợ đồng thời hai hướng ước lượng phổ biến nhất trong nghiên cứu khoa học xã hội và quản trị kinh doanh: <strong>PLS-SEM</strong> (Partial Least Squares SEM) và <strong>CB-SEM</strong> (Covariance-Based SEM). Phần mềm cho phép tải dữ liệu khảo sát, xây dựng mô hình đo lường và mô hình cấu trúc bằng thao tác kéo-thả trực quan, chạy ước lượng, đọc kết quả kèm diễn giải, và xuất báo cáo — kể cả báo cáo do AI viết — mà không cần cài đặt phần mềm thống kê chuyên dụng hay biết lập trình.</p>
+  <p class="en">AI-SEM is a browser-based Structural Equation Modeling (SEM) analysis tool that supports both major estimation traditions used in social-science and business research: <strong>PLS-SEM</strong> (Partial Least Squares SEM) and <strong>CB-SEM</strong> (Covariance-Based SEM). It lets you upload survey data, build a measurement and structural model with a visual drag-and-drop canvas, run the estimation, read the annotated results, and export a report — including one drafted by AI — without installing dedicated statistical software or writing code.</p>
   <p class="vi">Bên cạnh lõi phân tích SEM, phần mềm còn tích hợp: phân tích độ nhạy theo cỡ mẫu, phân tích lực kiểm định (Power Analysis), so sánh với các thuật toán học máy để đối chiếu mức độ quan trọng của biến, và tính năng sinh báo cáo học thuật bằng AI (OpenAI, Gemini, hoặc Claude) dùng chính khoá API của người dùng.</p>
   <p class="en">Beyond the SEM core, it also bundles: sample-size sensitivity analysis, statistical power analysis, a machine-learning comparison to cross-check variable importance, and an AI report generator (OpenAI, Gemini, or Claude) that runs on your own API key.</p>
   <p class="vi">Tài liệu này dành cho sinh viên, học viên cao học, nghiên cứu sinh và giảng viên đang thực hiện nghiên cứu định lượng dùng SEM — đã có nền tảng phương pháp nghiên cứu nhưng chưa quen thao tác trên phần mềm này.</p>
@@ -259,18 +259,18 @@ td .stat{font-weight:600;}
 <article class="chapter" id="ch2">
   <div class="chapter-eyebrow">02</div>
   <h3 class="vi">Cài đặt &amp; khởi chạy</h3><h3 class="en">Install &amp; launch</h3>
-  <p class="vi">UEH-WebSEM chạy theo ba cách, tuỳ môi trường sử dụng:</p>
-  <p class="en">UEH-WebSEM runs in three ways, depending on your environment:</p>
+  <p class="vi">AI-SEM chạy theo ba cách, tuỳ môi trường sử dụng:</p>
+  <p class="en">AI-SEM runs in three ways, depending on your environment:</p>
   <ul>
     <li class="vi"><strong>Chạy trực tiếp trên trình duyệt (bản Web):</strong> kích hoạt virtual environment rồi chạy <code>app.py</code> (Flask); phần mềm phục vụ tại <code>http://127.0.0.1:5000/</code>.</li>
     <li class="en"><strong>Directly in the browser (Web build):</strong> activate the virtual environment and run <code>app.py</code> (Flask); the app serves at <code>http://127.0.0.1:5000/</code>.</li>
     <li class="vi"><strong>Bằng Docker:</strong> <code>docker build -t ueh-websem .</code> rồi <code>docker run -p 5000:5000 ueh-websem</code> — phù hợp triển khai trên máy chủ không cài Python.</li>
     <li class="en"><strong>Via Docker:</strong> <code>docker build -t ueh-websem .</code> then <code>docker run -p 5000:5000 ueh-websem</code> — suited to servers with no Python installed.</li>
-    <li class="vi"><strong>File thực thi độc lập (.exe, Windows):</strong> chạy <code>UEH-WebSEM.exe</code> — tự khởi động máy chủ cục bộ và mở trình duyệt mặc định, không cần Python.</li>
-    <li class="en"><strong>Standalone executable (.exe, Windows):</strong> run <code>UEH-WebSEM.exe</code> — it starts a local server and opens your default browser, no Python required.</li>
+    <li class="vi"><strong>File thực thi độc lập (.exe, Windows):</strong> chạy <code>AI-SEM.exe</code> — tự khởi động máy chủ cục bộ và mở trình duyệt mặc định, không cần Python.</li>
+    <li class="en"><strong>Standalone executable (.exe, Windows):</strong> run <code>AI-SEM.exe</code> — it starts a local server and opens your default browser, no Python required.</li>
   </ul>
   <figure class="fig">
-    <img data-src="01_home_upload" alt="UEH-WebSEM home screen">
+    <img data-src="01_home_upload" alt="AI-SEM home screen">
     <figcaption><span class="vi">Hình 2.1 — Giao diện trang chủ ngay sau khi khởi động, sẵn sàng tải dữ liệu.</span><span class="en">Figure 2.1 — The home screen right after launch, ready for data.</span></figcaption>
   </figure>
 </article>
@@ -304,8 +304,8 @@ td .stat{font-weight:600;}
     </tbody>
   </table></div>
 
-  <p class="vi">Reinartz, Haenlein và Henseler (2009) so sánh thực nghiệm hiệu quả hai phương pháp và kết luận lựa chọn nên dựa trên mục tiêu nghiên cứu và đặc điểm dữ liệu hơn là ưu tiên tuyệt đối một phương pháp. UEH-WebSEM cho phép chạy <strong>cả hai</strong> trên cùng một mô hình đã xây dựng để đối chiếu kết quả khi cần.</p>
-  <p class="en">Reinartz, Haenlein, and Henseler (2009) empirically compared the two approaches and concluded the choice should follow the research goal and data characteristics rather than a blanket preference. UEH-WebSEM lets you run <strong>both</strong> on the same model so you can cross-check results when needed.</p>
+  <p class="vi">Reinartz, Haenlein và Henseler (2009) so sánh thực nghiệm hiệu quả hai phương pháp và kết luận lựa chọn nên dựa trên mục tiêu nghiên cứu và đặc điểm dữ liệu hơn là ưu tiên tuyệt đối một phương pháp. AI-SEM cho phép chạy <strong>cả hai</strong> trên cùng một mô hình đã xây dựng để đối chiếu kết quả khi cần.</p>
+  <p class="en">Reinartz, Haenlein, and Henseler (2009) empirically compared the two approaches and concluded the choice should follow the research goal and data characteristics rather than a blanket preference. AI-SEM lets you run <strong>both</strong> on the same model so you can cross-check results when needed.</p>
 
   <h4 class="vi">Vì sao lựa chọn này lại quan trọng, không chỉ là "sở thích"</h4><h4 class="en">Why this choice matters — it isn't just a matter of taste</h4>
   <p class="vi">Nhiều người mới học SEM chọn PLS-SEM chỉ vì "phần mềm dễ dùng hơn" hoặc "thầy/cô hướng dẫn quen dùng" — đó là lý do sai. Hãy tự hỏi một câu duy nhất trước khi bắt đầu: <em>Câu hỏi nghiên cứu của tôi là "mô hình này có đúng không?" (kiểm định), hay "yếu tố nào giải thích/dự báo tốt nhất kết quả Y?" (dự báo, khám phá)?</em> Nếu là câu đầu và bạn có cơ sở lý thuyết vững, cỡ mẫu đủ lớn, dữ liệu gần chuẩn — CB-SEM cho câu trả lời chặt chẽ hơn nhờ có chỉ số độ khớp mô hình (model fit) mà PLS-SEM không có. Nếu là câu sau, hoặc bạn đang ở giai đoạn đầu xây dựng lý thuyết mới, cỡ mẫu hạn chế (khảo sát thực địa thường khó đạt n &gt; 200), hoặc mô hình có nhiều construct/đường dẫn phức tạp — PLS-SEM phù hợp hơn vì thuật toán của nó được thiết kế để tối đa hoá khả năng dự báo trong đúng những điều kiện "không lý tưởng" đó.</p>
@@ -326,15 +326,15 @@ td .stat{font-weight:600;}
     <p class="vi">Construct "Sự hài lòng" đo bằng 3 câu hỏi Likert 1–7: <span class="mono">HL1 "Tôi hài lòng nói chung"</span>, <span class="mono">HL2 "Trải nghiệm vượt mong đợi"</span>, <span class="mono">HL3 "Tôi sẽ giới thiệu cho người khác"</span> — đây là reflective, vì cả ba câu đều là "triệu chứng" của cùng một cảm xúc hài lòng, tương quan cao, bỏ HL3 không đổi ý nghĩa "hài lòng". Ngược lại, construct "Chỉ số kinh tế hộ gia đình" đo bằng <span class="mono">Thu nhập</span>, <span class="mono">Chi tiêu</span>, <span class="mono">Tài sản</span> là formative — ba thành phần này có thể không tương quan nhau, nhưng thiếu một thành phần thì "chỉ số kinh tế" không còn đầy đủ.</p>
     <p class="en">A "Satisfaction" construct measured by three 7-point items: <span class="mono">SAT1 "Overall I am satisfied"</span>, <span class="mono">SAT2 "The experience exceeded expectations"</span>, <span class="mono">SAT3 "I would recommend this to others"</span> — this is reflective: all three are "symptoms" of the same underlying feeling, highly correlated, and dropping SAT3 doesn't change what "satisfaction" means. By contrast, a "Household economic index" built from <span class="mono">Income</span>, <span class="mono">Spending</span>, <span class="mono">Assets</span> is formative — the three components need not correlate, but losing one leaves the "index" incomplete.</p>
   </div>
-  <p class="vi">UEH-WebSEM hiện hỗ trợ đầy đủ bộ tiêu chí đánh giá cho mô hình đo lường reflective — loại phổ biến nhất trong nghiên cứu hành vi/quản trị.</p>
-  <p class="en">UEH-WebSEM currently ships the full evaluation toolkit for reflective measurement models — the type most common in behavioral and management research.</p>
+  <p class="vi">AI-SEM hiện hỗ trợ đầy đủ bộ tiêu chí đánh giá cho mô hình đo lường reflective — loại phổ biến nhất trong nghiên cứu hành vi/quản trị.</p>
+  <p class="en">AI-SEM currently ships the full evaluation toolkit for reflective measurement models — the type most common in behavioral and management research.</p>
 </article>
 
 <article class="chapter" id="ch5">
   <div class="chapter-eyebrow">05</div>
   <h3 class="vi">Quy trình đánh giá mô hình PLS-SEM chuẩn</h3><h3 class="en">The standard PLS-SEM evaluation flow</h3>
-  <p class="vi">Hair và cộng sự (2022, 2019) đề xuất đánh giá kết quả PLS-SEM theo hai bước bắt buộc, tuần tự: <strong>Bước 1</strong> — đánh giá mô hình đo lường (độ tin cậy, giá trị hội tụ, giá trị phân biệt); chỉ khi đạt yêu cầu mới sang <strong>Bước 2</strong> — đánh giá mô hình cấu trúc (đa cộng tuyến, hệ số đường dẫn, R², f², Q²). UEH-WebSEM trình bày kết quả đúng trình tự này, để tránh diễn giải hệ số đường dẫn khi thang đo chưa đạt độ tin cậy.</p>
-  <p class="en">Hair et al. (2022, 2019) prescribe a mandatory two-step sequence for evaluating PLS-SEM results: <strong>Step 1</strong> — assess the measurement model (reliability, convergent validity, discriminant validity); only once that passes do you move to <strong>Step 2</strong> — assess the structural model (collinearity, path coefficients, R², f², Q²). UEH-WebSEM lays out results in exactly this order, so you're never tempted to read a path coefficient before the scale behind it has been shown reliable.</p>
+  <p class="vi">Hair và cộng sự (2022, 2019) đề xuất đánh giá kết quả PLS-SEM theo hai bước bắt buộc, tuần tự: <strong>Bước 1</strong> — đánh giá mô hình đo lường (độ tin cậy, giá trị hội tụ, giá trị phân biệt); chỉ khi đạt yêu cầu mới sang <strong>Bước 2</strong> — đánh giá mô hình cấu trúc (đa cộng tuyến, hệ số đường dẫn, R², f², Q²). AI-SEM trình bày kết quả đúng trình tự này, để tránh diễn giải hệ số đường dẫn khi thang đo chưa đạt độ tin cậy.</p>
+  <p class="en">Hair et al. (2022, 2019) prescribe a mandatory two-step sequence for evaluating PLS-SEM results: <strong>Step 1</strong> — assess the measurement model (reliability, convergent validity, discriminant validity); only once that passes do you move to <strong>Step 2</strong> — assess the structural model (collinearity, path coefficients, R², f², Q²). AI-SEM lays out results in exactly this order, so you're never tempted to read a path coefficient before the scale behind it has been shown reliable.</p>
 </article>
 
 <section class="part-divider">
@@ -365,8 +365,8 @@ td .stat{font-weight:600;}
 <article class="chapter" id="ch8">
   <div class="chapter-eyebrow">08</div>
   <h3 class="vi">Xây dựng mô hình</h3><h3 class="en">Building the model</h3>
-  <p class="vi">UEH-WebSEM cung cấp một canvas trực quan: bấm "+ Construct" để thêm một biến tiềm ẩn, gán các indicator (cột dữ liệu) tương ứng, rồi bấm "↗ Vẽ đường dẫn (Path)" và chọn lần lượt hai construct để vẽ một đường dẫn cấu trúc giữa chúng.</p>
-  <p class="en">UEH-WebSEM ships a visual canvas: click "+ Construct" to add a latent variable, assign it the matching indicators (data columns), then click "↗ Draw path" and select two constructs in turn to draw a structural path between them.</p>
+  <p class="vi">AI-SEM cung cấp một canvas trực quan: bấm "+ Construct" để thêm một biến tiềm ẩn, gán các indicator (cột dữ liệu) tương ứng, rồi bấm "↗ Vẽ đường dẫn (Path)" và chọn lần lượt hai construct để vẽ một đường dẫn cấu trúc giữa chúng.</p>
+  <p class="en">AI-SEM ships a visual canvas: click "+ Construct" to add a latent variable, assign it the matching indicators (data columns), then click "↗ Draw path" and select two constructs in turn to draw a structural path between them.</p>
   <figure class="fig">
     <img data-src="03_model_canvas" alt="Model builder canvas">
     <figcaption><span class="vi">Hình 8.1 — Canvas xây dựng mô hình.</span><span class="en">Figure 8.1 — The model-building canvas.</span></figcaption>
@@ -377,8 +377,8 @@ td .stat{font-weight:600;}
   </figure>
 
   <h4 class="vi">8.1 Thêm biến điều tiết (moderator)</h4><h4 class="en">8.1 Adding a moderator</h4>
-  <p class="vi">Biến điều tiết trong UEH-WebSEM không phải là một construct thông thường "gán lên" một path có sẵn — nó là một loại đo lường riêng gọi là <strong>Biến tương tác</strong> (Interaction, A × B), luôn là tích chuẩn hoá của hai construct <em>đã tồn tại</em> trong mô hình, theo phương pháp Two-Stage Approach chuẩn <cite class="ref">(Henseler &amp; Chin, 2010)</cite>. Các bước cụ thể:</p>
-  <p class="en">A moderator in UEH-WebSEM isn't an ordinary construct "attached to" an existing path — it's a distinct measurement type called an <strong>Interaction term</strong> (A × B), always the standardized product of two constructs <em>already in the model</em>, following the standard two-stage approach <cite class="ref">(Henseler &amp; Chin, 2010)</cite>. The steps:</p>
+  <p class="vi">Biến điều tiết trong AI-SEM không phải là một construct thông thường "gán lên" một path có sẵn — nó là một loại đo lường riêng gọi là <strong>Biến tương tác</strong> (Interaction, A × B), luôn là tích chuẩn hoá của hai construct <em>đã tồn tại</em> trong mô hình, theo phương pháp Two-Stage Approach chuẩn <cite class="ref">(Henseler &amp; Chin, 2010)</cite>. Các bước cụ thể:</p>
+  <p class="en">A moderator in AI-SEM isn't an ordinary construct "attached to" an existing path — it's a distinct measurement type called an <strong>Interaction term</strong> (A × B), always the standardized product of two constructs <em>already in the model</em>, following the standard two-stage approach <cite class="ref">(Henseler &amp; Chin, 2010)</cite>. The steps:</p>
   <ol>
     <li class="vi">Đảm bảo cả hai construct nguồn (biến dự báo và biến điều tiết) đã có sẵn trong mô hình, mỗi construct đều đã có một đường dẫn trực tiếp riêng đến construct sẽ bị điều tiết.</li>
     <li class="en">Make sure both source constructs (the predictor and the moderator) already exist in the model, each already carrying its own direct path to the construct being moderated.</li>
@@ -417,8 +417,8 @@ td .stat{font-weight:600;}
 <article class="chapter" id="ch9">
   <div class="chapter-eyebrow">09</div>
   <h3 class="vi">Chọn phương pháp ước lượng &amp; cấu hình Bootstrapping</h3><h3 class="en">Choosing the estimator &amp; configuring bootstrapping</h3>
-  <p class="vi">Vì PLS-SEM không giả định phân phối, ý nghĩa thống kê (p-value) của hệ số đường dẫn không dùng công thức giải tích như OLS mà dùng <strong>Bootstrapping</strong> — lấy lại mẫu có hoàn lại nhiều nghìn lần từ dữ liệu gốc để ước lượng sai số chuẩn và khoảng tin cậy của từng hệ số <cite class="ref">(Preacher &amp; Hayes, 2008; Hair và cộng sự, 2022)</cite>. Số lần lặp khuyến nghị tối thiểu 5.000; UEH-WebSEM cho chọn từ 100 đến vài nghìn lần tuỳ nhu cầu tốc độ/độ chính xác. Với CB-SEM, sai số chuẩn/p-value đã tính sẵn theo Maximum Likelihood, không cần bootstrapping.</p>
-  <p class="en">Because PLS-SEM makes no distributional assumption, the significance (p-value) of a path coefficient isn't derived analytically the way OLS does it — it comes from <strong>bootstrapping</strong>: resampling the original data with replacement thousands of times to estimate each coefficient's standard error and confidence interval <cite class="ref">(Preacher &amp; Hayes, 2008; Hair et al., 2022)</cite>. The recommended minimum is 5,000 subsamples; UEH-WebSEM lets you pick anywhere from 100 up to a few thousand, trading speed for precision. CB-SEM already gets its standard errors/p-values from Maximum Likelihood theory, so no bootstrapping step is needed there.</p>
+  <p class="vi">Vì PLS-SEM không giả định phân phối, ý nghĩa thống kê (p-value) của hệ số đường dẫn không dùng công thức giải tích như OLS mà dùng <strong>Bootstrapping</strong> — lấy lại mẫu có hoàn lại nhiều nghìn lần từ dữ liệu gốc để ước lượng sai số chuẩn và khoảng tin cậy của từng hệ số <cite class="ref">(Preacher &amp; Hayes, 2008; Hair và cộng sự, 2022)</cite>. Số lần lặp khuyến nghị tối thiểu 5.000; AI-SEM cho chọn từ 100 đến vài nghìn lần tuỳ nhu cầu tốc độ/độ chính xác. Với CB-SEM, sai số chuẩn/p-value đã tính sẵn theo Maximum Likelihood, không cần bootstrapping.</p>
+  <p class="en">Because PLS-SEM makes no distributional assumption, the significance (p-value) of a path coefficient isn't derived analytically the way OLS does it — it comes from <strong>bootstrapping</strong>: resampling the original data with replacement thousands of times to estimate each coefficient's standard error and confidence interval <cite class="ref">(Preacher &amp; Hayes, 2008; Hair et al., 2022)</cite>. The recommended minimum is 5,000 subsamples; AI-SEM lets you pick anywhere from 100 up to a few thousand, trading speed for precision. CB-SEM already gets its standard errors/p-values from Maximum Likelihood theory, so no bootstrapping step is needed there.</p>
   <p class="vi"><strong>Vì sao điều này quan trọng:</strong> hãy tưởng tượng bạn chỉ có MỘT mẫu khảo sát (250 người) nhưng muốn biết "nếu tôi lặp lại khảo sát này với 250 người khác từ cùng tổng thể, hệ số đường dẫn sẽ dao động trong khoảng nào?". Bootstrapping mô phỏng chính xác câu hỏi đó mà không cần thực sự đi khảo sát lại: nó coi mẫu 250 người của bạn như một "tổng thể thu nhỏ", rồi rút ngẫu nhiên (có hoàn lại) hàng nghìn "mẫu giả lập" 250 người từ chính tập dữ liệu đó, tính lại hệ số đường dẫn mỗi lần. Nếu hệ số đó dao động rất nhiều qua các lần lấy mẫu lại (độ lệch chuẩn bootstrap lớn), bạn nên nghi ngờ độ ổn định của nó — dù giá trị trung bình có thể trông "đẹp". Số lần lặp (5.000 so với 500) ảnh hưởng đến ĐỘ CHÍNH XÁC của ước lượng sai số này: quá ít lần lặp có thể cho một khoảng tin cậy "may rủi", đổi kết luận có ý nghĩa/không ý nghĩa chỉ vì chạy lại với random seed khác.</p>
   <p class="en"><strong>Why this matters:</strong> imagine you only have ONE survey sample (250 people) but want to know "if I repeated this survey with 250 different people from the same population, how much would the path coefficient vary?" Bootstrapping simulates exactly that question without actually going back into the field: it treats your 250-person sample as a stand-in "mini population," then draws thousands of simulated "resamples" of 250 (with replacement) from that same dataset, recomputing the path coefficient each time. If the coefficient swings wildly across resamples (a large bootstrap standard deviation), you should be suspicious of its stability — even if the average value looks "nice." The number of repetitions (5,000 versus 500) affects how PRECISE that error estimate is: too few repetitions can produce a "lucky" confidence interval that flips your significant/non-significant conclusion just by rerunning with a different random seed.</p>
   <figure class="fig">
@@ -458,7 +458,7 @@ td .stat{font-weight:600;}
 
   <figure class="fig">
     <img data-src="07_reliability_table" alt="Reliability and convergent validity table">
-    <figcaption><span class="vi">Hình 10.1 — Bảng độ tin cậy &amp; giá trị hội tụ do UEH-WebSEM tính toán.</span><span class="en">Figure 10.1 — Reliability &amp; convergent validity table computed by UEH-WebSEM.</span></figcaption>
+    <figcaption><span class="vi">Hình 10.1 — Bảng độ tin cậy &amp; giá trị hội tụ do AI-SEM tính toán.</span><span class="en">Figure 10.1 — Reliability &amp; convergent validity table computed by AI-SEM.</span></figcaption>
   </figure>
   <figure class="fig">
     <img data-src="08_outer_loadings" alt="Outer loadings table">
@@ -532,8 +532,8 @@ td .stat{font-weight:600;}
     <p class="vi">Full Collinearity VIF ≤ <span class="stat">3.3</span> cho mọi construct: <strong>lý tưởng</strong>, xem như không có dấu hiệu CMB <cite class="ref">(Kock, 2015)</cite>. VIF trong khoảng 3.3–<span class="stat">5</span> vẫn thường được xem là <strong>chấp nhận được</strong> theo quy ước VIF tổng quát (Hair và cộng sự, 2019; Kock &amp; Lynn, 2012); VIF &gt; 5 là dấu hiệu đáng lo ngại.</p>
     <p class="en">Full collinearity VIF ≤ <span class="stat">3.3</span> for every construct: <strong>ideal</strong>, treated as no sign of CMB <cite class="ref">(Kock, 2015)</cite>. VIF between 3.3 and <span class="stat">5</span> is still commonly treated as <strong>acceptable</strong> under the general VIF convention (Hair et al., 2019; Kock &amp; Lynn, 2012); VIF &gt; 5 is a genuine concern.</p>
   </div>
-  <p class="vi"><em>Lưu ý: UEH-WebSEM áp dụng đúng ngưỡng nghiêm ngặt của Kock (2015) — nhãn "cảnh báo" trong bảng dưới đây bật lên ngay khi VIF &gt; 3.3, không đợi đến 5. Khoảng 3.3–5 vẫn nên được đọc là "còn chấp nhận được, nhưng nên xem xét thêm", chứ không phải "đã đạt".</em></p>
-  <p class="en"><em>Note: UEH-WebSEM applies Kock's (2015) strict cutoff exactly — the "warning" label in the table below triggers as soon as VIF &gt; 3.3, not at 5. A value in the 3.3–5 range should still be read as "acceptable, but worth a closer look," not as an outright pass.</em></p>
+  <p class="vi"><em>Lưu ý: AI-SEM áp dụng đúng ngưỡng nghiêm ngặt của Kock (2015) — nhãn "cảnh báo" trong bảng dưới đây bật lên ngay khi VIF &gt; 3.3, không đợi đến 5. Khoảng 3.3–5 vẫn nên được đọc là "còn chấp nhận được, nhưng nên xem xét thêm", chứ không phải "đã đạt".</em></p>
+  <p class="en"><em>Note: AI-SEM applies Kock's (2015) strict cutoff exactly — the "warning" label in the table below triggers as soon as VIF &gt; 3.3, not at 5. A value in the 3.3–5 range should still be read as "acceptable, but worth a closer look," not as an outright pass.</em></p>
   <figure class="fig">
     <img data-src="17_cmb_table" alt="Common method bias table">
     <figcaption><span class="vi">Hình 13.1 — Bảng Common Method Bias — Full Collinearity Test.</span><span class="en">Figure 13.1 — Common method bias — full collinearity test table.</span></figcaption>
@@ -617,8 +617,8 @@ td .stat{font-weight:600;}
 <article class="chapter" id="ch18">
   <div class="chapter-eyebrow">18</div>
   <h3 class="vi">Sơ đồ đường dẫn kết quả (Path Diagram)</h3><h3 class="en">The path diagram</h3>
-  <p class="vi">Sơ đồ đường dẫn tổng hợp trực quan toàn bộ mô hình: construct, indicator, outer loading, hệ số đường dẫn, R² — hình ảnh thường dùng nhất khi trình bày kết quả trong luận văn/bài báo. UEH-WebSEM vẽ sơ đồ này tự động ngay sau khi chạy phân tích và cho phép xuất ảnh trực tiếp.</p>
-  <p class="en">The path diagram brings the whole model together visually: constructs, indicators, outer loadings, path coefficients, R² — the single most commonly reused figure when presenting SEM results in a thesis or paper. UEH-WebSEM draws it automatically right after the analysis runs, ready to export.</p>
+  <p class="vi">Sơ đồ đường dẫn tổng hợp trực quan toàn bộ mô hình: construct, indicator, outer loading, hệ số đường dẫn, R² — hình ảnh thường dùng nhất khi trình bày kết quả trong luận văn/bài báo. AI-SEM vẽ sơ đồ này tự động ngay sau khi chạy phân tích và cho phép xuất ảnh trực tiếp.</p>
+  <p class="en">The path diagram brings the whole model together visually: constructs, indicators, outer loadings, path coefficients, R² — the single most commonly reused figure when presenting SEM results in a thesis or paper. AI-SEM draws it automatically right after the analysis runs, ready to export.</p>
   <figure class="fig">
     <img data-src="06_path_diagram_pls" alt="PLS-SEM path diagram">
     <figcaption><span class="vi">Hình 18.1 — Sơ đồ đường dẫn kết quả PLS-SEM.</span><span class="en">Figure 18.1 — PLS-SEM results path diagram.</span></figcaption>
@@ -736,8 +736,8 @@ td .stat{font-weight:600;}
 <article class="chapter" id="ch24">
   <div class="chapter-eyebrow">24</div>
   <h3 class="vi">Power Analysis</h3><h3 class="en">Power analysis</h3>
-  <p class="vi">Lực kiểm định (statistical power) là xác suất phát hiện đúng một hiệu ứng thực sự tồn tại trong tổng thể (tránh sai lầm loại II). Cohen (1988) khuyến nghị mức lực kiểm định tối thiểu <span class="stat">0.80</span>. Công cụ G*Power <cite class="ref">(Faul và cộng sự, 2007)</cite> là chuẩn tham chiếu phổ biến cho hồi quy/ANOVA; với PLS-SEM, UEH-WebSEM dùng mô phỏng Monte Carlo — lặp lại mô phỏng dữ liệu và chạy mô hình ở từng mức cỡ mẫu để ước lượng thực nghiệm xác suất phát hiện hiệu ứng có ý nghĩa, giúp xác định cỡ mẫu cần thu thập trước khi khảo sát thực tế.</p>
-  <p class="en">Statistical power is the probability of correctly detecting an effect that truly exists in the population (avoiding a Type II error). Cohen (1988) recommended a minimum power of <span class="stat">0.80</span>. The G*Power tool <cite class="ref">(Faul et al., 2007)</cite> is the standard reference for regression/ANOVA; for PLS-SEM, UEH-WebSEM uses Monte Carlo simulation — repeatedly simulating data and running the model at each sample size to empirically estimate the probability of detecting a significant effect, letting you determine the sample size to target before fielding the real survey.</p>
+  <p class="vi">Lực kiểm định (statistical power) là xác suất phát hiện đúng một hiệu ứng thực sự tồn tại trong tổng thể (tránh sai lầm loại II). Cohen (1988) khuyến nghị mức lực kiểm định tối thiểu <span class="stat">0.80</span>. Công cụ G*Power <cite class="ref">(Faul và cộng sự, 2007)</cite> là chuẩn tham chiếu phổ biến cho hồi quy/ANOVA; với PLS-SEM, AI-SEM dùng mô phỏng Monte Carlo — lặp lại mô phỏng dữ liệu và chạy mô hình ở từng mức cỡ mẫu để ước lượng thực nghiệm xác suất phát hiện hiệu ứng có ý nghĩa, giúp xác định cỡ mẫu cần thu thập trước khi khảo sát thực tế.</p>
+  <p class="en">Statistical power is the probability of correctly detecting an effect that truly exists in the population (avoiding a Type II error). Cohen (1988) recommended a minimum power of <span class="stat">0.80</span>. The G*Power tool <cite class="ref">(Faul et al., 2007)</cite> is the standard reference for regression/ANOVA; for PLS-SEM, AI-SEM uses Monte Carlo simulation — repeatedly simulating data and running the model at each sample size to empirically estimate the probability of detecting a significant effect, letting you determine the sample size to target before fielding the real survey.</p>
   <p class="vi"><strong>Vì sao điều này quan trọng:</strong> "không tìm thấy ý nghĩa thống kê" (p &gt; 0.05) thường bị hiểu nhầm là "bằng chứng cho thấy không có tác động" — nhưng thực ra nó có thể chỉ đơn giản là "mẫu của bạn quá nhỏ để phát hiện ra tác động dù nó thực sự tồn tại". Đây gọi là sai lầm loại II, và lực kiểm định chính là xác suất TRÁNH được sai lầm này. Nếu lực kiểm định của bạn chỉ là 0.50, nghĩa là ngay cả khi giả thuyết của bạn hoàn toàn đúng trong thực tế, có tới 50% khả năng nghiên cứu của bạn vẫn sẽ cho ra kết quả "không có ý nghĩa thống kê" — không phải vì lý thuyết sai, mà vì thiết kế nghiên cứu (cỡ mẫu) không đủ mạnh để phát hiện nó. Chạy Power Analysis trước khi thu thập dữ liệu là cách duy nhất để tránh rơi vào tình huống "tốn công sức khảo sát nhưng gần như chắc chắn sẽ không phát hiện được gì, kể cả khi lý thuyết đúng".</p>
   <p class="en"><strong>Why this matters:</strong> "no statistically significant result" (p &gt; 0.05) is often misread as "evidence that there's no effect" — but it can simply mean "your sample was too small to detect the effect, even though it genuinely exists." This is called a Type II error, and statistical power is precisely the probability of AVOIDING it. If your power is only 0.50, it means that even if your hypothesis is completely true in reality, there's a 50% chance your study will still come back "not statistically significant" — not because the theory is wrong, but because the study design (sample size) wasn't strong enough to detect it. Running Power Analysis before collecting data is the only way to avoid the situation of "spending all that fieldwork effort on a study that was almost certain to detect nothing, even if the theory were correct."</p>
   <figure class="fig">
@@ -953,8 +953,8 @@ td .stat{font-weight:600;}
 </section>
 
 <div class="colophon">
-  <p class="vi">UEH-WebSEM Handbook — biên soạn làm tài liệu hướng dẫn đi kèm phần mềm UEH-WebSEM. Toàn bộ ảnh chụp màn hình lấy trực tiếp từ phần mềm đang chạy với bộ dữ liệu mẫu TAM; nội dung báo cáo AI ở Chương 27 là dữ liệu minh hoạ.</p>
-  <p class="en">UEH-WebSEM Handbook — companion documentation for the UEH-WebSEM software. All screenshots were captured directly from the running application using the sample TAM dataset; the AI-report content shown in Chapter 27 is illustrative placeholder text.</p>
+  <p class="vi">AI-SEM Handbook — biên soạn làm tài liệu hướng dẫn đi kèm phần mềm AI-SEM. Toàn bộ ảnh chụp màn hình lấy trực tiếp từ phần mềm đang chạy với bộ dữ liệu mẫu TAM; nội dung báo cáo AI ở Chương 27 là dữ liệu minh hoạ.</p>
+  <p class="en">AI-SEM Handbook — companion documentation for the AI-SEM software. All screenshots were captured directly from the running application using the sample TAM dataset; the AI-report content shown in Chapter 27 is illustrative placeholder text.</p>
 </div>
 
 </main>
@@ -966,8 +966,8 @@ window.IMAGES = {"01_home_upload":"data:image/webp;base64,UklGRmZuAABXRUJQVlA4IF
 <script>
 (function(){
   var root = document.documentElement;
-  var saved = "vi";
-  try { saved = localStorage.getItem("websem_book_lang") || "vi"; } catch(e){}
+  var saved = "en";
+  try { saved = localStorage.getItem("aisem_book_lang") || "en"; } catch(e){}
   root.setAttribute("data-lang", saved);
   document.getElementById("btnVi").setAttribute("aria-pressed", String(saved==="vi"));
   document.getElementById("btnEn").setAttribute("aria-pressed", String(saved==="en"));
@@ -976,7 +976,7 @@ window.IMAGES = {"01_home_upload":"data:image/webp;base64,UklGRmZuAABXRUJQVlA4IF
     root.setAttribute("data-lang", l);
     document.getElementById("btnVi").setAttribute("aria-pressed", String(l==="vi"));
     document.getElementById("btnEn").setAttribute("aria-pressed", String(l==="en"));
-    try { localStorage.setItem("websem_book_lang", l); } catch(e){}
+    try { localStorage.setItem("aisem_book_lang", l); } catch(e){}
   }
   document.getElementById("btnVi").addEventListener("click", function(){ setLang("vi"); });
   document.getElementById("btnEn").addEventListener("click", function(){ setLang("en"); });
