@@ -79,6 +79,14 @@ body {
 .lang-btn.active { background: var(--primary); color: #fff; }
 .lang-btn:not(.active):hover { background: var(--accent-bg); color: var(--primary); }
 
+.chart-type-switch { display: flex; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; width: fit-content; }
+.chart-type-btn {
+  border: none; background: var(--card); color: var(--muted);
+  padding: 6px 14px; cursor: pointer; font-size: 12.5px; font-weight: 700;
+}
+.chart-type-btn.active { background: var(--primary); color: #fff; }
+.chart-type-btn:not(.active):hover { background: var(--accent-bg); color: var(--primary); }
+
 .btn {
   border: 1px solid var(--border);
   background: var(--card);

@@ -27,6 +27,7 @@ from pls.algorithm import run_pls_algorithm
 from pls.bootstrap import MAX_BOOTSTRAP_SAMPLES, MIN_BOOTSTRAP_SAMPLES, run_bootstrap, run_bootstrap_with_moderation
 from pls.model import Model, ModelError
 from pls.moderation import run_pls_with_moderation
+from pls.power_analysis import MAX_MC_REPLICATES, MIN_MC_REPLICATES
 
 from .api import _read_dataframe, _upload_dir
 
@@ -176,6 +177,90 @@ def sensitivity():
         has_p_values=(method == "cbsem" or n_boot is not None),
         n_boot=n_boot,
         truncated=i > MAX_STEPS,
+        constructs=[
+            {"id": c.id, "name": c.name} for c in model.constructs.values() if c.id in model.endogenous_ids()
+        ],
+        paths=[
+            {"id": f"{p.source}->{p.target}", "source_name": model.constructs[p.source].name,
+             "target_name": model.constructs[p.target].name}
+            for p in model.paths
+        ],
+        points=points,
+    )
+
+
+@sensitivity_api.post("/sensitivity_resample")
+def sensitivity_resample():
+    """Fixes the one gap the step-shrinking sensitivity() above cannot: it
+    only ever draws ONE random subsample per sample size, so point-to-point
+    wiggle is partly just that one draw's own noise (see this module's own
+    reading-guide text on the results page). Here, n is held FIXED at a
+    user-chosen size and redrawn at random (no replacement) n_iterations
+    times, refitting from scratch each time, so the caller can see the
+    actual spread of R²/path coefficients at one sample size -- a proper
+    Monte-Carlo-style stability check rather than a single noisy estimate.
+    """
+    payload = request.get_json(force=True, silent=True) or {}
+    lang = get_lang(payload)
+    file_id = payload.get("file_id")
+    model_payload = payload.get("model") or {}
+    method = payload.get("method") if payload.get("method") in ("pls", "cbsem") else "pls"
+
+    if not file_id:
+        return jsonify(error=t("err_analyze_missing_file_id", lang)), 400
+    matches = [p for p in os.listdir(_upload_dir()) if p.startswith(file_id)]
+    if not matches:
+        return jsonify(error=t("err_analyze_file_not_found", lang)), 404
+    saved_path = os.path.join(_upload_dir(), matches[0])
+
+    try:
+        model = Model.from_json(model_payload, lang=lang)
+    except ModelError as exc:
+        return jsonify(error=str(exc)), 400
+
+    try:
+        df = _read_dataframe(saved_path)
+        indicators = model.all_indicators()
+        df = df[indicators].apply(pd.to_numeric, errors="coerce").dropna()
+    except Exception as exc:  # noqa: BLE001
+        return jsonify(error=t("err_pls_run_error", lang, exc=exc)), 500
+
+    n_total = len(df)
+    min_n = max(MIN_OBSERVATIONS_FLOOR, len(indicators) + 5)
+
+    try:
+        new_n = int(payload.get("new_n"))
+    except (TypeError, ValueError):
+        new_n = -1
+    if new_n < min_n or new_n >= n_total:
+        return jsonify(error=t("err_sensitivity_invalid_new_n", lang, n=n_total, min=min_n)), 400
+
+    try:
+        n_iterations = int(payload.get("n_iterations", MIN_MC_REPLICATES))
+    except (TypeError, ValueError):
+        n_iterations = MIN_MC_REPLICATES
+    n_iterations = max(MIN_MC_REPLICATES, min(MAX_MC_REPLICATES, n_iterations))
+
+    rng = np.random.default_rng(42)
+    points = []
+    for i in range(1, n_iterations + 1):
+        idx = rng.choice(n_total, size=new_n, replace=False)
+        sub_df = df.iloc[idx]
+        try:
+            converged, paths, _p_values, r_squared = _run_once(model, method, sub_df, lang, n_boot=None, seed=3000 + i)
+        except (ValueError, CBSEMError):
+            points.append({"iteration": i, "converged": False, "paths": {}, "r_squared": {}})
+            continue
+        except Exception as exc:  # noqa: BLE001
+            return jsonify(error=t("err_pls_run_error", lang, exc=exc)), 500
+        points.append({"iteration": i, "converged": converged, "paths": paths, "r_squared": r_squared})
+
+    return jsonify(
+        method=method,
+        n_total=n_total,
+        new_n=new_n,
+        n_iterations=n_iterations,
+        min_n=min_n,
         constructs=[
             {"id": c.id, "name": c.name} for c in model.constructs.values() if c.id in model.endogenous_ids()
         ],

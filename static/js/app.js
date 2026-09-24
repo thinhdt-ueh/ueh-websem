@@ -2472,6 +2472,15 @@ function openSensitivityModal(method) {
   const root = document.getElementById("modalRoot");
   const nRows = state.nRows || 0;
   const suggestedStep = Math.max(1, Math.round(nRows * 0.05));
+  const modelPayloadForDefaults = editor.serialize();
+  // Mirrors routes/sensitivity_api.py's own min_n floor, so the "new sample
+  // size" field's bounds and default match what the server will actually
+  // accept instead of just guessing and letting the server reject it.
+  const nIndicatorsForDefaults = modelPayloadForDefaults.constructs.reduce(
+    (sum, c) => sum + (c.indicators ? c.indicators.length : 0), 0,
+  );
+  const minN = Math.max(20, nIndicatorsForDefaults + 5);
+  const suggestedNewN = Math.max(minN, Math.round(nRows * 0.5));
   // CB-SEM's ML fit already gives a p-value per path at every step, no
   // extra cost — PLS-SEM has no closed-form significance test at all, so
   // getting one means an extra bootstrap run at every single step, hence
@@ -2492,9 +2501,26 @@ function openSensitivityModal(method) {
       <div class="modal-box">
         <h3>${t("sens_modal_title")}</h3>
         <p class="hint">${t("sens_modal_hint", { n: nRows })}</p>
-        <label>${t("sens_modal_step_label")}</label>
-        <input type="number" id="sensStep" min="1" step="1" value="${suggestedStep}">
-        ${pvalueSection}
+        <div>
+          <label>${t("sens_mode_label")}</label>
+          <label class="radio-row"><input type="radio" name="sensMode" value="shrink" checked> <span>${t("sens_mode_shrink_label")}</span></label>
+          <label class="radio-row"><input type="radio" name="sensMode" value="resample"> <span>${t("sens_mode_resample_label")}</span></label>
+        </div>
+
+        <div id="sensShrinkFields">
+          <label>${t("sens_modal_step_label")}</label>
+          <input type="number" id="sensStep" min="1" step="1" value="${suggestedStep}">
+          ${pvalueSection}
+        </div>
+
+        <div id="sensResampleFields" class="hidden">
+          <label>${t("sens_modal_new_n_label")}</label>
+          <input type="number" id="sensNewN" min="${minN}" max="${Math.max(minN, nRows - 1)}" step="1" value="${suggestedNewN}">
+          <label>${t("sens_modal_n_iter_label")}</label>
+          <input type="number" id="sensNIter" min="20" max="500" step="10" value="100">
+          <p class="hint">${t("sens_modal_resample_hint")}</p>
+        </div>
+
         <div id="sensModalError" class="error-box hidden"></div>
         <div class="modal-actions">
           <button class="btn" id="sensModalCancel">${t("modal_cancel")}</button>
@@ -2507,17 +2533,50 @@ function openSensitivityModal(method) {
       document.getElementById("sensBootOptions").classList.toggle("hidden", !e.target.checked);
     };
   }
+  document.querySelectorAll('input[name="sensMode"]').forEach((radio) => {
+    radio.onchange = () => {
+      const isResample = document.querySelector('input[name="sensMode"]:checked').value === "resample";
+      document.getElementById("sensShrinkFields").classList.toggle("hidden", isResample);
+      document.getElementById("sensResampleFields").classList.toggle("hidden", !isResample);
+    };
+  });
   document.getElementById("sensModalCancel").onclick = () => (root.innerHTML = "");
   document.getElementById("sensModalOk").onclick = () => {
-    const step = parseInt(document.getElementById("sensStep").value, 10);
+    const mode = document.querySelector('input[name="sensMode"]:checked').value;
     const errBox = document.getElementById("sensModalError");
+    const modelPayload = editor.serialize();
+
+    if (mode === "resample") {
+      const newN = parseInt(document.getElementById("sensNewN").value, 10);
+      const nIter = parseInt(document.getElementById("sensNIter").value, 10);
+      if (!Number.isInteger(newN) || newN < minN || newN >= nRows) {
+        errBox.textContent = t("sens_modal_invalid_new_n", { min: minN, n: nRows });
+        errBox.classList.remove("hidden");
+        return;
+      }
+      if (!Number.isInteger(nIter) || nIter < 20 || nIter > 500) {
+        errBox.textContent = t("sens_modal_invalid_n_iter");
+        errBox.classList.remove("hidden");
+        return;
+      }
+      const job = {
+        file_id: state.fileId, model: modelPayload, method, mode: "resample",
+        new_n: newN, n_iterations: nIter, lang: getLang(),
+        estimated_seconds: (nIter * PLS_MS_PER_FIT) / 1000,
+      };
+      sessionStorage.setItem("websem_sensitivity_job", JSON.stringify(job));
+      root.innerHTML = "";
+      window.open("/sensitivity", "_blank");
+      return;
+    }
+
+    const step = parseInt(document.getElementById("sensStep").value, 10);
     if (!Number.isInteger(step) || step < 1) {
       errBox.textContent = t("sens_modal_invalid_step");
       errBox.classList.remove("hidden");
       return;
     }
-    const modelPayload = editor.serialize();
-    const job = { file_id: state.fileId, model: modelPayload, method, step, lang: getLang() };
+    const job = { file_id: state.fileId, model: modelPayload, method, mode: "shrink", step, lang: getLang() };
     if (!isCbsem && document.getElementById("sensBootEnabled").checked) {
       const nBoot = parseInt(document.getElementById("sensNBoot").value, 10);
       if (!Number.isInteger(nBoot) || nBoot < 100) {
@@ -2529,8 +2588,6 @@ function openSensitivityModal(method) {
       // Mirrors routes/sensitivity_api.py's own expected_steps math, so the
       // countdown on the results tab is grounded in the same formula the
       // server will actually run against -- see PLS_MS_PER_FIT's comment.
-      const nIndicators = modelPayload.constructs.reduce((sum, c) => sum + (c.indicators ? c.indicators.length : 0), 0);
-      const minN = Math.max(20, nIndicators + 5);
       const expectedSteps = Math.max(1, Math.min(150, Math.floor((nRows - minN) / step) + 1));
       job.estimated_seconds = (expectedSteps * nBoot * PLS_MS_PER_FIT) / 1000;
     }

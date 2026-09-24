@@ -161,6 +161,85 @@ def test_sensitivity_endpoint_rejects_excessive_bootstrap_budget(client, tam_df,
     assert "error" in resp.get_json()
 
 
+# ---------------- sensitivity: fixed-size repeated resampling ----------------
+
+def test_sensitivity_resample_endpoint(client, tam_df, tam_model_json):
+    file_id = _upload(client, tam_df)
+    resp = client.post("/api/sensitivity_resample", json={
+        "file_id": file_id, "model": tam_model_json, "lang": "en", "method": "pls",
+        "new_n": 100, "n_iterations": 30,
+    })
+    assert resp.status_code == 200, resp.get_json()
+    data = resp.get_json()
+    assert data["new_n"] == 100
+    assert data["n_iterations"] == 30
+    assert len(data["points"]) == 30
+    assert [p["iteration"] for p in data["points"]] == list(range(1, 31))
+    construct_ids = {c["id"] for c in data["constructs"]}
+    path_ids = {p["id"] for p in data["paths"]}
+    converged_points = [p for p in data["points"] if p["converged"]]
+    assert converged_points
+    for p in converged_points:
+        assert set(p["r_squared"].keys()) == construct_ids
+        assert set(p["paths"].keys()) == path_ids
+
+
+def test_sensitivity_resample_endpoint_cbsem(client, tam_df, tam_model_json):
+    file_id = _upload(client, tam_df)
+    resp = client.post("/api/sensitivity_resample", json={
+        "file_id": file_id, "model": tam_model_json, "lang": "en", "method": "cbsem",
+        "new_n": 100, "n_iterations": 20,
+    })
+    assert resp.status_code == 200, resp.get_json()
+    assert len(resp.get_json()["points"]) == 20
+
+
+def test_sensitivity_resample_rejects_new_n_too_large(client, tam_df, tam_model_json):
+    file_id = _upload(client, tam_df)
+    resp = client.post("/api/sensitivity_resample", json={
+        "file_id": file_id, "model": tam_model_json, "lang": "en", "method": "pls",
+        "new_n": len(tam_df), "n_iterations": 20,
+    })
+    assert resp.status_code == 400
+    assert "error" in resp.get_json()
+
+
+def test_sensitivity_resample_rejects_new_n_too_small(client, tam_df, tam_model_json):
+    file_id = _upload(client, tam_df)
+    resp = client.post("/api/sensitivity_resample", json={
+        "file_id": file_id, "model": tam_model_json, "lang": "en", "method": "pls",
+        "new_n": 5, "n_iterations": 20,
+    })
+    assert resp.status_code == 400
+    assert "error" in resp.get_json()
+
+
+def test_sensitivity_resample_clamps_n_iterations(client, tam_df, tam_model_json):
+    from pls.power_analysis import MAX_MC_REPLICATES
+
+    file_id = _upload(client, tam_df)
+    resp = client.post("/api/sensitivity_resample", json={
+        "file_id": file_id, "model": tam_model_json, "lang": "en", "method": "pls",
+        "new_n": 100, "n_iterations": 9999,
+    })
+    assert resp.status_code == 200, resp.get_json()
+    data = resp.get_json()
+    assert data["n_iterations"] == MAX_MC_REPLICATES
+    assert len(data["points"]) == MAX_MC_REPLICATES
+
+
+def test_sensitivity_resample_clamps_n_iterations_below_minimum(client, tam_df, tam_model_json):
+    from pls.power_analysis import MIN_MC_REPLICATES
+
+    file_id = _upload(client, tam_df)
+    resp = client.post("/api/sensitivity_resample", json={
+        "file_id": file_id, "model": tam_model_json, "lang": "en", "method": "pls",
+        "new_n": 100, "n_iterations": 1,
+    })
+    assert resp.status_code == 200, resp.get_json()
+    assert resp.get_json()["n_iterations"] == MIN_MC_REPLICATES
+
+
 def test_ml_compare_endpoint(client, tam_df, tam_model_json):
     file_id = _upload(client, tam_df)
     resp = client.post("/api/ml_compare", json={

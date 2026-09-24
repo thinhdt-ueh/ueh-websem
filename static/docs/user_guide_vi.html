@@ -123,6 +123,7 @@
     <a href="#ipma">10. IPMA — bản đồ Importance-Performance</a>
     <a href="#sensitivity">11. Phân tích độ nhạy theo cỡ mẫu</a>
     <a class="sub" href="#sensitivity-pvalue">Quỹ đạo p-value</a>
+    <a class="sub" href="#sensitivity-resample">Lấy mẫu lặp ở cỡ mẫu cố định</a>
     <a href="#power">12. Power Analysis (mô phỏng Monte Carlo)</a>
     <a href="#mlcompare">13. So sánh Machine Learning</a>
     <a href="#cbsem">14. Các chỉ số fit của CB-SEM</a>
@@ -462,6 +463,18 @@ Thái độ (ATT)                 <span class="arrow">──▶</span> Ý địn
       </tbody>
     </table></div>
     <p>Ở n = 30, cùng path PEOU → Thái độ — có ý nghĩa ở mọi cỡ mẫu lớn hơn được thử nghiệm ở đây — không còn ý nghĩa thống kê nữa (p = .332): với quá ít quan sát còn lại, sai số chuẩn bootstrap lớn đến mức không còn phân biệt được hệ số này với 0, dù giá trị ước lượng điểm vẫn ở mức tương tự. Đây chính là loại bất ổn định mà biểu đồ p-value được thiết kế để làm rõ, bên cạnh biểu đồ R².</p>
+
+    <h3 id="sensitivity-resample">Tuỳ chọn: lấy mẫu lặp ở cỡ mẫu cố định</h3>
+    <p>Chế độ từng bước ở trên chỉ lấy mẫu con <strong>một lần duy nhất</strong> ở mỗi cỡ mẫu, nên một phần dao động qua lại giữa các điểm liền kề thực chất chỉ là nhiễu của riêng lần lấy mẫu đó, không hẳn là một xu hướng thật. Chế độ thứ hai trong hộp thoại, <strong>"Lấy mẫu lặp ở cỡ mẫu cố định"</strong>, giải quyết đúng điều này: chọn một cỡ mẫu nhỏ hơn cố định, công cụ sẽ lấy mẫu con ngẫu nhiên mới (không lặp lại) và chạy lại mô hình N lần ở đúng cỡ mẫu đó — một phép kiểm tra độ ổn định kiểu Monte Carlo thật sự, thay vì chỉ một điểm nhiễu đơn lẻ. Kết quả hiển thị dạng biểu đồ hộp (median, khoảng IQR, min/max, các điểm ngoại lai) cho R² và cho từng hệ số đường dẫn, kèm nút chuyển sang biểu đồ đường vẽ giá trị của từng lần lặp trên trang kết quả. Với cỡ mẫu cố định = 100 và 30 lần lặp trên dữ liệu mẫu TAM (cả 30 lần đều hội tụ):</p>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Construct</th><th class="num">Median R²</th><th class="num">Q1</th><th class="num">Q3</th><th class="num">Min</th><th class="num">Max</th></tr></thead>
+      <tbody>
+        <tr><td>Nhận thức hữu ích</td><td class="num">0.218</td><td class="num">0.184</td><td class="num">0.252</td><td class="num">0.120</td><td class="num">0.394</td></tr>
+        <tr><td>Thái độ</td><td class="num">0.210</td><td class="num">0.185</td><td class="num">0.241</td><td class="num">0.133</td><td class="num">0.335</td></tr>
+        <tr><td>Ý định</td><td class="num">0.373</td><td class="num">0.332</td><td class="num">0.420</td><td class="num">0.260</td><td class="num">0.479</td></tr>
+      </tbody>
+    </table></div>
+    <p>Ở cỡ mẫu cố định n = 100, R² của Thái độ dao động từ 0.133 đến 0.335 qua 30 lần lấy mẫu độc lập — mức dao động mà chế độ từng bước lấy mẫu một lần ở trên hoàn toàn không thể hiện được, vì nó chỉ chốt một lần lấy mẫu duy nhất cho mỗi cỡ mẫu. Mô hình tương tự cũng thấy rõ ở từng path: PEOU → Nhận thức hữu ích luôn mạnh và ổn định (median 0.467, dao động 0.346–0.628), trong khi path yếu hơn PEOU → Thái độ lại kém ổn định đến mức đôi khi đổi dấu ở n = 100 (median 0.211, dao động -0.026–0.315) — đúng loại biến động cần cân nhắc khi đánh giá một path ở mức ranh giới có còn đứng vững hay không nếu thực tế chỉ thu thập được cỡ mẫu nhỏ hơn.</p>
     <div class="callout warn">
       <strong class="label">Đây không phải power analysis chính thức</strong>
       Đây là công cụ khám phá thực nghiệm ("bao nhiêu là đủ, dựa trên chính dữ liệu này"), không thay thế cho một phân tích power a-priori thực hiện <em>trước</em> khi thu thập dữ liệu để xác định cỡ mẫu tối thiểu cần thiết — xem mục 12, Power Analysis (mô phỏng Monte Carlo).
@@ -573,7 +586,7 @@ Thái độ (ATT)                 <span class="arrow">──▶</span> Ý địn
   </main>
 </div>
 
-<footer class="doc-footer">AI-SEM - Open source for everyone. Toàn bộ số liệu ví dụ trên trang này là kết quả thật, xuất ra từ bộ dữ liệu mẫu TAM có sẵn trong ứng dụng.</footer>
+<footer class="doc-footer">AI-SEM - Open source software for everyone. Toàn bộ số liệu ví dụ trên trang này là kết quả thật, xuất ra từ bộ dữ liệu mẫu TAM có sẵn trong ứng dụng.</footer>
 
 </body>
 </html>

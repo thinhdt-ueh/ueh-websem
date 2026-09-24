@@ -95,9 +95,16 @@
           <summary data-i18n="sens_guide_limits_summary">Giới hạn</summary>
           <div class="reading-guide-body" data-i18n-html="sens_guide_limits_body">
             <ul>
-              <li>Mỗi cỡ mẫu chỉ được lấy mẫu con <strong>một lần</strong> (không lặp lại nhiều lần như mô phỏng Monte Carlo), nên một phần dao động giữa các điểm liền kề đến từ nhiễu ngẫu nhiên của riêng lần lấy mẫu đó, không hẳn phản ánh một xu hướng thật đang diễn ra.</li>
+              <li>Mỗi cỡ mẫu chỉ được lấy mẫu con <strong>một lần</strong> (không lặp lại nhiều lần như mô phỏng Monte Carlo), nên một phần dao động giữa các điểm liền kề đến từ nhiễu ngẫu nhiên của riêng lần lấy mẫu đó, không hẳn phản ánh một xu hướng thật đang diễn ra. Muốn khắc phục đúng điểm này, dùng chế độ "Lấy mẫu lặp ở cỡ mẫu cố định" bên dưới.</li>
               <li>Đây là phân tích trên dữ liệu đã có sẵn — không cho biết cỡ mẫu bạn <strong>nên</strong> thu thập nếu chưa khảo sát; muốn trả lời câu hỏi đó, dùng Power Analysis ở trang kết quả.</li>
             </ul>
+          </div>
+        </details>
+        <details>
+          <summary data-i18n="sens_guide_resample_summary">Chế độ "Lấy mẫu lặp ở cỡ mẫu cố định" là gì?</summary>
+          <div class="reading-guide-body" data-i18n-html="sens_guide_resample_body">
+            <p>Thay vì giảm dần cỡ mẫu và chỉ lấy mẫu con <strong>một lần</strong> ở mỗi bước, chế độ này giữ <strong>cố định</strong> một cỡ mẫu nhỏ hơn do bạn chọn, rồi lấy ngẫu nhiên (không lặp lại) và chạy lại mô hình <strong>nhiều lần</strong> (N lần) ở đúng cỡ mẫu đó — một kiểu mô phỏng Monte Carlo thật sự trên chính dữ liệu của bạn.</p>
+            <p>Kết quả là một biểu đồ hộp (box plot) cho R² và từng hệ số đường dẫn, cho thấy các ước lượng đó dao động (median, khoảng IQR, min-max, và các điểm ngoại lai) ra sao qua N lần lấy mẫu — trả lời câu hỏi <strong>"Nếu tôi chỉ có {cỡ mẫu mới} quan sát, ước lượng của tôi ổn định đến mức nào?"</strong> chính xác hơn một điểm đơn lẻ.</p>
           </div>
         </details>
       </div>

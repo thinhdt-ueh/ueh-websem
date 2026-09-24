@@ -123,6 +123,7 @@
     <a href="#ipma">10. IPMA — Importance-Performance Map</a>
     <a href="#sensitivity">11. Sample Size Sensitivity</a>
     <a class="sub" href="#sensitivity-pvalue">Significance (p-value) trajectory</a>
+    <a class="sub" href="#sensitivity-resample">Repeated resampling at a fixed size</a>
     <a href="#power">12. Monte Carlo Power Analysis</a>
     <a href="#mlcompare">13. Machine Learning Comparison</a>
     <a href="#cbsem">14. CB-SEM fit indices</a>
@@ -462,6 +463,18 @@ Attitude (ATT)                <span class="arrow">──▶</span> Behavioral In
       </tbody>
     </table></div>
     <p>At n = 30, the same PEOU → Attitude path — significant at every larger sample size tested here — is no longer statistically significant (p = .332): with so few observations left, the bootstrap standard error grows too large to distinguish this coefficient from zero, even though its point estimate is still a similar magnitude. This kind of instability is exactly what the p-value chart is designed to surface, alongside the R² chart.</p>
+
+    <h3 id="sensitivity-resample">Optional mode: repeated resampling at a fixed size</h3>
+    <p>The step-by-step view above draws only <em>one</em> random subsample per sample size, so part of the zig-zag between neighboring points is really just that single draw's own noise, not a genuine trend. The modal's second mode, <strong>"Repeated resampling at a fixed size"</strong>, fixes exactly that: choose one smaller sample size, and it draws a fresh random subsample (no replacement) and refits the model N times at that same fixed size — a real Monte-Carlo-style stability check instead of a single noisy point. Results render as box plots (median, IQR, min/max, individual outliers) for R² and for each path coefficient, with a toggle on the results page to switch to a line chart plotting every iteration's value instead. With a fixed size of 100 and 30 iterations on the TAM sample (all 30 converged):</p>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Construct</th><th class="num">Median R²</th><th class="num">Q1</th><th class="num">Q3</th><th class="num">Min</th><th class="num">Max</th></tr></thead>
+      <tbody>
+        <tr><td>Perceived Usefulness</td><td class="num">0.218</td><td class="num">0.184</td><td class="num">0.252</td><td class="num">0.120</td><td class="num">0.394</td></tr>
+        <tr><td>Attitude</td><td class="num">0.210</td><td class="num">0.185</td><td class="num">0.241</td><td class="num">0.133</td><td class="num">0.335</td></tr>
+        <tr><td>Behavioral Intention</td><td class="num">0.373</td><td class="num">0.332</td><td class="num">0.420</td><td class="num">0.260</td><td class="num">0.479</td></tr>
+      </tbody>
+    </table></div>
+    <p>At this fixed n = 100, Attitude's R² ranges from 0.133 to 0.335 across these 30 independent draws — a spread the single-draw step view above cannot show at all, since it commits to one specific subsample per size. The same pattern shows up per path: Perceived Ease of Use → Perceived Usefulness stays consistently strong (median 0.467, ranging 0.346–0.628), while the weaker Perceived Ease of Use → Attitude path is unstable enough at n = 100 to occasionally cross zero (median 0.211, ranging -0.026–0.315) — the kind of run-to-run variability that matters when judging whether a borderline path would still hold up on a smaller real sample.</p>
     <div class="callout warn">
       <strong class="label">Not a formal power analysis</strong>
       This is an empirical exploration tool ("how much is enough, based on this actual dataset"), not a substitute for a proper a-priori power analysis run <em>before</em> data collection to determine the minimum required sample size — see §12, Monte Carlo Power Analysis, for that.
@@ -573,7 +586,7 @@ Attitude (ATT)                <span class="arrow">──▶</span> Behavioral In
   </main>
 </div>
 
-<footer class="doc-footer">AI-SEM - Open source for everyone. All example numbers on this page are real output from the built-in TAM sample dataset.</footer>
+<footer class="doc-footer">AI-SEM - Open source software for everyone. All example numbers on this page are real output from the built-in TAM sample dataset.</footer>
 
 </body>
 </html>

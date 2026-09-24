@@ -291,6 +291,14 @@ const I18N = {
     sens_modal_n_boot_label: "Số lần bootstrap mỗi bước",
     sens_modal_bootstrap_hint: "PLS-SEM không có công thức ý nghĩa thống kê dạng đóng — mỗi bước cỡ mẫu sẽ chạy thêm một lượt Bootstrap riêng để tính p-value, nên bật tuỳ chọn này sẽ chạy lâu hơn đáng kể so với mặc định.",
     sens_modal_invalid_n_boot: "Số lần bootstrap phải là số nguyên ≥ 100.",
+    sens_mode_label: "Kiểu phân tích",
+    sens_mode_shrink_label: "Giảm dần cỡ mẫu (từng bước)",
+    sens_mode_resample_label: "Lấy mẫu lặp ở cỡ mẫu cố định",
+    sens_modal_new_n_label: "Cỡ mẫu mới (nhỏ hơn cỡ mẫu hiện tại)",
+    sens_modal_n_iter_label: "Số lần lặp (N)",
+    sens_modal_invalid_new_n: "Cỡ mẫu mới phải là số nguyên, tối thiểu {min} và nhỏ hơn số quan sát hiện tại ({n}).",
+    sens_modal_invalid_n_iter: "Số lần lặp phải là số nguyên từ 20 đến 500.",
+    sens_modal_resample_hint: "Giữ nguyên cỡ mẫu mới, lấy ngẫu nhiên (không lặp lại) và chạy lại mô hình N lần, để xem R² và các hệ số đường dẫn dao động ra sao qua N lần lấy mẫu đó — khác với chế độ giảm dần chỉ lấy mẫu một lần ở mỗi bước.",
 
     // --- sensitivity.html (opens in a new tab) ---
     sens_page_title: "Phân tích độ nhạy theo cỡ mẫu",
@@ -313,7 +321,16 @@ const I18N = {
     sens_axis_n: "n",
     sens_axis_coef: "Hệ số",
     sens_axis_pvalue: "P-value",
+    sens_axis_median: "Median",
     sens_not_converged_short: "không hội tụ",
+    sens_th_iteration: "Lần lặp",
+    sens_resample_summary_text: "Phương pháp: {method} · Dữ liệu gốc: {n0} quan sát · Cỡ mẫu mới cố định: {newN} · Số lần lặp: {nIter} · {conv}/{nIter} lần hội tụ.",
+    sens_resample_r2_chart_title: "Phân phối R² qua {n} lần lấy mẫu lại (cỡ mẫu = {newN})",
+    sens_resample_path_chart_title: "Phân phối hệ số đường dẫn qua {n} lần lấy mẫu lại (cỡ mẫu = {newN})",
+    sens_resample_chart_hint: "Mỗi hộp là phân phối của một biến/đường dẫn qua tất cả các lần lặp: đường giữa = median, hộp = khoảng IQR (Q1-Q3), râu = giá trị trong 1.5×IQR, điểm rời = ngoại lai. Di chuột vào từng hộp để xem số liệu chi tiết.",
+    sens_resample_chart_hint_line: "Mỗi đường là một biến/đường dẫn qua các lần lặp (trục hoành = lần lặp). Di chuột vào biểu đồ để xem giá trị chính xác tại từng lần lặp. Điểm viền đỏ = mô hình không hội tụ ở lần lặp đó.",
+    sens_chart_type_box: "📦 Biểu đồ hộp",
+    sens_chart_type_line: "📈 Biểu đồ đường",
     sens_guide_section_title: "Hướng dẫn đọc & Ý nghĩa các chỉ số",
     sens_guide_what_summary: "Sample Size Sensitivity là gì?",
     sens_guide_what_body:
@@ -332,9 +349,13 @@ const I18N = {
     sens_guide_limits_summary: "Giới hạn",
     sens_guide_limits_body:
       "<ul>" +
-      "<li>Mỗi cỡ mẫu chỉ được lấy mẫu con <strong>một lần</strong> (không lặp lại nhiều lần như mô phỏng Monte Carlo), nên một phần dao động giữa các điểm liền kề đến từ nhiễu ngẫu nhiên của riêng lần lấy mẫu đó, không hẳn phản ánh một xu hướng thật đang diễn ra.</li>" +
+      "<li>Mỗi cỡ mẫu chỉ được lấy mẫu con <strong>một lần</strong> (không lặp lại nhiều lần như mô phỏng Monte Carlo), nên một phần dao động giữa các điểm liền kề đến từ nhiễu ngẫu nhiên của riêng lần lấy mẫu đó, không hẳn phản ánh một xu hướng thật đang diễn ra. Muốn khắc phục đúng điểm này, dùng chế độ \"Lấy mẫu lặp ở cỡ mẫu cố định\" bên dưới.</li>" +
       "<li>Đây là phân tích trên dữ liệu đã có sẵn — không cho biết cỡ mẫu bạn <strong>nên</strong> thu thập nếu chưa khảo sát; muốn trả lời câu hỏi đó, dùng Power Analysis ở trang kết quả.</li>" +
       "</ul>",
+    sens_guide_resample_summary: "Chế độ \"Lấy mẫu lặp ở cỡ mẫu cố định\" là gì?",
+    sens_guide_resample_body:
+      "<p>Thay vì giảm dần cỡ mẫu và chỉ lấy mẫu con <strong>một lần</strong> ở mỗi bước, chế độ này giữ <strong>cố định</strong> một cỡ mẫu nhỏ hơn do bạn chọn, rồi lấy ngẫu nhiên (không lặp lại) và chạy lại mô hình <strong>nhiều lần</strong> (N lần) ở đúng cỡ mẫu đó — một kiểu mô phỏng Monte Carlo thật sự trên chính dữ liệu của bạn.</p>" +
+      "<p>Kết quả là một biểu đồ hộp (box plot) cho R² và từng hệ số đường dẫn, cho thấy các ước lượng đó dao động (median, khoảng IQR, min-max, và các điểm ngoại lai) ra sao qua N lần lấy mẫu — trả lời câu hỏi <strong>\"Nếu tôi chỉ có cỡ mẫu đó, ước lượng của tôi ổn định đến mức nào?\"</strong> chính xác hơn một điểm đơn lẻ.</p>",
 
     // --- power_analysis.html (opens in a new tab) ---
     power_page_title: "Phân tích lũy thừa thống kê (Power Analysis)",
@@ -1023,6 +1044,14 @@ const I18N = {
     sens_modal_n_boot_label: "Bootstrap resamples per step",
     sens_modal_bootstrap_hint: "PLS-SEM has no closed-form significance test — enabling this runs an extra Bootstrap at every sample-size step to get a p-value, so it takes noticeably longer than the default.",
     sens_modal_invalid_n_boot: "The bootstrap count must be an integer >= 100.",
+    sens_mode_label: "Analysis mode",
+    sens_mode_shrink_label: "Shrink sample size (step by step)",
+    sens_mode_resample_label: "Repeated resampling at a fixed size",
+    sens_modal_new_n_label: "New sample size (smaller than the current N)",
+    sens_modal_n_iter_label: "Number of iterations (N)",
+    sens_modal_invalid_new_n: "The new sample size must be an integer, at least {min} and smaller than the current {n} observations.",
+    sens_modal_invalid_n_iter: "The iteration count must be an integer from 20 to 500.",
+    sens_modal_resample_hint: "Keeps the new sample size fixed, draws a random subsample (no replacement) and re-runs the model N times, to see how much R² and each path coefficient actually bounce around across those N draws -- unlike the shrinking mode, which only draws once per step.",
 
     // --- sensitivity.html (opens in a new tab) ---
     sens_page_title: "Sample Size Sensitivity Analysis",
@@ -1045,7 +1074,16 @@ const I18N = {
     sens_axis_n: "n",
     sens_axis_coef: "Coefficient",
     sens_axis_pvalue: "P-value",
+    sens_axis_median: "Median",
     sens_not_converged_short: "not converged",
+    sens_th_iteration: "Iteration",
+    sens_resample_summary_text: "Method: {method} · Original data: {n0} observations · Fixed new sample size: {newN} · Iterations: {nIter} · {conv}/{nIter} converged.",
+    sens_resample_r2_chart_title: "R² distribution across {n} resamples (n = {newN})",
+    sens_resample_path_chart_title: "Path coefficient distribution across {n} resamples (n = {newN})",
+    sens_resample_chart_hint: "Each box is one construct/path's distribution across every iteration: the middle line is the median, the box spans the IQR (Q1-Q3), whiskers reach the most extreme value within 1.5x IQR, and separate dots are outliers. Hover a box for the exact numbers.",
+    sens_resample_chart_hint_line: "Each line is one construct/path across iterations (x-axis = iteration). Hover the chart to see the exact value at each iteration. Red-ringed points = the model did not converge at that iteration.",
+    sens_chart_type_box: "📦 Box plot",
+    sens_chart_type_line: "📈 Line chart",
     sens_guide_section_title: "Reading Guide & What the Numbers Mean",
     sens_guide_what_summary: "What is Sample Size Sensitivity?",
     sens_guide_what_body:
@@ -1064,9 +1102,13 @@ const I18N = {
     sens_guide_limits_summary: "Limitations",
     sens_guide_limits_body:
       "<ul>" +
-      "<li>Each sample size is subsampled just <strong>once</strong> (not repeated many times like a Monte Carlo simulation), so some of the fluctuation between neighboring points comes from that single draw's own sampling noise rather than a genuine trend.</li>" +
+      "<li>Each sample size is subsampled just <strong>once</strong> (not repeated many times like a Monte Carlo simulation), so some of the fluctuation between neighboring points comes from that single draw's own sampling noise rather than a genuine trend. To address exactly this, use the \"Repeated resampling at a fixed size\" mode below.</li>" +
       "<li>This analyzes data you already have — it doesn't tell you how much data you <strong>should</strong> collect before surveying; for that, use Power Analysis on the results page.</li>" +
       "</ul>",
+    sens_guide_resample_summary: "What is \"Repeated resampling at a fixed size\"?",
+    sens_guide_resample_body:
+      "<p>Instead of shrinking the sample size and subsampling just <strong>once</strong> per step, this mode holds a smaller sample size you choose <strong>fixed</strong>, then draws a random subsample (no replacement) and re-runs the model <strong>many times</strong> (N times) at that exact size -- a genuine Monte-Carlo-style simulation on your own data.</p>" +
+      "<p>The result is a box plot for R² and for each path coefficient, showing how much those estimates actually bounce around (median, IQR, min-max, and outliers) across the N draws -- answering <strong>\"If I only had that many observations, how stable would my estimates be?\"</strong> far more precisely than a single point ever could.</p>",
 
     // --- power_analysis.html (opens in a new tab) ---
     power_page_title: "Statistical Power Analysis",
