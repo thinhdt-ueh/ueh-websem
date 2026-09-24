@@ -129,6 +129,13 @@
     <a href="#cbsem">14. CB-SEM fit indices</a>
     <a href="#export">15. Exporting reports</a>
     <a href="#faq">16. Troubleshooting</a>
+    <a href="#ailab">17. AI Lab</a>
+    <a class="sub" href="#ailab-construct-search">Searching for constructs &amp; indicators</a>
+    <a class="sub" href="#ailab-codebook">Codebook: Likert vs. qualitative</a>
+    <a class="sub" href="#ailab-generate">Generating synthetic survey data</a>
+    <a class="sub" href="#ailab-skip">Skipping straight to model design</a>
+    <a class="sub" href="#ailab-draw-paths">Letting AI draw the structural model</a>
+    <a class="sub" href="#ailab-save-all">Saving everything together</a>
   </aside>
 
   <main class="doc">
@@ -150,7 +157,7 @@
 
     <h2 id="workflow">2. Three-step workflow</h2>
     <div class="step-grid">
-      <div class="step-card"><span class="n">1</span><h4>Upload data</h4><p>CSV or Excel, one column per indicator, one row per respondent (max 5,000 rows). Or click <em>“Use sample data”</em> to load the built-in Technology Acceptance Model (TAM) dataset used throughout this guide.</p></div>
+      <div class="step-card"><span class="n">1</span><h4>Upload data</h4><p>CSV or Excel, one column per indicator, one row per respondent (max 5,000 rows). Or click <em>“Use sample data”</em> to load the built-in Technology Acceptance Model (TAM) dataset used throughout this guide. No real data yet? The <strong>“🤖 AI Lab”</strong> tab next to it can generate a synthetic dataset instead, or just help you design the model — see §17.</p></div>
       <div class="step-card"><span class="n">2</span><h4>Build the model</h4><p>Double-click the canvas (or “+ Construct”) to add a construct, assign indicators, then switch to path mode to draw structural arrows between constructs.</p></div>
       <div class="step-card"><span class="n">3</span><h4>Run &amp; read results</h4><p>Choose PLS-SEM or CB-SEM, optionally enable bootstrapping, run the analysis, and read the tables described in this guide — then export to Excel/Word.</p></div>
     </div>
@@ -582,7 +589,39 @@ Attitude (ATT)                <span class="arrow">──▶</span> Behavioral In
       <li><strong>The "⚡ Power Analysis" button is disabled</strong> — Power Analysis (§12) only supports reflective (Mode A) models with no formative or interaction/moderation constructs; the synthetic-data generator doesn't yet handle either case. Hovering the disabled button shows the specific reason.</li>
       <li><strong>"This configuration would take too long" in Machine Learning Comparison</strong> — the number of endogenous targets × selected algorithms × k-fold count exceeded the time budget; select fewer algorithms (Random Forest and CatBoost are the two slowest) or reduce k, then try again.</li>
       <li><strong>An algorithm shows "(unavailable)" in the Machine Learning Comparison modal</strong> — that algorithm's library isn't installed on the server running this instance. Every algorithm ships pre-installed in the official desktop .exe, so this normally only appears on a custom self-hosted deployment.</li>
+      <li><strong>An AI Lab request fails immediately with a key/authentication error</strong> — every AI Lab feature (construct search, data generation, AI-drawn model) needs your own API key for the chosen provider (OpenAI, Gemini, or Claude), sent directly to that provider for the one request — never stored server-side. Check the key is valid and has quota left with that provider.</li>
+      <li><strong>A data-generation batch fails after retrying</strong> — each batch is automatically retried up to 3 times with a corrective note before giving up; a persistent failure past that usually means the row count or codebook is too large/complex for the chosen model. Try a smaller batch size (Step 3) or a more capable model.</li>
     </ul>
+
+    <h2 id="ailab">17. AI Lab</h2>
+    <p>The <strong>"🤖 AI Lab"</strong> tab, next to "Upload data" in Step 1, offers three AI-assisted capabilities that don't require a real dataset to start from: searching the literature for constructs and indicators, generating a synthetic survey dataset to pilot a model before real data collection, and letting AI propose a full structural model from a set of constructs. All three call an AI provider (OpenAI, Google Gemini, or Anthropic Claude) using <strong>your own API key</strong>, sent directly to that provider for the one request being made — never stored server-side or logged.</p>
+
+    <h3 id="ailab-construct-search">Searching for constructs &amp; indicators</h3>
+    <p>Click <strong>"🔍 Search constructs &amp; indicators with AI (literature review)"</strong>, describe your research topic/context (e.g. "Students' intention to use mobile wallets, based on an extended TAM"), and choose how many constructs to propose (1–10, default 5). The AI returns each construct with suggested indicators, question wording, and an APA-style citation grounding it in existing literature.</p>
+    <div class="callout warn">
+      <strong class="label">Verify every citation</strong>
+      The citation text is AI-generated, exactly like any AI-suggested reference — check it actually exists and says what's claimed before citing it in your own paper.
+    </div>
+    <p>Select the rows you want and add them straight into the codebook table below, grouped by construct.</p>
+
+    <h3 id="ailab-codebook">Defining the codebook: quantitative (Likert) vs. qualitative questions</h3>
+    <p>Every row in the codebook table is one observed variable: a column name, its construct (optional — used to pre-seed Step 2's canvas), the interview question wording, and a <strong>question type</strong> — "Quantitative (Likert)" (the default) or "Qualitative (text)". Likert columns become numeric candidate SEM indicators, exactly like an uploaded file's columns. Qualitative columns are treated as free-text respondent context instead — kept out of the analyzable dataset entirely, the same way age/gender already are — and their AI-generated text answers land in the exported "Respondent Profile" sheet, not the SEM data sheet. Use a qualitative row for an open-ended question ("What would you improve about the app?") that has no business being averaged into a Likert scale.</p>
+
+    <h3 id="ailab-generate">Generating synthetic survey data</h3>
+    <p>Step 2 collects the respondent profile: age range, gender mix, occupation/education, location, a free-text description of the target population, and up to 6 optional custom demographic attributes (numeric range or categorical list). Step 3 sets the provider, model, temperature, Likert scale (5 or 7 points), and how many observations to generate (30–500 rows, chunked into batches of up to 50 per AI call). Every AI answer is generated in character: the model invents a persona per simulated respondent first, then answers every question consistently with that persona, with realistic ~1-point variation on Likert items (clamped to the declared scale).</p>
+    <div class="callout warn">
+      <strong class="label">Synthetic, not real, data</strong>
+      This generates <em>plausible</em> survey responses for piloting a model's structure and instrument wording before real data collection — it is not a substitute for actually surveying real respondents, and results from it should never be presented as empirical findings.
+    </div>
+
+    <h3 id="ailab-skip">Skipping straight to model design</h3>
+    <p>Don't need synthetic data yet — just want to sketch out constructs and structural paths first? Fill in the codebook (Step 1) then click <strong>"⏭ Skip to model building"</strong> to jump straight to Step 2, with constructs pre-seeded from the codebook's construct column — no demographics or generation step required. <strong>"▶ Run PLS Algorithm"</strong> stays disabled (with a hint) until real data — uploaded or AI-generated — actually exists.</p>
+
+    <h3 id="ailab-draw-paths">Letting AI draw the structural model</h3>
+    <p>Once at least 2 constructs exist on the canvas, click <strong>"🤖 AI draw model"</strong> and add any extra context about the underlying theory. Unlike the other two AI Lab features, this one shows an editable prompt <em>before</em> anything is sent to the AI — review and adjust the generated system/user prompt text, since whether a given construct should be treated as a moderator is often a matter of semantic judgment the AI can read differently than you intend. After sending, review the proposed paths (and any suggested moderators) before applying them to the canvas.</p>
+
+    <h3 id="ailab-save-all">Saving everything together</h3>
+    <p>Click <strong>"💾 Save all proposals"</strong> in Step 2 to export the model JSON — constructs, paths, and (when a codebook exists) every indicator's question wording plus the AI's structural rationale if "AI draw model" was used this session — together with the synthetic Excel data export in the same click, if the current dataset was AI-generated.</p>
   </main>
 </div>
 

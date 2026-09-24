@@ -229,7 +229,10 @@ td .stat{font-weight:600;}
   <a class="side-link" href="#ch26"><span class="side-num">26</span><span class="vi">Xuất Excel/Word</span><span class="en">Excel/Word export</span></a>
   <a class="side-link" href="#ch27"><span class="side-num">27</span><span class="vi">Báo cáo sinh bằng AI</span><span class="en">AI-generated report</span></a>
 
-  <div class="side-part vi">Phần 7 — Phụ lục</div><div class="side-part en">Part 7 — Appendices</div>
+  <div class="side-part vi">Phần 7 — AI Lab</div><div class="side-part en">Part 7 — AI Lab</div>
+  <a class="side-link" href="#ch28"><span class="side-num">28</span><span class="vi">AI Lab</span><span class="en">AI Lab</span></a>
+
+  <div class="side-part vi">Phần 8 — Phụ lục</div><div class="side-part en">Part 8 — Appendices</div>
   <a class="side-link" href="#appA"><span class="side-num">A</span><span class="vi">Thuật ngữ Việt–Anh</span><span class="en">Glossary VI–EN</span></a>
   <a class="side-link" href="#appB"><span class="side-num">B</span><span class="vi">Bảng ngưỡng chấp nhận</span><span class="en">Threshold cheat sheet</span></a>
   <a class="side-link" href="#appC"><span class="side-num">C</span><span class="vi">Câu hỏi thường gặp</span><span class="en">FAQ</span></a>
@@ -827,6 +830,54 @@ td .stat{font-weight:600;}
 
 <section class="part-divider">
   <div class="part-eyebrow vi">Phần 7</div><div class="part-eyebrow en">Part 7</div>
+  <h2 class="vi">AI Lab</h2><h2 class="en">AI Lab</h2>
+  <p class="vi">Ba tính năng dùng AI để bắt đầu ngay cả khi chưa có dữ liệu thật hoặc chưa có mô hình.</p>
+  <p class="en">Three AI-powered features to get started even before real data or a model exists.</p>
+</section>
+
+<article class="chapter" id="ch28">
+  <div class="chapter-eyebrow">28</div>
+  <h3 class="vi">AI Lab</h3><h3 class="en">AI Lab</h3>
+  <p class="vi">Mọi chương trước giả định đã có sẵn dữ liệu thật (Phần 2) hoặc ít nhất một mô hình đã được vẽ tay (Phần 3). Tab <strong>"🤖 AI Lab"</strong>, nằm ngay bên cạnh "Upload data" ở Bước 1, phục vụ đúng giai đoạn <em>trước đó</em>: khi bạn còn đang định hình construct nào cần đo, câu hỏi nên hỏi ra sao, hoặc muốn thử nghiệm cấu trúc mô hình trước khi tốn công đi khảo sát thật. Ba khả năng — tìm construct bằng AI, sinh dữ liệu khảo sát tổng hợp, và để AI đề xuất mô hình cấu trúc — đều gọi một trong ba nhà cung cấp (OpenAI, Google Gemini, Anthropic Claude) bằng API key của chính người dùng, gửi trực tiếp cho nhà cung cấp đó cho đúng một lượt gọi, không lưu trữ hay ghi log ở máy chủ — cùng chính sách quyền riêng tư như chương 27.</p>
+  <p class="en">Every earlier chapter assumed real data already existed (Part 2) or at least a hand-drawn model was already on the canvas (Part 3). The <strong>"🤖 AI Lab"</strong> tab, right next to "Upload data" in Step 1, serves the stage <em>before</em> that: while you're still working out which constructs to measure, how to phrase the questions, or want to pilot a model's structure before the cost of a real fieldwork round. Its three capabilities — AI construct search, synthetic survey data generation, and AI-drawn structural models — all call one of three providers (OpenAI, Google Gemini, Anthropic Claude) using the user's own API key, sent directly to that provider for the one call being made, never stored or logged server-side — the same privacy policy as chapter 27.</p>
+
+  <h4 class="vi">28.1 Tìm construct &amp; biến quan sát bằng AI</h4><h4 class="en">28.1 AI-assisted construct &amp; indicator search</h4>
+  <p class="vi">Mô tả chủ đề/bối cảnh nghiên cứu bằng một câu (VD: "Ý định sử dụng ví điện tử của sinh viên, dựa trên mô hình TAM mở rộng") và chọn số construct muốn AI đề xuất (1–10, mặc định 5). Với mỗi construct, AI trả về một tên gọi, danh sách biến quan sát kèm nội dung câu hỏi, và một trích dẫn học thuật kiểu APA làm nền tảng lý thuyết — mô phỏng đúng bước "tổng hợp tài liệu" mà một nhà nghiên cứu thường làm bằng tay trước khi thiết kế bảng hỏi.</p>
+  <p class="en">Describe the research topic/context in one sentence (e.g. "Students' intention to use mobile wallets, based on an extended TAM") and choose how many constructs the AI should propose (1–10, default 5). For each construct, the AI returns a name, a set of indicators with question wording, and an APA-style citation as its theoretical grounding — mirroring the literature-review step a researcher would otherwise do by hand before drafting a questionnaire.</p>
+  <div class="callout warn">
+    <span class="callout-label vi">Trích dẫn phải được kiểm chứng</span><span class="callout-label en">Citations must be verified</span>
+    <p class="vi">Trích dẫn do AI tạo ra có thể không tồn tại hoặc diễn giải sai nguồn thật — đây là hạn chế đã biết của mọi LLM hiện nay ("hallucination"), không riêng gì công cụ này. Luôn tra lại trích dẫn trước khi đưa vào bài nghiên cứu.</p>
+    <p class="en">AI-generated citations can be fabricated or misrepresent a real source — a known limitation of every current LLM ("hallucination"), not specific to this tool. Always verify a citation before using it in your paper.</p>
+  </div>
+
+  <h4 class="vi">28.2 Codebook: câu hỏi định lượng và định tính</h4><h4 class="en">28.2 The codebook: quantitative and qualitative questions</h4>
+  <p class="vi">Kết quả tìm construct (hoặc các dòng bạn tự nhập) tạo thành <strong>codebook</strong>: mỗi dòng là một biến quan sát, gồm tên cột, construct, nội dung câu hỏi, và một <strong>loại câu hỏi</strong> — Định lượng (Likert, mặc định) hoặc Định tính (văn bản). Sự phân biệt này quyết định biến đó đi đâu sau khi AI sinh dữ liệu (28.3): cột Likert trở thành biến quan sát SEM dạng số, còn cột định tính bị loại hoàn toàn khỏi dữ liệu phân tích — giống cách tuổi và giới tính đã được xử lý từ trước — và câu trả lời văn bản của nó chỉ xuất hiện trong sheet "Respondent Profile" khi xuất Excel. Việc tách bạch này quan trọng vì gộp một câu trả lời văn bản tự do vào một thang đo Likert (hoặc coi nó là biến số) sẽ làm sai lệch hoàn toàn phép đo lường của construct đó.</p>
+  <p class="en">The construct-search results (or rows you type in by hand) form the <strong>codebook</strong>: each row is one observed variable, with a column name, construct, question wording, and a <strong>question type</strong> — Quantitative (Likert, the default) or Qualitative (text). This distinction decides where that variable ends up once data is generated (28.3): Likert columns become numeric SEM indicators, while qualitative columns are excluded from the analyzable dataset entirely — the same way age and gender already are — with their free-text answers appearing only in the exported "Respondent Profile" sheet. This separation matters because folding a free-text answer into a Likert scale (or treating it as numeric) would silently corrupt that construct's measurement.</p>
+
+  <h4 class="vi">28.3 Sinh dữ liệu khảo sát tổng hợp</h4><h4 class="en">28.3 Generating synthetic survey data</h4>
+  <p class="vi">Sau khi có codebook, Bước 2 thu thập hồ sơ đối tượng khảo sát (độ tuổi, giới tính, nghề nghiệp, khu vực, mô tả đối tượng mục tiêu, và tối đa 6 thuộc tính demographic tuỳ chọn), Bước 3 cấu hình nhà cung cấp AI, model, temperature, thang đo (5 hoặc 7 mức), và số quan sát (30–500 dòng). Vì một LLM không thể sinh hàng trăm dòng CSV sạch trong một lượt gọi duy nhất một cách đáng tin cậy, việc sinh dữ liệu được chia thành nhiều lô nhỏ (tối đa 50 dòng/lô); mỗi lô, AI tự đặt ra một "persona" (một người trả lời giả định cụ thể) rồi trả lời toàn bộ câu hỏi nhất quán với persona đó, kèm dao động tự nhiên khoảng ±1 điểm ở câu hỏi Likert để tránh dữ liệu quá đồng nhất (collinearity) một cách phi thực tế; một lô trả về sai định dạng hoặc thiếu dòng sẽ được tự động thử lại kèm ghi chú sửa lỗi.</p>
+  <p class="en">Once a codebook exists, Step 2 collects the respondent profile (age range, gender, occupation, location, target-population description, and up to 6 optional demographic attributes), and Step 3 configures the AI provider, model, temperature, scale (5 or 7 points), and how many observations to generate (30–500 rows). Since an LLM cannot reliably produce hundreds of clean CSV rows in one call, generation is chunked into small batches (up to 50 rows each); for each batch, the AI first invents a persona (a specific hypothetical respondent), then answers every question consistently with that persona, with natural ~1-point variation on Likert items to avoid unrealistically uniform (collinear) data; a malformed or short batch is automatically retried with a corrective note.</p>
+  <div class="callout threshold">
+    <span class="callout-label vi">Dữ liệu tổng hợp, không phải dữ liệu thật</span><span class="callout-label en">Synthetic, not real, data</span>
+    <p class="vi">Dữ liệu do AI sinh ra chỉ mô phỏng những gì <strong>có thể hợp lý xảy ra</strong> dựa trên persona và bối cảnh đã khai báo — nó không đến từ người trả lời thật. Dùng để thử nghiệm cấu trúc mô hình, cách diễn đạt bảng hỏi, hoặc luyện quy trình phân tích trước khi khảo sát thật; tuyệt đối không trình bày kết quả phân tích trên dữ liệu này như một phát hiện thực nghiệm trong bài nghiên cứu.</p>
+    <p class="en">AI-generated data only simulates what's <strong>plausible</strong> given the declared personas and context — it does not come from real respondents. Use it to pilot a model's structure, refine questionnaire wording, or rehearse the analysis pipeline before real fieldwork; never present results analyzed on this data as an empirical finding in a paper.</p>
+  </div>
+
+  <h4 class="vi">28.4 Bỏ qua bước dữ liệu, thiết kế mô hình trước</h4><h4 class="en">28.4 Skipping data generation to design the model first</h4>
+  <p class="vi">Nếu chỉ cần phác thảo construct và path cấu trúc — chưa cần dữ liệu, thật hay tổng hợp — bấm <strong>"⏭ Bỏ qua, sang bước tạo mô hình"</strong> ngay sau khi điền codebook để vào thẳng Bước 2 với construct đã tạo sẵn từ cột construct của codebook. Nút "Chạy PLS Algorithm" vẫn bị vô hiệu hoá cho đến khi có dữ liệu thật (tải lên hoặc do AI sinh), nhưng toàn bộ việc vẽ construct, path, và cấu hình moderator vẫn dùng được như thường.</p>
+  <p class="en">If all that's needed is to sketch out constructs and structural paths — no data yet, real or synthetic — click <strong>"⏭ Skip to model building"</strong> right after filling in the codebook to jump straight to Step 2 with constructs pre-seeded from the codebook's construct column. "Run PLS Algorithm" stays disabled until real data exists (uploaded or AI-generated), but drawing constructs, paths, and configuring moderators all work normally.</p>
+
+  <h4 class="vi">28.5 AI vẽ mô hình cấu trúc</h4><h4 class="en">28.5 AI-drawn structural models</h4>
+  <p class="vi">Với ít nhất 2 construct đã có trên canvas, bấm <strong>"🤖 AI vẽ mô hình"</strong> và có thể thêm bối cảnh lý thuyết. Khác với hai tính năng AI Lab khác, bước này hiển thị prompt (system + user) có thể chỉnh sửa <em>trước khi</em> gửi cho AI, thay vì gọi AI ngay — vì việc một construct có nên đóng vai moderator hay không thường mang tính chủ quan về ngữ nghĩa mà AI có thể diễn giải khác ý người dùng, nên cần một bước kiểm tra của con người trước khi mô hình được đề xuất dựa trên một giả định sai. Sau khi gửi, các path (và moderator được gợi ý, nếu có) hiện ra để xem lại trước khi áp dụng vào canvas.</p>
+  <p class="en">With at least 2 constructs already on the canvas, click <strong>"🤖 AI draw model"</strong> and optionally add theoretical context. Unlike the other two AI Lab features, this step shows an editable system/user prompt <em>before</em> calling the AI, rather than calling it immediately — because whether a given construct should act as a moderator is often a matter of semantic judgment the AI can read differently than intended, so a human checkpoint happens before a model gets proposed on a wrong assumption. After sending, the proposed paths (and any suggested moderators) are shown for review before being applied to the canvas.</p>
+
+  <h4 class="vi">28.6 Lưu toàn bộ đề xuất</h4><h4 class="en">28.6 Saving everything together</h4>
+  <p class="vi">Bấm <strong>"💾 Lưu toàn bộ đề xuất"</strong> ở Bước 2 để xuất một file JSON duy nhất chứa construct, path, nội dung câu hỏi của từng biến quan sát (khi có codebook), và lý giải cấu trúc của AI (nếu đã dùng 28.5 trong lần làm việc này) — cùng lúc với file Excel dữ liệu tổng hợp, nếu dữ liệu hiện tại là do AI sinh ra.</p>
+  <p class="en">Click <strong>"💾 Save all proposals"</strong> in Step 2 to export a single model JSON containing constructs, paths, every indicator's question wording (when a codebook exists), and the AI's structural rationale (if 28.5 was used this session) — together with the synthetic Excel data export, if the current dataset was AI-generated.</p>
+</article>
+
+<section class="part-divider">
+  <div class="part-eyebrow vi">Phần 8</div><div class="part-eyebrow en">Part 8</div>
   <h2 class="vi">Phụ lục</h2><h2 class="en">Appendices</h2>
   <p class="vi">Thuật ngữ, ngưỡng số liệu, câu hỏi thường gặp, và toàn bộ nguồn trích dẫn học thuật dùng trong sách.</p>
   <p class="en">Terminology, numeric thresholds, frequently asked questions, and every academic source cited in this handbook.</p>

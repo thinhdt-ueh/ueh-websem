@@ -129,6 +129,13 @@
     <a href="#cbsem">14. Các chỉ số fit của CB-SEM</a>
     <a href="#export">15. Xuất báo cáo</a>
     <a href="#faq">16. Xử lý sự cố thường gặp</a>
+    <a href="#ailab">17. AI Lab</a>
+    <a class="sub" href="#ailab-construct-search">Tìm construct &amp; biến quan sát</a>
+    <a class="sub" href="#ailab-codebook">Codebook: Likert vs. định tính</a>
+    <a class="sub" href="#ailab-generate">Sinh dữ liệu khảo sát bằng AI</a>
+    <a class="sub" href="#ailab-skip">Bỏ qua, sang thiết kế mô hình</a>
+    <a class="sub" href="#ailab-draw-paths">AI vẽ mô hình cấu trúc</a>
+    <a class="sub" href="#ailab-save-all">Lưu toàn bộ đề xuất</a>
   </aside>
 
   <main class="doc">
@@ -150,7 +157,7 @@
 
     <h2 id="workflow">2. Quy trình 3 bước</h2>
     <div class="step-grid">
-      <div class="step-card"><span class="n">1</span><h4>Tải dữ liệu</h4><p>CSV hoặc Excel, mỗi cột là một biến quan sát, mỗi dòng là một người trả lời (tối đa 5.000 dòng). Hoặc bấm <em>“Dùng dữ liệu mẫu”</em> để tải bộ dữ liệu Technology Acceptance Model (TAM) dùng xuyên suốt hướng dẫn này.</p></div>
+      <div class="step-card"><span class="n">1</span><h4>Tải dữ liệu</h4><p>CSV hoặc Excel, mỗi cột là một biến quan sát, mỗi dòng là một người trả lời (tối đa 5.000 dòng). Hoặc bấm <em>“Dùng dữ liệu mẫu”</em> để tải bộ dữ liệu Technology Acceptance Model (TAM) dùng xuyên suốt hướng dẫn này. Chưa có dữ liệu thật? Tab <strong>"🤖 AI Lab"</strong> ngay bên cạnh có thể sinh dữ liệu tổng hợp, hoặc chỉ giúp thiết kế mô hình — xem mục 17.</p></div>
       <div class="step-card"><span class="n">2</span><h4>Xây dựng mô hình</h4><p>Nhấp đúp vào canvas (hoặc bấm “+ Construct”) để thêm construct, gán biến quan sát, rồi chuyển sang chế độ vẽ path để nối các construct bằng đường dẫn cấu trúc.</p></div>
       <div class="step-card"><span class="n">3</span><h4>Chạy &amp; đọc kết quả</h4><p>Chọn PLS-SEM hoặc CB-SEM, bật bootstrapping nếu cần, chạy phân tích, rồi đọc các bảng theo hướng dẫn này — sau đó xuất ra Excel/Word.</p></div>
     </div>
@@ -582,7 +589,39 @@ Thái độ (ATT)                 <span class="arrow">──▶</span> Ý địn
       <li><strong>Nút "⚡ Power Analysis" bị vô hiệu hoá</strong> — Power Analysis (mục 12) chỉ hỗ trợ mô hình reflective (Mode A), không có construct formative hay tương tác/điều tiết; cơ chế sinh dữ liệu tổng hợp chưa xử lý được hai trường hợp này. Di chuột vào nút bị vô hiệu hoá sẽ hiện lý do cụ thể.</li>
       <li><strong>"Cấu hình chạy quá lâu" trong So sánh Machine Learning</strong> — số biến mục tiêu nội sinh × số thuật toán đã chọn × số fold (k) vượt quá ngân sách thời gian cho phép; hãy chọn ít thuật toán hơn (Random Forest và CatBoost là hai thuật toán chậm nhất) hoặc giảm k, rồi thử lại.</li>
       <li><strong>Một thuật toán hiện "(chưa khả dụng)" trong hộp thoại So sánh Machine Learning</strong> — thư viện của thuật toán đó chưa được cài trên máy chủ đang chạy. Mọi thuật toán đều đã được cài sẵn trong file .exe chính thức, nên trường hợp này thường chỉ xảy ra khi tự triển khai (self-hosted) theo cách tuỳ chỉnh.</li>
+      <li><strong>Yêu cầu AI Lab thất bại ngay với lỗi API key/xác thực</strong> — mọi tính năng AI Lab (tìm construct, sinh dữ liệu, AI vẽ mô hình) cần API key riêng của bạn cho nhà cung cấp đã chọn (OpenAI, Gemini, hoặc Claude), gửi trực tiếp đến nhà cung cấp đó cho đúng một lượt gọi — không lưu lại ở máy chủ. Kiểm tra key còn hợp lệ và còn quota với nhà cung cấp đó.</li>
+      <li><strong>Một lô sinh dữ liệu thất bại sau khi thử lại</strong> — mỗi lô được tự động thử lại tối đa 3 lần kèm ghi chú sửa lỗi trước khi báo thất bại; nếu vẫn thất bại liên tục, thường là do số dòng hoặc codebook quá lớn/phức tạp với model đã chọn. Hãy giảm số dòng mỗi lô (Bước 3) hoặc đổi sang model mạnh hơn.</li>
     </ul>
+
+    <h2 id="ailab">17. AI Lab</h2>
+    <p>Tab <strong>"🤖 AI Lab"</strong>, ngay bên cạnh "Upload data" ở Bước 1, cung cấp ba khả năng hỗ trợ bằng AI không cần dữ liệu thật để bắt đầu: tìm construct và biến quan sát từ tài liệu học thuật, sinh dữ liệu khảo sát tổng hợp để thử nghiệm mô hình trước khi thu thập dữ liệu thật, và để AI đề xuất hẳn một mô hình cấu trúc từ một tập construct. Cả ba đều gọi một nhà cung cấp AI (OpenAI, Google Gemini, hoặc Anthropic Claude) bằng <strong>API key riêng của bạn</strong>, gửi trực tiếp đến nhà cung cấp đó cho đúng một lượt gọi — không lưu lại ở máy chủ hay ghi log.</p>
+
+    <h3 id="ailab-construct-search">Tìm construct &amp; biến quan sát</h3>
+    <p>Bấm <strong>"🔍 Tìm construct và biến quan sát bằng AI (tổng hợp học thuật)"</strong>, mô tả chủ đề/bối cảnh nghiên cứu (VD: "Ý định sử dụng ví điện tử của sinh viên, dựa trên mô hình TAM mở rộng"), và chọn số construct muốn đề xuất (1–10, mặc định 5). AI trả về mỗi construct kèm biến quan sát gợi ý, nội dung câu hỏi, và một trích dẫn kiểu APA làm căn cứ học thuật.</p>
+    <div class="callout warn">
+      <strong class="label">Luôn kiểm chứng từng trích dẫn</strong>
+      Nội dung trích dẫn do AI tạo ra, giống như mọi tài liệu tham khảo do AI gợi ý — hãy kiểm tra trích dẫn đó thực sự tồn tại và nói đúng như được nêu, trước khi đưa vào bài viết của bạn.
+    </div>
+    <p>Chọn những dòng bạn muốn và thêm thẳng vào bảng codebook bên dưới, được nhóm theo construct.</p>
+
+    <h3 id="ailab-codebook">Định nghĩa codebook: định lượng (Likert) vs. định tính</h3>
+    <p>Mỗi dòng trong bảng codebook là một biến quan sát: tên cột, construct (tuỳ chọn — dùng để tạo sẵn construct trên canvas Bước 2), nội dung câu hỏi phỏng vấn, và một <strong>loại câu hỏi</strong> — "Định lượng (Likert)" (mặc định) hoặc "Định tính (văn bản)". Cột định lượng trở thành biến quan sát SEM dạng số, giống hệt cột trong file tải lên. Cột định tính được xử lý như thông tin ngữ cảnh dạng văn bản tự do — bị loại hoàn toàn khỏi dữ liệu phân tích, giống như tuổi/giới tính hiện đã vậy — và câu trả lời văn bản do AI sinh ra sẽ nằm trong sheet "Respondent Profile" khi xuất Excel, không phải sheet dữ liệu SEM. Dùng dòng định tính cho câu hỏi mở ("Bạn muốn cải thiện điều gì ở ứng dụng?") không nên gộp vào thang đo Likert.</p>
+
+    <h3 id="ailab-generate">Sinh dữ liệu khảo sát bằng AI</h3>
+    <p>Bước 2 thu thập hồ sơ đối tượng khảo sát: độ tuổi, giới tính, nghề nghiệp/học vấn, khu vực, mô tả tự do về đối tượng khảo sát, và tối đa 6 thuộc tính demographic bổ sung tuỳ chọn (khoảng số hoặc danh sách phân loại). Bước 3 cấu hình nhà cung cấp, model, temperature, thang đo Likert (5 hoặc 7 mức), và số quan sát cần sinh (30–500 dòng, chia thành các lô tối đa 50 dòng mỗi lần gọi AI). Mỗi câu trả lời được AI sinh ra "nhập vai": model tự đặt một persona cho từng người trả lời giả định trước, sau đó trả lời mọi câu hỏi nhất quán với persona đó, kèm dao động tự nhiên khoảng ±1 điểm ở câu hỏi Likert (luôn giữ trong khoảng thang đo đã khai báo).</p>
+    <div class="callout warn">
+      <strong class="label">Dữ liệu tổng hợp, không phải dữ liệu thật</strong>
+      Đây tạo ra câu trả lời khảo sát <em>hợp lý</em> để thử nghiệm cấu trúc mô hình và cách diễn đạt câu hỏi trước khi thu thập dữ liệu thật — không thay thế cho việc khảo sát người trả lời thật, và kết quả từ đây không nên được trình bày như một phát hiện thực nghiệm.
+    </div>
+
+    <h3 id="ailab-skip">Bỏ qua, sang thiết kế mô hình</h3>
+    <p>Chưa cần dữ liệu tổng hợp — chỉ muốn phác thảo construct và path cấu trúc trước? Điền codebook (Bước 1) rồi bấm <strong>"⏭ Bỏ qua, sang bước tạo mô hình"</strong> để chuyển thẳng sang Bước 2, với construct đã được tạo sẵn từ cột construct của codebook — không cần bước hồ sơ đối tượng hay sinh dữ liệu. Nút <strong>"▶ Chạy PLS Algorithm"</strong> vẫn bị vô hiệu hoá (kèm gợi ý) cho đến khi có dữ liệu thật — tải lên hoặc do AI sinh ra.</p>
+
+    <h3 id="ailab-draw-paths">AI vẽ mô hình cấu trúc</h3>
+    <p>Khi canvas có ít nhất 2 construct, bấm <strong>"🤖 AI vẽ mô hình"</strong> và thêm bối cảnh lý thuyết nếu cần. Khác với hai tính năng AI Lab khác, tính năng này hiển thị prompt có thể chỉnh sửa <em>trước khi</em> gửi cho AI — hãy xem lại và chỉnh nội dung system/user prompt được tạo sẵn, vì việc một construct có nên được coi là moderator hay không thường mang tính chủ quan về ngữ nghĩa mà AI có thể hiểu khác ý bạn. Sau khi gửi, hãy xem lại các path được đề xuất (và moderator được gợi ý, nếu có) trước khi áp dụng vào canvas.</p>
+
+    <h3 id="ailab-save-all">Lưu toàn bộ đề xuất</h3>
+    <p>Bấm <strong>"💾 Lưu toàn bộ đề xuất"</strong> ở Bước 2 để xuất file JSON mô hình — construct, path, và (khi có codebook) nội dung câu hỏi của từng biến quan sát cùng lý giải cấu trúc của AI nếu đã dùng "AI vẽ mô hình" trong lần làm việc này — cùng lúc với file Excel dữ liệu tổng hợp trong cùng một lần bấm, nếu dữ liệu hiện tại là do AI sinh ra.</p>
   </main>
 </div>
 
