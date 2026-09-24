@@ -124,6 +124,26 @@ def test_suggest_prompt_rejects_duplicate_column(client):
     assert resp.status_code == 400
 
 
+def test_suggest_prompt_includes_qualitative_instruction_and_tag(client):
+    codebook = _codebook() + [{"column": "OPEN1", "question_text": "What would you improve?", "type": "qualitative"}]
+    resp = client.post("/api/ai_data_gen/suggest_prompt", json={
+        "codebook": codebook, "n_rows": 50, "likert_scale": 5, "lang": "en",
+    })
+    assert resp.status_code == 200, resp.get_json()
+    data = resp.get_json()
+    assert "open-ended" in data["system_prompt"]
+    assert "OPEN1" in data["system_prompt"]
+    assert "qualitative" in data["first_batch_instruction"]
+
+
+def test_suggest_prompt_omits_qualitative_instruction_when_no_qualitative_columns(client):
+    resp = client.post("/api/ai_data_gen/suggest_prompt", json={
+        "codebook": _codebook(), "n_rows": 50, "likert_scale": 5, "lang": "en",
+    })
+    assert resp.status_code == 200, resp.get_json()
+    assert "open-ended" not in resp.get_json()["system_prompt"]
+
+
 # ---------------- custom demographic attributes: validation ----------------
 
 def test_suggest_prompt_includes_custom_attrs_in_system_prompt(client):
@@ -185,6 +205,39 @@ def test_validate_codebook_defaults_construct_to_empty_string():
     cleaned, err = ai_data_gen_api._validate_codebook([{"column": "PU1", "question_text": "a"}], "en")
     assert err is None
     assert cleaned[0]["construct"] == ""
+
+
+def test_validate_codebook_defaults_type_to_likert():
+    cleaned, err = ai_data_gen_api._validate_codebook([{"column": "PU1", "question_text": "a"}], "en")
+    assert err is None
+    assert cleaned[0]["type"] == "likert"
+
+
+def test_validate_codebook_preserves_qualitative_type():
+    cleaned, err = ai_data_gen_api._validate_codebook(
+        [{"column": "OPEN1", "question_text": "Why?", "type": "qualitative"}], "en",
+    )
+    assert err is None
+    assert cleaned[0]["type"] == "qualitative"
+
+
+def test_validate_codebook_rejects_unknown_type_by_falling_back_to_likert():
+    cleaned, err = ai_data_gen_api._validate_codebook(
+        [{"column": "PU1", "question_text": "a", "type": "not-a-real-type"}], "en",
+    )
+    assert err is None
+    assert cleaned[0]["type"] == "likert"
+
+
+def test_split_codebook_columns_separates_by_type_and_preserves_order():
+    codebook = [
+        {"column": "PU1", "question_text": "a", "construct": "", "type": "likert"},
+        {"column": "OPEN1", "question_text": "b", "construct": "", "type": "qualitative"},
+        {"column": "PU2", "question_text": "c", "construct": "", "type": "likert"},
+    ]
+    likert_columns, qual_columns = ai_data_gen_api._split_codebook_columns(codebook)
+    assert likert_columns == ["PU1", "PU2"]
+    assert qual_columns == ["OPEN1"]
 
 
 # ---------------- suggest_constructs ----------------
@@ -743,6 +796,44 @@ def test_batch_rejects_more_than_50_rows(client):
     assert resp.status_code == 400
 
 
+# ---------------- qualitative columns: batch ----------------
+
+def test_batch_with_qualitative_column_success(client, monkeypatch):
+    header = "persona_description,PU1,PU2,OPEN1,resp_age,resp_gender"
+    row = '"A 25-year-old student",4,4,"I find the app fast and reliable.",30,male'
+    monkeypatch.setattr(ai_data_gen_api, "_call_openai", lambda *a, **k: "\n".join([header] + [row] * 5))
+    resp = client.post("/api/ai_data_gen/batch", json=_batch_payload(
+        columns=["PU1", "PU2", "OPEN1"], qualitative_columns=["OPEN1"],
+    ))
+    assert resp.status_code == 200, resp.get_json()
+    rows = resp.get_json()["rows"]
+    assert len(rows) == 5
+    assert all(r["OPEN1"] == "I find the app fast and reliable." for r in rows)
+    assert all(r["PU1"] == 4 for r in rows)
+    assert all(set(r.keys()) == {"persona_description", "PU1", "PU2", "OPEN1", "resp_age", "resp_gender"} for r in rows)
+
+
+def test_batch_empty_qualitative_answer_rejected(client, monkeypatch):
+    header = "persona_description,PU1,OPEN1,resp_age,resp_gender"
+    row = '"A persona",4,"",30,male'
+    monkeypatch.setattr(ai_data_gen_api, "_call_openai", lambda *a, **k: "\n".join([header] + [row] * 5))
+    resp = client.post("/api/ai_data_gen/batch", json=_batch_payload(
+        columns=["PU1", "OPEN1"], qualitative_columns=["OPEN1"],
+    ))
+    assert resp.status_code == 422
+
+
+def test_batch_qualitative_column_ignored_when_not_declared(client, monkeypatch):
+    """With no qualitative_columns sent, every column is validated as a
+    Likert integer -- free text in that column must be rejected, matching
+    pre-existing behavior for a codebook with no qualitative rows at all."""
+    header = "persona_description,PU1,OPEN1,resp_age,resp_gender"
+    row = '"A persona",4,"free text answer",30,male'
+    monkeypatch.setattr(ai_data_gen_api, "_call_openai", lambda *a, **k: "\n".join([header] + [row] * 5))
+    resp = client.post("/api/ai_data_gen/batch", json=_batch_payload(columns=["PU1", "OPEN1"]))
+    assert resp.status_code == 422
+
+
 # ---------------- custom demographic attributes: batch ----------------
 
 def test_batch_with_custom_attributes_success(client, monkeypatch):
@@ -1013,6 +1104,81 @@ def test_finalize_persists_persona_description_in_respondents_file_only(client):
 def test_download_missing_file_id_404(client):
     resp = client.get("/api/ai_data_gen/download?file_id=doesnotexist")
     assert resp.status_code == 404
+
+
+# ---------------- qualitative columns: finalize ----------------
+
+def _rows_with_qual(n, likert_columns=("PU1", "PU2"), qual_column="OPEN1", value=4, age=30, gender="male"):
+    out = []
+    for i in range(n):
+        row = {"persona_description": f"Respondent {i}: a {age}-year-old with a consistent attitude"}
+        row.update({c: value for c in likert_columns})
+        row[qual_column] = f"Free-text answer from respondent {i}."
+        row["resp_age"] = age
+        row["resp_gender"] = gender if i % 2 == 0 else ("female" if gender == "male" else "male")
+        out.append(row)
+    return out
+
+
+def _qual_codebook(likert_columns=("PU1", "PU2"), qual_column="OPEN1"):
+    codebook = [{"column": c, "question_text": f"Question about {c}"} for c in likert_columns]
+    codebook.append({"column": qual_column, "question_text": "What would you improve?", "type": "qualitative"})
+    return codebook
+
+
+def test_finalize_keeps_qualitative_column_out_of_indicator_dataset(client):
+    columns = ["PU1", "PU2", "OPEN1"]
+    resp = client.post("/api/ai_data_gen/finalize", json=_finalize_payload(
+        columns, _rows_with_qual(30), codebook=_qual_codebook(),
+    ))
+    assert resp.status_code == 200, resp.get_json()
+    data = resp.get_json()
+    assert data["columns"] == ["PU1", "PU2"]
+    assert data["numeric_columns"] == ["PU1", "PU2"]
+    assert "OPEN1" not in data["columns"]
+    assert all("OPEN1" not in row for row in data["preview"])
+
+
+def test_finalize_persists_qualitative_answers_in_respondents_file(client):
+    columns = ["PU1", "PU2", "OPEN1"]
+    resp = client.post("/api/ai_data_gen/finalize", json=_finalize_payload(
+        columns, _rows_with_qual(30), codebook=_qual_codebook(),
+    ))
+    assert resp.status_code == 200, resp.get_json()
+    file_id = resp.get_json()["file_id"]
+    with client.application.test_request_context():
+        _meta, demo_df = ai_data_gen_api._load_ai_gen_metadata(file_id)
+    assert "OPEN1" in demo_df.columns
+    assert all(demo_df["OPEN1"].str.startswith("Free-text answer"))
+
+
+def test_finalize_rejects_empty_qualitative_answer(client):
+    rows = _rows_with_qual(30)
+    rows[0]["OPEN1"] = "   "
+    resp = client.post("/api/ai_data_gen/finalize", json=_finalize_payload(
+        ["PU1", "PU2", "OPEN1"], rows, codebook=_qual_codebook(),
+    ))
+    assert resp.status_code == 400
+
+
+def test_export_includes_qualitative_column_in_respondent_profile_sheet(client):
+    columns = ["PU1", "PU2", "OPEN1"]
+    resp = client.post("/api/ai_data_gen/finalize", json=_finalize_payload(
+        columns, _rows_with_qual(30), codebook=_qual_codebook(),
+    ))
+    file_id = resp.get_json()["file_id"]
+    exp = client.get(f"/api/ai_data_gen/export?file_id={file_id}")
+    assert exp.status_code == 200, exp.get_data()
+    wb = openpyxl.load_workbook(io.BytesIO(exp.data))
+    survey_ws = wb["Survey Data"]
+    survey_header = [c.value for c in next(survey_ws.iter_rows(min_row=1, max_row=1))]
+    assert "OPEN1" not in survey_header
+
+    profile_ws = wb["Respondent Profile"]
+    profile_values = [[c.value for c in row] for row in profile_ws.iter_rows()]
+    flat_text = [str(v) for row in profile_values for v in row if v is not None]
+    assert any(v == "OPEN1" for v in flat_text)
+    assert any(str(v).startswith("Free-text answer") for v in flat_text)
 
 
 # ---------------- export ----------------

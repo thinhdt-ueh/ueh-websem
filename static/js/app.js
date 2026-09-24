@@ -329,7 +329,7 @@ document.getElementById("aiGenSteps").addEventListener("click", (e) => {
 });
 
 // ---- Sub-step 1: Codebook ----
-function codebookAddRow(column, question, construct) {
+function codebookAddRow(column, question, construct, type) {
   const tbody = document.getElementById("codebookTableBody");
   const tr = document.createElement("tr");
   const colInput = document.createElement("input");
@@ -344,12 +344,24 @@ function codebookAddRow(column, question, construct) {
   qInput.type = "text";
   qInput.className = "codebook-question-input";
   qInput.value = question || "";
+  const typeSelect = document.createElement("select");
+  typeSelect.className = "codebook-type-select";
+  const optLikert = document.createElement("option");
+  optLikert.value = "likert";
+  optLikert.textContent = t("s1_ai_codebook_type_likert");
+  const optQual = document.createElement("option");
+  optQual.value = "qualitative";
+  optQual.textContent = t("s1_ai_codebook_type_qualitative");
+  typeSelect.append(optLikert, optQual);
+  typeSelect.value = type === "qualitative" ? "qualitative" : "likert";
   const tdCol = document.createElement("td");
   tdCol.appendChild(colInput);
   const tdConstruct = document.createElement("td");
   tdConstruct.appendChild(constructInput);
   const tdQ = document.createElement("td");
   tdQ.appendChild(qInput);
+  const tdType = document.createElement("td");
+  tdType.appendChild(typeSelect);
   const tdRemove = document.createElement("td");
   tdRemove.className = "codebook-remove-cell";
   const removeBtn = document.createElement("button");
@@ -358,7 +370,7 @@ function codebookAddRow(column, question, construct) {
   removeBtn.textContent = t("s1_ai_codebook_remove");
   removeBtn.addEventListener("click", () => tr.remove());
   tdRemove.appendChild(removeBtn);
-  tr.append(tdCol, tdConstruct, tdQ, tdRemove);
+  tr.append(tdCol, tdConstruct, tdQ, tdType, tdRemove);
   tbody.appendChild(tr);
 }
 document.getElementById("codebookAddRowBtn").addEventListener("click", () => codebookAddRow());
@@ -369,6 +381,7 @@ function collectCodebook() {
       column: tr.querySelector(".codebook-col-input").value.trim(),
       construct: tr.querySelector(".codebook-construct-input").value.trim(),
       question_text: tr.querySelector(".codebook-question-input").value.trim(),
+      type: tr.querySelector(".codebook-type-select").value === "qualitative" ? "qualitative" : "likert",
     }))
     .filter((r) => r.column);
 }
@@ -458,7 +471,7 @@ document.getElementById("codebookImportInput").addEventListener("change", (e) =>
       const cleanItems = rawItems.filter((it) => it && String(it.column || "").trim());
       if (!cleanItems.length) throw new Error(t("s1_ai_codebook_min_rows"));
       document.getElementById("codebookTableBody").innerHTML = "";
-      cleanItems.forEach((it) => codebookAddRow(it.column, it.question_text || "", it.construct || ""));
+      cleanItems.forEach((it) => codebookAddRow(it.column, it.question_text || "", it.construct || "", it.type));
     } catch (err) {
       errBox.textContent = t("s1_ai_codebook_import_failed", { msg: err.message });
       errBox.classList.remove("hidden");
@@ -928,6 +941,7 @@ document.getElementById("aiGenStartBtn").addEventListener("click", () => {
   aiGenState.likertMin = 1;
   aiGenState.likertMax = likertScale;
   aiGenState.columns = aiGenState.codebook.map((c) => c.column);
+  aiGenState.qualColumns = aiGenState.codebook.filter((c) => c.type === "qualitative").map((c) => c.column);
   aiGenState.nRows = clampAiGenNRows();
   aiGenState.batchSize = Math.min(clampAiGenBatchSize(), aiGenState.nRows);
   aiGenState.totalBatches = Math.ceil(aiGenState.nRows / aiGenState.batchSize);
@@ -977,6 +991,7 @@ async function runAiGeneration() {
           system_prompt: aiGenState.systemPrompt,
           user_prompt: aiGenState.userPrompt,
           columns: aiGenState.columns,
+          qualitative_columns: aiGenState.qualColumns || [],
           likert_min: aiGenState.likertMin,
           likert_max: aiGenState.likertMax,
           start_row: startRow,
@@ -1244,7 +1259,7 @@ document.getElementById("aiGenExportAllBtn").addEventListener("click", () => {
     ["target_population", demographics.target_population || ""],
   ];
   for (const [key, value] of metaEntries) rows.push(["meta", key, value, "", "", "", "", "", "", "", ""]);
-  for (const item of codebook) rows.push(["codebook", "", "", item.column, item.question_text, item.construct || "", "", "", "", "", ""]);
+  for (const item of codebook) rows.push(["codebook", "", "", item.column, item.question_text, item.construct || "", "", item.type || "likert", "", "", ""]);
   for (const attr of attrs || []) {
     rows.push([
       "demo_attribute", "", "", "", "", "",
@@ -1297,7 +1312,7 @@ document.getElementById("aiGenImportAllInput").addEventListener("change", (e) =>
         const section = r[secIdx];
         if (section === "meta") meta[at(r, keyIdx)] = at(r, valIdx);
         else if (section === "codebook") {
-          codebookItems.push({ column: at(r, colIdx), question_text: at(r, qIdx), construct: at(r, constructIdx) });
+          codebookItems.push({ column: at(r, colIdx), question_text: at(r, qIdx), construct: at(r, constructIdx), type: at(r, typeIdx) });
         }
         else if (section === "demo_attribute") {
           demoAttrItems.push({
@@ -1314,7 +1329,7 @@ document.getElementById("aiGenImportAllInput").addEventListener("change", (e) =>
 
       // Step 1: codebook
       document.getElementById("codebookTableBody").innerHTML = "";
-      cleanCodebookItems.forEach((it) => codebookAddRow(it.column, it.question_text, it.construct));
+      cleanCodebookItems.forEach((it) => codebookAddRow(it.column, it.question_text, it.construct, it.type));
 
       // Step 2: respondent profile + custom demographic attributes
       document.getElementById("demoAgeMin").value = meta.age_min || "";

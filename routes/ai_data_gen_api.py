@@ -89,6 +89,11 @@ DEMO_COLUMNS = ["resp_age", "resp_gender"]
 # persona before generating the Likert answers that follow it, matching how
 # text is actually generated left-to-right.
 PERSONA_COLUMN = "persona_description"
+# A codebook item's "type": "likert" (default, numeric 1..N scale, becomes a
+# candidate SEM indicator) or "qualitative" (open-ended free text -- kept OUT
+# of the indicator dataset for the exact same reason DEMO_COLUMNS is, and
+# merged into the respondent-profile file instead; see finalize()).
+CODEBOOK_TYPES = {"likert", "qualitative"}
 GENDER_VALUES = {"male", "female"}
 DEFAULT_AGE_MIN = 18
 DEFAULT_AGE_MAX = 65
@@ -297,6 +302,28 @@ GEN_PERSONA_INSTRUCTION = {
     ),
 }
 
+# Only included (see _build_generation_messages) when the codebook has at
+# least one column tagged type="qualitative" -- the codebook listing itself
+# (_format_codebook) flags exactly which columns those are.
+GEN_QUALITATIVE_INSTRUCTION = {
+    "vi": (
+        "Bộ câu hỏi bên dưới cũng có một số câu hỏi MỞ (đã đánh dấu [câu hỏi mở]), khác với các câu "
+        "Likert -- với những câu này, hãy trả lời bằng 1-3 câu văn tự do, ĐÚNG với nhân vật đã dựng "
+        "trong `persona_description` và nhất quán với các câu Likert cùng người đó đã trả lời (VD một "
+        "người trả lời Likert thấp cho một khái niệm thì câu trả lời mở liên quan cũng nên thể hiện "
+        "sự không hài lòng/hoài nghi, không mâu thuẫn). Mỗi người trả lời cần có câu trả lời mở riêng "
+        "biệt, không lặp lại nguyên văn giữa các dòng."
+    ),
+    "en": (
+        "The codebook below also has some OPEN-ENDED questions (flagged [open-ended]), unlike the "
+        "Likert ones -- for those, answer in 1-3 free-form sentences, TRUE to the persona built in "
+        "`persona_description` and consistent with that same person's Likert answers (e.g. someone "
+        "who rated a concept low should give an open answer that also reads as dissatisfied/"
+        "skeptical, not contradicting it). Each respondent needs their own distinct open answer, not "
+        "reused verbatim across rows."
+    ),
+}
+
 GEN_DEMO_COLUMNS_INSTRUCTION = {
     "vi": (
         "Ngoài các câu hỏi trên, mỗi người trả lời còn cần được gán CHÍNH XÁC hai thuộc tính cá "
@@ -329,23 +356,40 @@ GEN_OUTPUT_FORMAT = {
         "Chỉ xuất ra một bảng CSV -- dòng đầu tiên là chính xác header sau: {header}. Sau đó mỗi "
         "dòng là một người trả lời: cột đầu tiên `persona_description` là hồ sơ nhân vật (một câu "
         "ngắn, LUÔN đặt trong dấu ngoặc kép \"...\" vì có thể chứa dấu phẩy), tiếp theo các câu hỏi "
-        "Likert là số nguyên từ {lo} đến {hi}, rồi đến `resp_age` (số nguyên trong khoảng đã nêu), "
-        "`resp_gender` (`male` hoặc `female`){extra_note}. KHÔNG markdown code fence, KHÔNG giải "
-        "thích, KHÔNG có văn bản nào khác ngoài bảng CSV."
+        "Likert là số nguyên từ {lo} đến {hi}{qual_note}, rồi đến `resp_age` (số nguyên trong khoảng "
+        "đã nêu), `resp_gender` (`male` hoặc `female`){extra_note}. KHÔNG markdown code fence, KHÔNG "
+        "giải thích, KHÔNG có văn bản nào khác ngoài bảng CSV."
     ),
     "en": (
         "Output ONLY a CSV table -- the first line must be exactly this header: {header}. Each "
         "following line is one respondent: the first column `persona_description` is the persona "
         "profile (one short sentence, ALWAYS wrapped in double quotes \"...\" since it may contain "
-        "commas), then the Likert questions as integers from {lo} to {hi}, then `resp_age` (an "
-        "integer in the stated range), `resp_gender` (`male` or `female`){extra_note}. NO markdown "
-        "code fences, NO explanations, NO text other than the CSV table."
+        "commas), then the Likert questions as integers from {lo} to {hi}{qual_note}, then "
+        "`resp_age` (an integer in the stated range), `resp_gender` (`male` or `female`){extra_note}. "
+        "NO markdown code fences, NO explanations, NO text other than the CSV table."
     ),
 }
 
 GEN_OUTPUT_FORMAT_EXTRA_NOTE = {
     "vi": ", rồi đến các cột thuộc tính bổ sung đã khai báo ở trên, theo đúng thứ tự",
     "en": ", then the additional declared attribute columns above, in that exact order",
+}
+
+# Qualitative (open-ended) columns are interspersed among the Likert columns
+# in header order (whatever order the codebook rows are in), not a separate
+# block -- this note tells the model to switch format per-column rather than
+# assuming the whole row is numeric.
+GEN_OUTPUT_FORMAT_QUAL_NOTE = {
+    "vi": (
+        " (LƯU Ý: một số cột trong số đó là câu hỏi MỞ đã đánh dấu ở trên -- với các cột đó, thay vì "
+        "số nguyên, hãy viết câu trả lời bằng văn bản tự do, LUÔN đặt trong dấu ngoặc kép vì có thể "
+        "chứa dấu phẩy)"
+    ),
+    "en": (
+        " (NOTE: some of those columns are the OPEN-ENDED questions flagged above -- for those "
+        "columns, instead of an integer, write a free-text answer, ALWAYS wrapped in double quotes "
+        "since it may contain commas)"
+    ),
 }
 
 GEN_CODEBOOK_LABEL = {"vi": "Bộ câu hỏi khảo sát", "en": "Survey question codebook"}
@@ -356,13 +400,15 @@ GEN_NO_DEMOGRAPHICS = {
 }
 
 
-def _format_codebook(codebook: list[dict]) -> str:
+def _format_codebook(codebook: list[dict], lang: str) -> str:
+    qual_tag = {"vi": " [câu hỏi mở -- trả lời bằng văn bản tự do]", "en": " [open-ended -- answer in free text]"}
     lines = []
     for item in codebook:
         q = item.get("question_text") or "(no question text provided)"
         construct = (item.get("construct") or "").strip()
         prefix = f"[{construct}] " if construct else ""
-        lines.append(f"{prefix}{item['column']}: {q}")
+        suffix = qual_tag.get(lang, qual_tag["en"]) if item.get("type") == "qualitative" else ""
+        lines.append(f"{prefix}{item['column']}: {q}{suffix}")
     return "\n".join(lines)
 
 
@@ -415,28 +461,32 @@ def _format_custom_attrs(demo_attributes: list[dict], lang: str) -> str:
 def _build_generation_messages(codebook: list[dict], demographics: dict, demo_attributes: list[dict], n_rows: int, likert_scale: int, lang: str) -> tuple[str, str]:
     lo, hi = LIKERT_SCALES[likert_scale]
     demo_attr_columns = _demo_attr_columns(demo_attributes)
+    _likert_cols, qual_cols = _split_codebook_columns(codebook)
     header = ",".join([PERSONA_COLUMN] + [item["column"] for item in codebook] + DEMO_COLUMNS + demo_attr_columns)
     age_min, age_max = _resolve_age_bounds(demographics)
     gender_desc = _resolve_gender_desc(demographics, lang)
     codebook_label = GEN_CODEBOOK_LABEL.get(lang, GEN_CODEBOOK_LABEL["en"])
     demo_label = GEN_DEMOGRAPHICS_LABEL.get(lang, GEN_DEMOGRAPHICS_LABEL["en"])
     extra_note = GEN_OUTPUT_FORMAT_EXTRA_NOTE.get(lang, GEN_OUTPUT_FORMAT_EXTRA_NOTE["en"]) if demo_attributes else ""
+    qual_note = GEN_OUTPUT_FORMAT_QUAL_NOTE.get(lang, GEN_OUTPUT_FORMAT_QUAL_NOTE["en"]) if qual_cols else ""
     parts = [
         GEN_ROLE_FRAMING.get(lang, GEN_ROLE_FRAMING["en"]),
         GEN_PERSONA_INSTRUCTION.get(lang, GEN_PERSONA_INSTRUCTION["en"]).format(lo=lo, hi=hi),
-        f"{codebook_label}:\n{_format_codebook(codebook)}",
+        f"{codebook_label}:\n{_format_codebook(codebook, lang)}",
         f"{demo_label}:\n{_format_demographics(demographics, lang)}",
         GEN_DEMO_COLUMNS_INSTRUCTION.get(lang, GEN_DEMO_COLUMNS_INSTRUCTION["en"]).format(
             age_min=age_min, age_max=age_max, gender_desc=gender_desc,
         ),
     ]
+    if qual_cols:
+        parts.append(GEN_QUALITATIVE_INSTRUCTION.get(lang, GEN_QUALITATIVE_INSTRUCTION["en"]))
     if demo_attributes:
         parts.append(
             GEN_CUSTOM_ATTR_INSTRUCTION.get(lang, GEN_CUSTOM_ATTR_INSTRUCTION["en"]).format(
                 attr_list=_format_custom_attrs(demo_attributes, lang),
             )
         )
-    parts.append(GEN_OUTPUT_FORMAT.get(lang, GEN_OUTPUT_FORMAT["en"]).format(header=header, lo=lo, hi=hi, extra_note=extra_note))
+    parts.append(GEN_OUTPUT_FORMAT.get(lang, GEN_OUTPUT_FORMAT["en"]).format(header=header, lo=lo, hi=hi, extra_note=extra_note, qual_note=qual_note))
     system_msg = "\n\n".join(parts)
     user_msg = {
         "vi": f"Hãy sinh dữ liệu khảo sát tổng hợp cho nghiên cứu mô tả ở trên. Tổng số người trả lời cần: {n_rows}.",
@@ -445,29 +495,36 @@ def _build_generation_messages(codebook: list[dict], demographics: dict, demo_at
     return system_msg, user_msg
 
 
-def _batch_instruction(columns: list[str], lo: int, hi: int, start_row: int, end_row: int, lang: str, demo_attr_columns: list[str] | None = None) -> str:
+def _batch_instruction(
+    columns: list[str], lo: int, hi: int, start_row: int, end_row: int, lang: str,
+    demo_attr_columns: list[str] | None = None, qual_columns: list[str] | None = None,
+) -> str:
     n = end_row - start_row + 1
     header = ",".join([PERSONA_COLUMN] + list(columns) + DEMO_COLUMNS + (demo_attr_columns or []))
+    qual_reminder = {
+        "vi": f" (trừ các cột định tính {', '.join(qual_columns)} -- viết văn bản tự do, đặt trong dấu ngoặc kép, cho các cột đó)",
+        "en": f" (except the qualitative columns {', '.join(qual_columns)} -- write free text, double-quoted, for those)",
+    }.get(lang, f" (except the qualitative columns {', '.join(qual_columns)} -- write free text, double-quoted, for those)") if qual_columns else ""
     return {
         "vi": (
             f"Sinh chính xác {n} người trả lời ngay bây giờ (đại diện người thứ {start_row}-{end_row} "
             f"trong tổng mẫu -- đa dạng hoá cá tính so với những người đã sinh trước đó nếu có). Chỉ "
             f"xuất CSV, dòng đầu là header: {header}, theo sau đúng {n} dòng dữ liệu -- mỗi dòng bắt "
             f"đầu bằng `{PERSONA_COLUMN}` (đặt trong dấu ngoặc kép), rồi đến các câu hỏi là số nguyên "
-            f"từ {lo} đến {hi}."
+            f"từ {lo} đến {hi}{qual_reminder}."
         ),
         "en": (
             f"Generate exactly {n} respondents now (representing respondents #{start_row}-#{end_row} "
             f"of the full sample -- vary personas from any generated before). Output ONLY the CSV, "
             f"header row: {header}, followed by exactly {n} data rows -- each row starting with "
             f"`{PERSONA_COLUMN}` (double-quoted), then whole numbers from {lo} to {hi} for the "
-            f"questions."
+            f"questions{qual_reminder}."
         ),
     }.get(lang, (
         f"Generate exactly {n} respondents now (representing respondents #{start_row}-#{end_row} "
         f"of the full sample). Output ONLY the CSV, header row: {header}, followed by exactly {n} "
         f"data rows -- each row starting with `{PERSONA_COLUMN}` (double-quoted), then whole numbers "
-        f"from {lo} to {hi} for the questions."
+        f"from {lo} to {hi} for the questions{qual_reminder}."
     ))
 
 
@@ -547,12 +604,19 @@ def _extract_csv_block(text: str) -> str:
     return m.group(1).strip() if m else stripped
 
 
-def _parse_batch_csv(text: str, columns: list[str], likert_min: int, likert_max: int, expected_n: int, age_min: int, age_max: int, demo_attributes: list[dict] | None = None):
+def _parse_batch_csv(
+    text: str, columns: list[str], likert_min: int, likert_max: int, expected_n: int, age_min: int, age_max: int,
+    demo_attributes: list[dict] | None = None, qual_columns: list[str] | None = None,
+):
     """Returns (dataframe, None) on success or (None, reason) on failure --
     never raises, so the caller's retry loop can treat every failure mode
     uniformly. The returned dataframe carries `PERSONA_COLUMN + columns +
-    DEMO_COLUMNS +` any custom demographic attribute columns."""
+    DEMO_COLUMNS +` any custom demographic attribute columns. `columns` is
+    every codebook column (both types); `qual_columns` (a subset of it)
+    marks which ones are free text instead of a Likert integer."""
     demo_attributes = demo_attributes or []
+    qual_columns = qual_columns or []
+    likert_columns = [c for c in columns if c not in qual_columns]
     demo_attr_columns = _demo_attr_columns(demo_attributes)
     all_columns = [PERSONA_COLUMN] + list(columns) + DEMO_COLUMNS + demo_attr_columns
     cleaned = _extract_csv_block(text)
@@ -587,11 +651,22 @@ def _parse_batch_csv(text: str, columns: list[str], likert_min: int, likert_max:
     if persona_empty.any():
         return None, f"{PERSONA_COLUMN} must not be empty -- the AI must role-play as a described persona"
 
-    likert_part = df[columns].apply(pd.to_numeric, errors="coerce")
+    likert_part = df[likert_columns].apply(pd.to_numeric, errors="coerce") if likert_columns else pd.DataFrame(index=df.index)
     if likert_part.isna().any().any():
         return None, "a non-numeric value was found"
     if ((likert_part < likert_min) | (likert_part > likert_max)).any().any():
         return None, f"a value outside the [{likert_min}, {likert_max}] range was found"
+
+    qual_raw = df[qual_columns] if qual_columns else pd.DataFrame(index=df.index)
+    qual_part = qual_raw.astype(str).apply(lambda s: s.str.strip()) if qual_columns else qual_raw
+    if qual_columns:
+        # astype(str) on a missing value doesn't reliably become the literal
+        # string "nan" across pandas versions/dtypes (e.g. pandas 3's string
+        # dtype keeps it as an actual missing marker) -- check .isna() on the
+        # raw column directly too, exactly like the persona_empty check above.
+        qual_empty = qual_raw.isna() | (qual_part == "") | (qual_part.apply(lambda s: s.str.lower()) == "nan")
+        if qual_empty.any().any():
+            return None, "a qualitative answer was empty"
 
     age_part = pd.to_numeric(df["resp_age"], errors="coerce")
     if age_part.isna().any():
@@ -604,7 +679,14 @@ def _parse_batch_csv(text: str, columns: list[str], likert_min: int, likert_max:
         return None, f"resp_gender must be one of {sorted(GENDER_VALUES)}"
 
     out = pd.DataFrame({PERSONA_COLUMN: persona_part})
-    out[list(columns)] = likert_part.astype(int)
+    if likert_columns:
+        out[likert_columns] = likert_part.astype(int)
+    if qual_columns:
+        out[qual_columns] = qual_part
+    # Restore the original codebook column order (the two blocks above are
+    # each internally ordered, but interleaved likert/qualitative columns
+    # would otherwise end up likert-first, qualitative-second).
+    out = out[[PERSONA_COLUMN] + list(columns)]
     out["resp_age"] = age_part.astype(int)
     out["resp_gender"] = gender_part
 
@@ -638,12 +720,24 @@ def _validate_codebook(raw_codebook, lang: str):
         if col in seen:
             return None, t("err_ai_gen_duplicate_column", lang, name=col)
         seen.add(col)
+        raw_type = str((item or {}).get("type") or "").strip().lower()
         cleaned.append({
             "column": col,
             "question_text": str((item or {}).get("question_text") or "").strip(),
             "construct": str((item or {}).get("construct") or "").strip(),
+            "type": raw_type if raw_type in CODEBOOK_TYPES else "likert",
         })
     return cleaned, None
+
+
+def _split_codebook_columns(codebook: list[dict]) -> tuple[list[str], list[str]]:
+    """Returns (likert_columns, qualitative_columns), preserving codebook
+    order -- the single source of truth every route derives the split from,
+    so /batch, /finalize, and descriptive-stats all agree on which columns
+    are SEM-indicator candidates vs. free-text respondent context."""
+    likert_columns = [c["column"] for c in codebook if c.get("type") != "qualitative"]
+    qual_columns = [c["column"] for c in codebook if c.get("type") == "qualitative"]
+    return likert_columns, qual_columns
 
 
 # ---- AI-assisted construct/indicator search (literature review) ----
@@ -1110,8 +1204,9 @@ def suggest_prompt():
     # the user prompt above -- built via the same helper /batch itself uses,
     # so this is a genuine WYSIWYG preview, not an approximation.
     lo, hi = LIKERT_SCALES[likert_scale]
+    _qual_columns = _split_codebook_columns(codebook)[1]
     first_batch_instruction = _batch_instruction(
-        [item["column"] for item in codebook], lo, hi, 1, batch_size, lang, _demo_attr_columns(demo_attributes),
+        [item["column"] for item in codebook], lo, hi, 1, batch_size, lang, _demo_attr_columns(demo_attributes), _qual_columns,
     )
     return jsonify(
         system_prompt=system_msg,
@@ -1193,8 +1288,10 @@ def generate_batch():
     age_min, age_max = _resolve_age_bounds({"age_min": payload.get("demo_age_min"), "age_max": payload.get("demo_age_max")})
     demo_attr_columns = _demo_attr_columns(demo_attributes)
     categorical_attr_columns = {a["column"] for a in demo_attributes if a["type"] == "categorical"}
+    raw_qual_columns = payload.get("qualitative_columns") or []
+    qual_columns = [c for c in raw_qual_columns if c in columns] if isinstance(raw_qual_columns, list) else []
 
-    batch_user_msg = user_msg + "\n\n" + _batch_instruction(columns, likert_min, likert_max, start_row, end_row, lang, demo_attr_columns)
+    batch_user_msg = user_msg + "\n\n" + _batch_instruction(columns, likert_min, likert_max, start_row, end_row, lang, demo_attr_columns, qual_columns)
     current_system_msg = system_msg
     last_reason = None
 
@@ -1203,12 +1300,12 @@ def generate_batch():
         if err_response is not None:
             return err_response
 
-        df, reason = _parse_batch_csv(text, columns, likert_min, likert_max, expected_n, age_min, age_max, demo_attributes)
+        df, reason = _parse_batch_csv(text, columns, likert_min, likert_max, expected_n, age_min, age_max, demo_attributes, qual_columns)
         if df is not None:
             # pandas' int64/object dtypes aren't natively JSON-serializable
             # (numpy int64 in particular) -- cast every cell to a plain
             # Python int/str explicitly rather than relying on jsonify.
-            string_cols = {"resp_gender", PERSONA_COLUMN} | categorical_attr_columns
+            string_cols = {"resp_gender", PERSONA_COLUMN} | categorical_attr_columns | set(qual_columns)
             safe_rows = [
                 {k: (str(v) if k in string_cols else int(v)) for k, v in row.items()}
                 for row in df.to_dict(orient="records")
@@ -1299,13 +1396,22 @@ def finalize():
     demo_attr_columns = _demo_attr_columns(demo_attributes)
     categorical_attrs_by_col = {a["column"]: a for a in demo_attributes if a["type"] == "categorical"}
 
+    codebook, _cb_err = _validate_codebook(payload.get("codebook"), lang)
+    if codebook:
+        _all_qual = set(_split_codebook_columns(codebook)[1])
+        qual_columns = [c for c in columns if c in _all_qual]
+    else:
+        qual_columns = []
+    qual_col_set = set(qual_columns)
+    likert_columns = [c for c in columns if c not in qual_col_set]
+
     all_columns = [PERSONA_COLUMN] + list(columns) + DEMO_COLUMNS + demo_attr_columns
     col_set = set(all_columns)
     for row in rows:
         if not isinstance(row, dict) or set(row.keys()) != col_set:
             return jsonify(error=t("err_ai_gen_finalize_shape_mismatch", lang)), 400
         for k, v in row.items():
-            if k == PERSONA_COLUMN:
+            if k == PERSONA_COLUMN or k in qual_col_set:
                 if not str(v).strip():
                     return jsonify(error=t("err_ai_gen_finalize_shape_mismatch", lang)), 400
                 continue
@@ -1323,8 +1429,8 @@ def finalize():
                 return jsonify(error=t("err_ai_gen_finalize_shape_mismatch", lang)), 400
 
     full_df = pd.DataFrame(rows, columns=all_columns)
-    indicator_df = full_df[columns].astype(int)
-    demo_df = full_df[[PERSONA_COLUMN] + DEMO_COLUMNS + demo_attr_columns].copy()
+    indicator_df = full_df[likert_columns].astype(int)
+    demo_df = full_df[[PERSONA_COLUMN] + DEMO_COLUMNS + demo_attr_columns + qual_columns].copy()
     demo_df[PERSONA_COLUMN] = demo_df[PERSONA_COLUMN].astype(str).str.strip()
     demo_df["resp_age"] = demo_df["resp_age"].astype(int)
     demo_df["resp_gender"] = demo_df["resp_gender"].astype(str).str.strip().str.lower()
@@ -1334,6 +1440,8 @@ def finalize():
             demo_df[col] = demo_df[col].astype(int)
         else:
             demo_df[col] = demo_df[col].apply(lambda v, opts=attr["options"]: _normalize_categorical_value(v, opts))
+    for col in qual_columns:
+        demo_df[col] = demo_df[col].astype(str).str.strip()
     # Explicit join key between the SEM indicator file and the respondent
     # profile file -- without this, the only correspondence between the two
     # is "same row order", which is invisible once either file is opened,
@@ -1344,7 +1452,6 @@ def finalize():
     dest = os.path.join(_upload_dir(), file_id + ".csv")
     indicator_df.to_csv(dest, index=False)
 
-    codebook, _err = _validate_codebook(payload.get("codebook"), lang)
     demographics = payload.get("demographics") or {}
     meta = {
         "file_id": file_id,

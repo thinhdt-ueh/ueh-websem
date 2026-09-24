@@ -283,6 +283,7 @@ canvas { width: 100%; border: 1px solid var(--border); border-radius: 10px; back
 
 .codebook-table td { text-align: left; white-space: normal; vertical-align: top; }
 .codebook-table input[type="text"] { width: 100%; padding: 6px 8px; border: 1px solid var(--border); border-radius: 6px; font-size: 13px; }
+.codebook-table select.codebook-type-select { width: 100%; padding: 6px 8px; border: 1px solid var(--border); border-radius: 6px; font-size: 13px; background: var(--card); }
 .codebook-table td.codebook-remove-cell { text-align: center; white-space: nowrap; }
 .codebook-row-remove { border: 1px solid var(--border); background: var(--card); color: var(--danger); border-radius: 6px; padding: 3px 9px; font-size: 12px; cursor: pointer; }
 .codebook-row-remove:hover { background: #fdecec; }
