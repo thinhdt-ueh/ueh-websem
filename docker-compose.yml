@@ -1,7 +1,7 @@
 services:
   web:
     build: .
-    image: ueh-websem:latest
+    image: ai-sem:latest
     ports:
       - "5000:5000"
     environment:
