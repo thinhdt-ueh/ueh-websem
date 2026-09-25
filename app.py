@@ -10,6 +10,7 @@ from routes.ai_worker_api import ai_worker_api
 from routes.api import api
 from routes.cbsem_api import cbsem_api
 from routes.ipma_api import ipma_api
+from routes.mga_api import mga_api
 from routes.ml_api import ml_api
 from routes.plspredict_api import plspredict_api
 from routes.power_api import power_api
@@ -33,6 +34,7 @@ def create_app() -> Flask:
     app.register_blueprint(ipma_api)
     app.register_blueprint(power_api)
     app.register_blueprint(ml_api)
+    app.register_blueprint(mga_api)
     app.register_blueprint(ai_report_api)
     app.register_blueprint(ai_data_gen_api)
     app.register_blueprint(ai_worker_api)
@@ -52,6 +54,10 @@ def create_app() -> Flask:
     @app.get("/ml_comparison")
     def ml_comparison_page():
         return render_template("ml_comparison.html")
+
+    @app.get("/pls_mga")
+    def pls_mga_page():
+        return render_template("pls_mga.html")
 
     @app.get("/ai_report")
     def ai_report_page():

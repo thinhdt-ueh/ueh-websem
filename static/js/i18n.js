@@ -303,6 +303,7 @@ const I18N = {
     s3_sensitivity_btn: "📉 Phân tích độ nhạy cỡ mẫu",
     s3_power_btn: "⚡ Power Analysis",
     s3_ml_compare_btn: "🤖 So sánh Machine Learning",
+    s3_mga_btn: "🔀 So sánh đa nhóm (PLS-MGA)",
     s3_plspredict_btn: "🔮 PLSpredict",
     s3_plspredict_running: "Đang chạy k-fold…",
     s3_plspredict_title: "PLSpredict — Đánh giá khả năng dự báo ngoài mẫu",
@@ -536,6 +537,61 @@ const I18N = {
     ml_modal_k_hint: "Cao hơn = ước lượng ổn định hơn nhưng chạy lâu hơn, đặc biệt với Random Forest/CatBoost.",
     ml_modal_select_at_least_one: "Vui lòng chọn ít nhất một thuật toán.",
     ml_modal_invalid_k: "Số fold (k) phải từ 2 đến 10.",
+
+    mga_modal_title: "Cấu hình So sánh đa nhóm (PLS-MGA)",
+    mga_modal_loading: "Đang tìm biến có thể dùng để phân nhóm…",
+    mga_modal_no_candidates: "Không tìm thấy cột nào phù hợp để phân nhóm (cần một cột có 2-15 giá trị khác nhau, không phải biến quan sát trong mô hình).",
+    mga_modal_hint: "Chọn một biến để chia đáp viên thành 2 nhóm, rồi chọn giá trị nào thuộc nhóm nào. So sánh path coefficient giữa 2 nhóm bằng 3 phương pháp: Parametric/Welch-Satterthwaite, Permutation test, và PLS-MGA (Henseler).",
+    mga_modal_column_label: "Biến phân nhóm",
+    mga_modal_group_a_title: "Nhóm A",
+    mga_modal_group_b_title: "Nhóm B",
+    mga_modal_label_placeholder_a: "Tên hiển thị cho Nhóm A (tuỳ chọn)",
+    mga_modal_label_placeholder_b: "Tên hiển thị cho Nhóm B (tuỳ chọn)",
+    mga_modal_value_used_by_other_group: "Giá trị này đã thuộc nhóm khác.",
+    mga_modal_n_boot_label: "Số lần bootstrap mỗi nhóm",
+    mga_modal_n_perm_label: "Số lần permutation",
+    mga_modal_settings_hint: "Từ 100 đến 5000. Số lớn hơn cho kết quả ổn định hơn nhưng chạy lâu hơn.",
+    mga_modal_select_values: "Vui lòng chọn ít nhất một giá trị cho mỗi nhóm.",
+    mga_modal_invalid_settings: "Số lần bootstrap/permutation phải từ 100 đến 5000.",
+
+    mga_page_title: "So sánh đa nhóm (PLS-MGA)",
+    mga_loading: "Đang chạy bootstrap và permutation cho từng nhóm — có thể mất một lúc…",
+    mga_no_job: "Không tìm thấy yêu cầu so sánh đa nhóm — hãy mở lại từ trang kết quả.",
+    mga_failed: "So sánh đa nhóm thất bại.",
+    mga_summary_title: "Tổng quan",
+    mga_summary_text: "Phân nhóm theo biến \"{column}\": {labelA} (n={nA}) vs. {labelB} (n={nB}). Bootstrap: {nBoot} lần/nhóm, Permutation: {nPerm} lần.",
+    mga_table_title: "So sánh hệ số đường dẫn giữa 2 nhóm",
+    mga_table_hint: "Mỗi dòng là một đường dẫn (path) trong mô hình cấu trúc. Cột p-value nhỏ (< 0.05) ở Parametric/Welch-Satterthwaite/Permutation, hoặc p-MGA < 0.05 hay > 0.95, cho biết hệ số đường dẫn khác biệt có ý nghĩa giữa {labelA} và {labelB}.",
+    mga_col_path: "Đường dẫn",
+    mga_col_coef_a: "Hệ số",
+    mga_col_coef_b: "Hệ số",
+    mga_col_diff: "Chênh lệch",
+    mga_col_p_parametric: "p (Parametric)",
+    mga_col_p_welch: "p (Welch-Satterthwaite)",
+    mga_col_p_permutation: "p (Permutation)",
+    mga_col_p_mga: "p (PLS-MGA)",
+    mga_col_significant: "Kết luận",
+    mga_significant: "Khác biệt có ý nghĩa",
+    mga_not_significant: "Không khác biệt có ý nghĩa",
+    mga_guide_section_title: "Hướng dẫn đọc & Ý nghĩa các chỉ số",
+    mga_guide_what_summary: "PLS-MGA (Multi-Group Analysis) là gì?",
+    mga_guide_what_body:
+      "<p>So sánh xem một đường dẫn (path) trong mô hình cấu trúc có hệ số khác nhau có ý nghĩa thống kê giữa hai nhóm đáp viên hay không (ví dụ: Nam vs. Nữ, nhóm điều kiện A vs. B). Đây là bước phân tích riêng, chạy SAU khi mô hình đã được ước lượng ở Bước 3 — dùng đúng cùng bộ dữ liệu và mô hình.</p>",
+    mga_guide_methods_summary: "Ý nghĩa 3 phương pháp kiểm định",
+    mga_guide_methods_body:
+      "<ul>" +
+      "<li><strong>Parametric test (Chin, 2000)</strong> và <strong>Welch-Satterthwaite</strong>: kiểm định t cổ điển, dựa trên độ lệch chuẩn bootstrap của từng nhóm. Parametric giả định hai nhóm có phương sai bằng nhau; Welch-Satterthwaite không cần giả định này (thường đáng tin hơn khi cỡ mẫu hai nhóm khác biệt).</li>" +
+      "<li><strong>Permutation test (Chin &amp; Dibbern, 2010)</strong>: phi tham số — trộn ngẫu nhiên toàn bộ đáp viên rồi chia lại thành 2 nhóm có cùng cỡ mẫu ban đầu, lặp lại nhiều lần để tạo phân phối \"không có khác biệt thật\", từ đó tính p-value.</li>" +
+      "<li><strong>PLS-MGA (Henseler, Ringle &amp; Sinkovics, 2009)</strong>: phi tham số — so sánh trực tiếp toàn bộ phân phối bootstrap của hệ số đường dẫn giữa 2 nhóm (không quy về sai số chuẩn trước). Có ý nghĩa ở mức 5% khi p &lt; 0.05 HOẶC p &gt; 0.95 (ngưỡng bất đối xứng này là quy ước chuẩn của phương pháp, không phải p &lt; 0.025).</li>" +
+      "</ul>" +
+      "<p>Các phương pháp thường cho kết luận tương tự nhau; nếu không, nên báo cáo cả 3 và ưu tiên Welch-Satterthwaite hoặc PLS-MGA làm kết quả chính (ít giả định hơn).</p>",
+    mga_guide_limits_summary: "Giới hạn",
+    mga_guide_limits_body:
+      "<ul>" +
+      "<li>Hiện chưa hỗ trợ mô hình có biến tương tác/điều tiết (interaction/moderation) — chỉ so sánh được path coefficient của mô hình cấu trúc thông thường.</li>" +
+      "<li>Cần tối thiểu 30 quan sát hợp lệ ở MỖI nhóm để kết quả bootstrap/permutation đủ ổn định.</li>" +
+      "<li>Kết quả chỉ so sánh được ĐÚNG 2 nhóm mỗi lần chạy — với biến phân nhóm có nhiều hơn 2 giá trị, hãy gộp các giá trị còn lại vào 1 trong 2 nhóm, hoặc chạy lại nhiều lần cho từng cặp nhóm muốn so sánh.</li>" +
+      "</ul>",
 
     // --- AI report (shared modal + standalone page) ---
     s3_ai_report_btn: "🤖 Báo cáo AI",
@@ -1103,6 +1159,7 @@ const I18N = {
     s3_sensitivity_btn: "📉 Sample Size Sensitivity",
     s3_power_btn: "⚡ Power Analysis",
     s3_ml_compare_btn: "🤖 ML Comparison",
+    s3_mga_btn: "🔀 Multi-group comparison (PLS-MGA)",
     s3_plspredict_btn: "🔮 PLSpredict",
     s3_plspredict_running: "Running k-fold…",
     s3_plspredict_title: "PLSpredict — Out-of-Sample Predictive Validity",
@@ -1336,6 +1393,61 @@ const I18N = {
     ml_modal_k_hint: "Higher = more stable estimates but a longer run, especially for Random Forest/CatBoost.",
     ml_modal_select_at_least_one: "Please select at least one algorithm.",
     ml_modal_invalid_k: "The number of folds (k) must be between 2 and 10.",
+
+    mga_modal_title: "Configure Multi-Group Comparison (PLS-MGA)",
+    mga_modal_loading: "Looking for columns that can split respondents into groups…",
+    mga_modal_no_candidates: "No suitable grouping column found (needs a column with 2-15 distinct values that isn't a model indicator).",
+    mga_modal_hint: "Pick a column to split respondents into two groups, then choose which values belong to each group. Compares path coefficients between the two groups using 3 methods: Parametric/Welch-Satterthwaite, Permutation test, and PLS-MGA (Henseler).",
+    mga_modal_column_label: "Grouping column",
+    mga_modal_group_a_title: "Group A",
+    mga_modal_group_b_title: "Group B",
+    mga_modal_label_placeholder_a: "Display name for Group A (optional)",
+    mga_modal_label_placeholder_b: "Display name for Group B (optional)",
+    mga_modal_value_used_by_other_group: "This value already belongs to the other group.",
+    mga_modal_n_boot_label: "Bootstrap resamples per group",
+    mga_modal_n_perm_label: "Permutations",
+    mga_modal_settings_hint: "From 100 to 5000. Higher gives more stable results but takes longer to run.",
+    mga_modal_select_values: "Please select at least one value for each group.",
+    mga_modal_invalid_settings: "Bootstrap/permutation count must be between 100 and 5000.",
+
+    mga_page_title: "Multi-Group Comparison (PLS-MGA)",
+    mga_loading: "Running bootstrap and permutation for each group — this may take a moment…",
+    mga_no_job: "No multi-group comparison request found — please reopen this from the results page.",
+    mga_failed: "Multi-group comparison failed.",
+    mga_summary_title: "Overview",
+    mga_summary_text: "Grouped by \"{column}\": {labelA} (n={nA}) vs. {labelB} (n={nB}). Bootstrap: {nBoot} per group, Permutation: {nPerm}.",
+    mga_table_title: "Path coefficient comparison between the two groups",
+    mga_table_hint: "Each row is one structural path. A small p-value (< 0.05) on Parametric/Welch-Satterthwaite/Permutation, or p-MGA < 0.05 or > 0.95, indicates the path coefficient differs significantly between {labelA} and {labelB}.",
+    mga_col_path: "Path",
+    mga_col_coef_a: "Coefficient",
+    mga_col_coef_b: "Coefficient",
+    mga_col_diff: "Difference",
+    mga_col_p_parametric: "p (Parametric)",
+    mga_col_p_welch: "p (Welch-Satterthwaite)",
+    mga_col_p_permutation: "p (Permutation)",
+    mga_col_p_mga: "p (PLS-MGA)",
+    mga_col_significant: "Conclusion",
+    mga_significant: "Significantly different",
+    mga_not_significant: "Not significantly different",
+    mga_guide_section_title: "Reading Guide & What the Numbers Mean",
+    mga_guide_what_summary: "What is PLS-MGA (Multi-Group Analysis)?",
+    mga_guide_what_body:
+      "<p>Tests whether a structural path's coefficient differs significantly between two groups of respondents (e.g. Male vs. Female, Condition A vs. B). This is a separate analysis step, run AFTER the model has already been estimated in Step 3 -- using the exact same data and model.</p>",
+    mga_guide_methods_summary: "What the three significance tests mean",
+    mga_guide_methods_body:
+      "<ul>" +
+      "<li><strong>Parametric test (Chin, 2000)</strong> and <strong>Welch-Satterthwaite</strong>: classic t-tests built from each group's bootstrap standard deviation. Parametric assumes equal variance between the two groups; Welch-Satterthwaite doesn't (usually more trustworthy when the two groups' sample sizes differ).</li>" +
+      "<li><strong>Permutation test (Chin &amp; Dibbern, 2010)</strong>: non-parametric -- randomly reshuffles all respondents and re-splits them into two groups of the original sizes, repeated many times to build a \"no real difference\" null distribution, from which the p-value is computed.</li>" +
+      "<li><strong>PLS-MGA (Henseler, Ringle &amp; Sinkovics, 2009)</strong>: non-parametric -- directly compares the two groups' entire bootstrap distributions of the path coefficient (without first reducing to a standard error). Significant at the 5% level when p &lt; 0.05 OR p &gt; 0.95 (this asymmetric threshold, not p &lt; 0.025, is the method's own standard convention).</li>" +
+      "</ul>" +
+      "<p>The methods usually agree; when they don't, report all three and favor Welch-Satterthwaite or PLS-MGA as the primary result (fewer assumptions).</p>",
+    mga_guide_limits_summary: "Limitations",
+    mga_guide_limits_body:
+      "<ul>" +
+      "<li>Models with interaction/moderation constructs aren't supported yet -- only ordinary structural-model path coefficients can be compared.</li>" +
+      "<li>Each group needs at least 30 valid observations for the bootstrap/permutation results to be stable enough.</li>" +
+      "<li>Results only compare EXACTLY 2 groups per run -- for a grouping variable with more than 2 values, fold the remaining values into one of the two groups, or rerun separately for each pair of groups you want to compare.</li>" +
+      "</ul>",
 
     // --- AI report (shared modal + standalone page) ---
     s3_ai_report_btn: "🤖 AI Report",

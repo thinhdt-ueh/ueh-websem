@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI-SEM</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+<header class="topbar">
+  <img class="brand-logo" src="{{ url_for('static', filename='img/logo-ai-sem-icon.png') }}" alt="AI-SEM">
+  <div class="brand"><span>AI-SEM</span><small class="brand-slogan">AI-Enabled for SEM</small></div>
+  <div class="hint" style="margin:0" data-i18n="mga_page_title">So sánh đa nhóm (PLS-MGA)</div>
+  <div class="lang-switch" id="langSwitch">
+    <button class="lang-btn" data-lang="vi">VI</button>
+    <button class="lang-btn active" data-lang="en">EN</button>
+  </div>
+  <button class="btn ghost" id="closeTabBtn" data-i18n="sens_close_tab">✕ Đóng tab này</button>
+</header>
+
+<main class="standalone-page">
+  <div id="mgaLoading" class="panel-card standalone-status">
+    <p data-i18n="mga_loading">Đang chạy bootstrap và permutation cho từng nhóm — có thể mất một lúc…</p>
+    <p id="mgaLoadingEta" class="eta-line hidden"></p>
+  </div>
+  <div id="mgaError" class="panel-card standalone-status hidden"></div>
+
+  <div id="mgaContent" class="hidden">
+    <div class="panel-card">
+      <h2 data-i18n="mga_summary_title">Tổng quan</h2>
+      <p class="hint" id="mgaSummary"></p>
+    </div>
+
+    <div class="panel-card">
+      <h2 data-i18n="mga_table_title">So sánh hệ số đường dẫn giữa 2 nhóm</h2>
+      <p class="hint" id="mgaTableHint"></p>
+      <div class="table-scroll"><table id="mgaTable"></table></div>
+    </div>
+
+    <div class="panel-card">
+      <h2 data-i18n="mga_guide_section_title">Hướng dẫn đọc &amp; Ý nghĩa các chỉ số</h2>
+      <div class="reading-guide">
+        <details open>
+          <summary data-i18n="mga_guide_what_summary">PLS-MGA (Multi-Group Analysis) là gì?</summary>
+          <div class="reading-guide-body" data-i18n-html="mga_guide_what_body">
+            <p>So sánh xem một đường dẫn (path) trong mô hình cấu trúc có hệ số khác nhau có ý nghĩa thống kê giữa hai nhóm đáp viên hay không (ví dụ: Nam vs. Nữ, nhóm điều kiện A vs. B). Đây là bước phân tích riêng, chạy SAU khi mô hình đã được ước lượng ở Bước 3 — dùng đúng cùng bộ dữ liệu và mô hình.</p>
+          </div>
+        </details>
+        <details>
+          <summary data-i18n="mga_guide_methods_summary">Ý nghĩa 3 phương pháp kiểm định</summary>
+          <div class="reading-guide-body" data-i18n-html="mga_guide_methods_body">
+            <ul>
+              <li><strong>Parametric test (Chin, 2000)</strong> và <strong>Welch-Satterthwaite</strong>: kiểm định t cổ điển, dựa trên độ lệch chuẩn bootstrap của từng nhóm. Parametric giả định hai nhóm có phương sai bằng nhau; Welch-Satterthwaite không cần giả định này (thường đáng tin hơn khi cỡ mẫu hai nhóm khác biệt).</li>
+              <li><strong>Permutation test (Chin &amp; Dibbern, 2010)</strong>: phi tham số — trộn ngẫu nhiên toàn bộ đáp viên rồi chia lại thành 2 nhóm có cùng cỡ mẫu ban đầu, lặp lại nhiều lần để tạo phân phối "không có khác biệt thật", từ đó tính p-value.</li>
+              <li><strong>PLS-MGA (Henseler, Ringle &amp; Sinkovics, 2009)</strong>: phi tham số — so sánh trực tiếp toàn bộ phân phối bootstrap của hệ số đường dẫn giữa 2 nhóm (không quy về sai số chuẩn trước). Có ý nghĩa ở mức 5% khi p &lt; 0.05 HOẶC p &gt; 0.95 (ngưỡng bất đối xứng này là quy ước chuẩn của phương pháp, không phải p &lt; 0.025).</li>
+            </ul>
+            <p>Các phương pháp thường cho kết luận tương tự nhau; nếu không, nên báo cáo cả 3 và ưu tiên Welch-Satterthwaite hoặc PLS-MGA làm kết quả chính (ít giả định hơn).</p>
+          </div>
+        </details>
+        <details>
+          <summary data-i18n="mga_guide_limits_summary">Giới hạn</summary>
+          <div class="reading-guide-body" data-i18n-html="mga_guide_limits_body">
+            <ul>
+              <li>Hiện chưa hỗ trợ mô hình có biến tương tác/điều tiết (interaction/moderation) — chỉ so sánh được path coefficient của mô hình cấu trúc thông thường.</li>
+              <li>Cần tối thiểu 30 quan sát hợp lệ ở MỖI nhóm để kết quả bootstrap/permutation đủ ổn định.</li>
+              <li>Kết quả chỉ so sánh được ĐÚNG 2 nhóm mỗi lần chạy — với biến phân nhóm có nhiều hơn 2 giá trị, hãy gộp các giá trị còn lại vào 1 trong 2 nhóm, hoặc chạy lại nhiều lần cho từng cặp nhóm muốn so sánh.</li>
+            </ul>
+          </div>
+        </details>
+      </div>
+    </div>
+  </div>
+</main>
+
+{% include "footer.html" %}
+
+<script src="{{ url_for('static', filename='js/i18n.js') }}"></script>
+<script src="{{ url_for('static', filename='js/pls_mga.js') }}"></script>
+</body>
+</html>

@@ -3073,6 +3073,7 @@ document.getElementById("cbsemSensitivityBtn").addEventListener("click", () => o
 document.getElementById("powerAnalysisBtn").addEventListener("click", () => openPowerAnalysisModal("pls"));
 document.getElementById("cbsemPowerAnalysisBtn").addEventListener("click", () => openPowerAnalysisModal("cbsem"));
 document.getElementById("mlCompareBtn").addEventListener("click", () => openMlComparisonModal("pls"));
+document.getElementById("mgaBtn").addEventListener("click", () => openMgaModal());
 document.getElementById("cbsemMlCompareBtn").addEventListener("click", () => openMlComparisonModal("cbsem"));
 document.getElementById("aiReportBtn").addEventListener("click", () => openSemAiReportModal("pls"));
 document.getElementById("cbsemAiReportBtn").addEventListener("click", () => openSemAiReportModal("cbsem"));
@@ -3715,6 +3716,138 @@ async function openMlComparisonModal(method) {
     sessionStorage.setItem("websem_ml_job", JSON.stringify(job));
     root.innerHTML = "";
     window.open("/ml_comparison", "_blank");
+  };
+}
+
+// ---- PLS-MGA (Multi-Group Analysis): compare path coefficients between two
+// groups of respondents. Same two-hop pattern as ML Comparison: a config
+// modal here collects the grouping column + which values go in each group,
+// then stashes a job into sessionStorage and opens a standalone results tab.
+async function openMgaModal() {
+  const root = document.getElementById("modalRoot");
+  root.innerHTML = `<div class="modal-backdrop"><div class="modal-box"><h3>${t("mga_modal_title")}</h3><p class="hint">${t("mga_modal_loading")}</p></div></div>`;
+
+  const modelPayload = editor.serialize();
+  let candidates = null;
+  try {
+    const res = await fetch("/api/mga_candidates", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ file_id: state.fileId, model: modelPayload, lang: getLang() }),
+    });
+    const data = await res.json();
+    if (res.ok) candidates = data.candidates;
+  } catch {
+    candidates = null;
+  }
+
+  if (!candidates || !candidates.length) {
+    root.innerHTML = `
+      <div class="modal-backdrop">
+        <div class="modal-box">
+          <h3>${t("mga_modal_title")}</h3>
+          <div class="error-box">${t("mga_modal_no_candidates")}</div>
+          <div class="modal-actions"><button class="btn" id="mgaModalClose">${t("modal_cancel")}</button></div>
+        </div>
+      </div>`;
+    document.getElementById("mgaModalClose").onclick = () => (root.innerHTML = "");
+    return;
+  }
+
+  const byColumn = Object.fromEntries(candidates.map((c) => [c.column, c]));
+
+  function renderValueChecklist(containerId, column, excludeValues) {
+    const entry = byColumn[column];
+    document.getElementById(containerId).innerHTML = entry.options.map((o) => `
+      <label class="ml-algo-item"${excludeValues.has(o.value) ? ` title="${escapeAttr(t("mga_modal_value_used_by_other_group"))}"` : ""}>
+        <input type="checkbox" data-value="${escapeAttr(o.value)}" ${excludeValues.has(o.value) ? "disabled" : ""}>
+        <span>${escapeHtml(o.value)} <span class="hint">(n=${o.count})</span></span>
+      </label>
+    `).join("");
+  }
+
+  function checkedValues(containerId) {
+    return [...document.querySelectorAll(`#${containerId} input[data-value]:checked`)].map((i) => i.dataset.value);
+  }
+
+  function refreshChecklists() {
+    const column = document.getElementById("mgaColumn").value;
+    const aChecked = new Set(checkedValues("mgaGroupAValues"));
+    const bChecked = new Set(checkedValues("mgaGroupBValues"));
+    renderValueChecklist("mgaGroupAValues", column, bChecked);
+    renderValueChecklist("mgaGroupBValues", column, aChecked);
+    document.querySelectorAll("#mgaGroupAValues input[data-value]").forEach((i) => { i.checked = aChecked.has(i.dataset.value); });
+    document.querySelectorAll("#mgaGroupBValues input[data-value]").forEach((i) => { i.checked = bChecked.has(i.dataset.value); });
+  }
+
+  root.innerHTML = `
+    <div class="modal-backdrop">
+      <div class="modal-box modal-wide">
+        <h3>${t("mga_modal_title")}</h3>
+        <p class="hint">${t("mga_modal_hint")}</p>
+        <label>${t("mga_modal_column_label")}</label>
+        <select id="mgaColumn">
+          ${candidates.map((c) => `<option value="${escapeAttr(c.column)}">${escapeHtml(c.column)}</option>`).join("")}
+        </select>
+
+        <div class="modal-section-title">${t("mga_modal_group_a_title")}</div>
+        <input type="text" id="mgaLabelA" placeholder="${escapeAttr(t("mga_modal_label_placeholder_a"))}">
+        <div class="ml-algo-checklist" id="mgaGroupAValues"></div>
+
+        <div class="modal-section-title">${t("mga_modal_group_b_title")}</div>
+        <input type="text" id="mgaLabelB" placeholder="${escapeAttr(t("mga_modal_label_placeholder_b"))}">
+        <div class="ml-algo-checklist" id="mgaGroupBValues"></div>
+
+        <div class="ml-kfold-row">
+          <label>${t("mga_modal_n_boot_label")}</label>
+          <input type="number" id="mgaNBoot" min="100" max="5000" step="100" value="500">
+        </div>
+        <div class="ml-kfold-row">
+          <label>${t("mga_modal_n_perm_label")}</label>
+          <input type="number" id="mgaNPerm" min="100" max="5000" step="100" value="1000">
+        </div>
+        <p class="hint">${t("mga_modal_settings_hint")}</p>
+
+        <div id="mgaModalError" class="error-box hidden"></div>
+        <div class="modal-actions">
+          <button class="btn" id="mgaModalCancel">${t("modal_cancel")}</button>
+          <button class="btn primary" id="mgaModalOk">${t("sens_modal_run")}</button>
+        </div>
+      </div>
+    </div>`;
+
+  refreshChecklists();
+  document.getElementById("mgaColumn").addEventListener("change", refreshChecklists);
+  document.getElementById("mgaGroupAValues").addEventListener("change", refreshChecklists);
+  document.getElementById("mgaGroupBValues").addEventListener("change", refreshChecklists);
+  document.getElementById("mgaModalCancel").onclick = () => (root.innerHTML = "");
+  document.getElementById("mgaModalOk").onclick = () => {
+    const errBox = document.getElementById("mgaModalError");
+    const column = document.getElementById("mgaColumn").value;
+    const groupAValues = checkedValues("mgaGroupAValues");
+    const groupBValues = checkedValues("mgaGroupBValues");
+    if (!groupAValues.length || !groupBValues.length) {
+      errBox.textContent = t("mga_modal_select_values");
+      errBox.classList.remove("hidden");
+      return;
+    }
+    const nBoot = parseInt(document.getElementById("mgaNBoot").value, 10);
+    const nPerm = parseInt(document.getElementById("mgaNPerm").value, 10);
+    if (!Number.isInteger(nBoot) || nBoot < 100 || nBoot > 5000 || !Number.isInteger(nPerm) || nPerm < 100 || nPerm > 5000) {
+      errBox.textContent = t("mga_modal_invalid_settings");
+      errBox.classList.remove("hidden");
+      return;
+    }
+    const job = {
+      file_id: state.fileId, model: modelPayload, column,
+      group_a_values: groupAValues, group_b_values: groupBValues,
+      label_a: document.getElementById("mgaLabelA").value.trim() || groupAValues.join(", "),
+      label_b: document.getElementById("mgaLabelB").value.trim() || groupBValues.join(", "),
+      n_boot: nBoot, n_perm: nPerm, lang: getLang(),
+    };
+    sessionStorage.setItem("websem_mga_job", JSON.stringify(job));
+    root.innerHTML = "";
+    window.open("/pls_mga", "_blank");
   };
 }
 

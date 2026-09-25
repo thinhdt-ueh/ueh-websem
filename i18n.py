@@ -79,6 +79,13 @@ _CATALOG: dict[str, dict[str, str]] = {
         "err_cbsem_insufficient_observations": (
             "Không đủ quan sát hợp lệ để ước lượng mô hình (còn {n} dòng)."
         ),
+        "err_mga_no_interactions": (
+            "PLS-MGA hiện chưa hỗ trợ mô hình có biến tương tác (interaction/moderation)."
+        ),
+        "err_mga_group_too_small": "Mỗi nhóm cần tối thiểu {min} quan sát hợp lệ để so sánh đa nhóm.",
+        "err_mga_missing_column": "Vui lòng chọn một biến để phân nhóm.",
+        "err_mga_missing_groups": "Vui lòng chọn ít nhất một giá trị cho mỗi nhóm.",
+        "err_mga_overlapping_groups": "Hai nhóm không được có giá trị trùng nhau.",
         "err_cbsem_formative_not_supported": (
             "CB-SEM (Maximum Likelihood) chỉ hỗ trợ đo lường reflective. Construct formative "
             "(Mode B) cần mô hình MIMIC với ràng buộc nhận dạng riêng, chưa được hỗ trợ: {names}"
@@ -414,6 +421,13 @@ _CATALOG: dict[str, dict[str, str]] = {
         "err_cbsem_insufficient_observations": (
             "Not enough valid observations to estimate the model ({n} rows remain)."
         ),
+        "err_mga_no_interactions": (
+            "PLS-MGA does not currently support models with interaction/moderation constructs."
+        ),
+        "err_mga_group_too_small": "Each group needs at least {min} valid observations to compare.",
+        "err_mga_missing_column": "Please choose a column to split respondents into groups.",
+        "err_mga_missing_groups": "Please choose at least one value for each group.",
+        "err_mga_overlapping_groups": "The two groups cannot share any value.",
         "err_cbsem_formative_not_supported": (
             "CB-SEM (Maximum Likelihood) only supports reflective measurement. Formative constructs "
             "(Mode B) need a MIMIC specification with separate identification constraints, which is "
