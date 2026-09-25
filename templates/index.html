@@ -31,6 +31,7 @@
       <div class="ai-provider-tabs" id="dataSourceTabs">
         <button type="button" class="ai-provider-tab active" data-source="upload" data-i18n="s1_tab_upload">📁 Tải lên dữ liệu</button>
         <button type="button" class="ai-provider-tab" data-source="ai_gen" data-i18n="s1_tab_ai_gen">🤖 Sinh dữ liệu bằng AI</button>
+        <button type="button" class="ai-provider-tab" data-source="ai_experiment" data-i18n="s1_tab_ai_experiment">🧪 AI Lab Experiment</button>
       </div>
 
       <div id="uploadSourcePane">
@@ -261,6 +262,272 @@
         </div>
       </div>
 
+      <div id="aiExperimentSourcePane" class="hidden">
+        <div class="ai-gen-steps" id="expSteps">
+          <span class="ai-gen-step-dot active reached" data-substep="1"><span class="num">1</span></span>
+          <span class="ai-gen-step-dot" data-substep="2"><span class="num">2</span></span>
+          <span class="ai-gen-step-dot" data-substep="3"><span class="num">3</span></span>
+          <span class="ai-gen-step-dot" data-substep="4"><span class="num">4</span></span>
+        </div>
+
+        <!-- Sub-step 1: define the worker population and generate the pool -->
+        <div class="ai-gen-substep active" id="expStep1">
+          <h2 data-i18n="exp_step1_title">Bước 1: Định nghĩa nhóm AI Worker (participants)</h2>
+          <p class="hint" data-i18n="exp_step1_hint">Mô tả tổng thể đối tượng tham gia, sau đó AI sẽ tạo ra N hồ sơ AI Worker (persona + demographics), chưa trả lời khảo sát.</p>
+
+          <div class="codebook-actions">
+            <button class="btn ghost" id="expPoolImportBtn" data-i18n="exp_pool_import">⬆ Import Worker Pool có sẵn (Excel)</button>
+            <a class="btn ghost" id="expPoolTemplateBtn" href="/api/ai_worker/pool_import_template" data-i18n="exp_pool_template">⬇ Tải file mẫu (Excel)</a>
+            <input type="file" id="expPoolImportInput" accept=".xlsx,.xls,.csv" hidden>
+          </div>
+          <div id="expPoolImportError" class="error-box hidden"></div>
+
+          <label data-i18n="exp_population_prompt_label">Mô tả tổng thể đối tượng (population)</label>
+          <textarea id="expPopulationPrompt" rows="3" data-i18n-placeholder="exp_population_prompt_placeholder"></textarea>
+
+          <div class="ai-gen-form-row">
+            <div>
+              <label data-i18n="s1_ai_demo_age">Độ tuổi</label>
+              <div style="display:flex;gap:8px;align-items:center;">
+                <input type="number" id="expDemoAgeMin" min="0" max="120">
+                <span data-i18n="s1_ai_demo_age_to">đến</span>
+                <input type="number" id="expDemoAgeMax" min="0" max="120">
+              </div>
+            </div>
+            <div>
+              <label data-i18n="s1_ai_demo_gender">Giới tính</label>
+              <select id="expDemoGenderMix">
+                <option value="any" data-i18n="s1_ai_demo_gender_any">Không giới hạn</option>
+                <option value="balanced" data-i18n="s1_ai_demo_gender_balanced">Cân bằng nam/nữ</option>
+                <option value="mostly_male" data-i18n="s1_ai_demo_gender_mostly_male">Chủ yếu nam</option>
+                <option value="mostly_female" data-i18n="s1_ai_demo_gender_mostly_female">Chủ yếu nữ</option>
+              </select>
+            </div>
+          </div>
+          <div class="ai-gen-form-row">
+            <div>
+              <label data-i18n="s1_ai_demo_occupation">Nghề nghiệp / học vấn</label>
+              <input type="text" id="expDemoOccupation" data-i18n-placeholder="s1_ai_demo_occupation_placeholder">
+            </div>
+            <div>
+              <label data-i18n="s1_ai_demo_location">Khu vực</label>
+              <input type="text" id="expDemoLocation" data-i18n-placeholder="s1_ai_demo_location_placeholder">
+            </div>
+          </div>
+          <label data-i18n="s1_ai_demo_target_population">Mô tả đặc thù đối tượng khảo sát</label>
+          <textarea id="expDemoTargetPopulation" rows="2" data-i18n-placeholder="s1_ai_demo_target_population_placeholder"></textarea>
+
+          <h3 data-i18n="s1_ai_demo_attrs_title">Thuộc tính demographic bổ sung (tuỳ chọn)</h3>
+          <p class="hint" data-i18n="s1_ai_demo_attrs_hint">Số (khoảng min-max) hoặc phân loại (danh sách lựa chọn cách nhau bởi dấu phẩy).</p>
+          <div class="table-scroll">
+            <table class="codebook-table" id="expDemoAttrsTable">
+              <thead>
+                <tr>
+                  <th data-i18n="s1_ai_demo_attrs_col_name">Tên thuộc tính</th>
+                  <th data-i18n="s1_ai_demo_attrs_col_type">Kiểu</th>
+                  <th data-i18n="s1_ai_demo_attrs_col_value">Khoảng số hoặc danh sách lựa chọn</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="expDemoAttrsTableBody"></tbody>
+            </table>
+          </div>
+          <div class="codebook-actions">
+            <button class="btn" id="expDemoAttrsAddRowBtn" data-i18n="s1_ai_demo_attrs_add_row">+ Thêm thuộc tính</button>
+          </div>
+          <div id="expDemoAttrsValidationError" class="error-box hidden"></div>
+
+          <div class="ai-gen-shared-provider">
+            <div class="ai-gen-form-row">
+              <div>
+                <label data-i18n="exp_n_workers_label">Số AI Worker cần tạo (N)</label>
+                <input type="number" id="expNWorkers" min="30" max="500" value="100">
+                <p class="hint" id="expNWorkersHint"></p>
+              </div>
+              <div>
+                <label data-i18n="s1_ai_config_batch_size">Số dòng mỗi lần gọi AI</label>
+                <input type="number" id="expBatchSize" min="1" max="50" value="25">
+                <p class="hint" data-i18n="s1_ai_config_batch_size_hint">Từ 1 đến 50.</p>
+              </div>
+            </div>
+
+            <label data-i18n="ai_modal_provider_label">AI Provider</label>
+            <div class="ai-provider-tabs" id="expProviderTabs"></div>
+
+            <label data-i18n="ai_modal_api_key_label">Your API key</label>
+            <div class="ai-key-row">
+              <input type="password" id="expApiKey" autocomplete="off">
+              <button type="button" class="btn ghost" id="expKeyToggle">👁</button>
+            </div>
+            <p class="hint" id="expApiKeyHint"></p>
+            <label class="checkbox-row">
+              <input type="checkbox" id="expRememberKey">
+              <span data-i18n="ai_modal_remember_key">Ghi nhớ key này trên trình duyệt này (localStorage)</span>
+            </label>
+
+            <label data-i18n="ai_modal_model_label">Model</label>
+            <input type="text" id="expModel" list="expModelSuggestions">
+            <datalist id="expModelSuggestions"></datalist>
+
+            <label><span data-i18n="ai_modal_temperature_label">Độ sáng tạo (temperature)</span> — <span id="expTemperatureValue">1.0</span></label>
+            <div class="ai-temp-row">
+              <span class="ai-temp-endpoint" data-i18n="ai_modal_temperature_low">Chính xác</span>
+              <input type="range" id="expTemperature" min="0" max="1" step="0.1" value="1">
+              <span class="ai-temp-endpoint" data-i18n="ai_modal_temperature_high">Sáng tạo</span>
+            </div>
+          </div>
+
+          <label data-i18n="exp_combined_prompt_label">Prompt gửi AI (toàn bộ, có thể chỉnh sửa)</label>
+          <p class="hint" data-i18n="exp_combined_prompt_hint">Đây là toàn bộ nội dung sẽ gửi cho AI để tạo Worker Pool -- bạn có thể sửa trực tiếp trước khi chạy.</p>
+          <textarea class="ai-gen-prompt-preview" id="expCombinedPrompt" rows="10"></textarea>
+          <button class="btn ghost" id="expRegenBtn" data-i18n="s1_ai_config_regenerate">🔄 Gợi ý lại</button>
+
+          <label data-i18n="s1_ai_config_first_batch_preview_label">Xem trước: nội dung thực tế gửi AI cho lô đầu tiên</label>
+          <div class="ai-gen-prompt-preview" id="expFirstBatchPreview"></div>
+
+          <div id="expConfigError" class="error-box hidden"></div>
+          <div class="ai-gen-nav">
+            <button class="btn primary" id="expGenerateBtn" data-i18n="exp_generate_pool_btn">▶ Sinh Worker Pool</button>
+          </div>
+
+          <div class="ai-gen-progress-wrap hidden" id="expPoolProgressWrap">
+            <progress id="expPoolProgressBar" max="1" value="0"></progress>
+            <p class="ai-gen-progress-text" id="expPoolProgressText"></p>
+          </div>
+          <div id="expPoolError" class="error-box hidden"></div>
+          <div class="ai-gen-result-actions hidden" id="expPoolErrorActions">
+            <button class="btn" id="expPoolRetryBtn" data-i18n="s1_ai_gen_retry_batch">Thử lại lô này</button>
+            <button class="btn ghost" id="expPoolCancelBtn" data-i18n="s1_ai_gen_cancel">Huỷ</button>
+          </div>
+          <div id="expPoolLiveTransparencyWrap" class="hidden">
+            <h3 data-i18n="exp_live_transparency_title">🔍 Minh bạch prompt (cập nhật theo từng lô đang chạy)</h3>
+            <div id="expPoolLiveTransparency" class="source-transparency"></div>
+          </div>
+        </div>
+
+        <!-- Sub-step 2: pool ready -->
+        <div class="ai-gen-substep" id="expStep2">
+          <h2 data-i18n="exp_step2_title">Bước 2: Worker Pool đã sẵn sàng</h2>
+          <p class="hint" id="expPoolSummary"></p>
+          <div class="table-scroll"><table id="expPoolPreviewTable"></table></div>
+          <div class="ai-gen-result-actions">
+            <a class="btn ghost" id="expPoolExportBtn" data-i18n="exp_pool_export">⬇ Xuất Worker Pool (Excel)</a>
+          </div>
+          <div class="ai-gen-nav">
+            <button class="btn" id="expPoolBackBtn" data-i18n="s1_ai_back">← Quay lại</button>
+            <button class="btn primary" id="expPoolNextBtn" data-i18n="s1_ai_next">Tiếp theo →</button>
+          </div>
+        </div>
+
+        <!-- Sub-step 3: design the experiment -->
+        <div class="ai-gen-substep" id="expStep3">
+          <h2 data-i18n="exp_step3_title">Bước 3: Thiết kế thực nghiệm</h2>
+          <div class="ai-gen-form-row">
+            <div>
+              <label data-i18n="exp_m_label">Số Worker tham gia khảo sát (M ≤ N)</label>
+              <input type="number" id="expM" min="1" value="30">
+              <p class="hint" id="expMHint"></p>
+            </div>
+          </div>
+
+          <h3 data-i18n="exp_groups_title">Nhóm điều kiện (Condition Groups)</h3>
+          <p class="hint" data-i18n="exp_groups_hint">Mỗi nhóm có một điều kiện (prompt) khác nhau; tổng số Worker của các nhóm phải bằng M.</p>
+          <div class="table-scroll">
+            <table class="codebook-table" id="expGroupsTable">
+              <thead>
+                <tr>
+                  <th data-i18n="exp_groups_col_condition">Điều kiện (prompt)</th>
+                  <th data-i18n="exp_groups_col_size">Số Worker</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="expGroupsTableBody"></tbody>
+            </table>
+          </div>
+          <div class="codebook-actions">
+            <button class="btn" id="expGroupsAddRowBtn" data-i18n="exp_groups_add_row">+ Thêm nhóm điều kiện</button>
+          </div>
+          <div id="expGroupsValidationError" class="error-box hidden"></div>
+          <div class="ai-gen-nav">
+            <button class="btn primary" id="expSelectBtn" data-i18n="exp_select_btn">🎲 Chọn ngẫu nhiên Workers</button>
+          </div>
+
+          <div id="expSelectionResult" class="hidden">
+            <h3 data-i18n="exp_selected_title">Worker đã chọn theo nhóm</h3>
+            <div id="expSelectedLists"></div>
+            <h3 data-i18n="exp_excluded_title">Worker bị loại trừ (không tham gia khảo sát)</h3>
+            <p class="hint" id="expExcludedList"></p>
+          </div>
+
+          <h3 data-i18n="s1_ai_codebook_title">Bước 1: Định nghĩa câu hỏi khảo sát</h3>
+          <p class="hint" data-i18n="s1_ai_codebook_hint">Mỗi dòng là một biến quan sát (indicator).</p>
+          <div class="table-scroll">
+            <table class="codebook-table" id="expCodebookTable">
+              <thead>
+                <tr>
+                  <th data-i18n="s1_ai_codebook_col_column">Tên cột</th>
+                  <th data-i18n="s1_ai_codebook_col_construct">Construct</th>
+                  <th data-i18n="s1_ai_codebook_col_question">Nội dung câu hỏi phỏng vấn</th>
+                  <th data-i18n="s1_ai_codebook_col_type">Loại câu hỏi</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="expCodebookTableBody"></tbody>
+            </table>
+          </div>
+          <div class="codebook-actions">
+            <button class="btn" id="expCodebookAddRowBtn" data-i18n="s1_ai_codebook_add_row">+ Thêm biến quan sát</button>
+          </div>
+          <div id="expCodebookValidationError" class="error-box hidden"></div>
+
+          <div class="ai-gen-form-row">
+            <div>
+              <label data-i18n="s1_ai_config_likert">Thang đo Likert</label>
+              <label class="radio-row"><input type="radio" name="expLikert" value="5" checked> <span data-i18n="s1_ai_config_likert5">5 mức (1-5)</span></label>
+              <label class="radio-row"><input type="radio" name="expLikert" value="7"> <span data-i18n="s1_ai_config_likert7">7 mức (1-7)</span></label>
+            </div>
+            <div>
+              <label data-i18n="s1_ai_config_batch_size">Số dòng mỗi lần gọi AI</label>
+              <input type="number" id="expSurveyBatchSize" min="1" max="50" value="25">
+              <p class="hint" data-i18n="s1_ai_config_batch_size_hint">Từ 1 đến 50.</p>
+            </div>
+          </div>
+
+          <div id="expSurveyPromptPreviewWrap" class="hidden">
+            <h3 data-i18n="exp_survey_prompt_preview_title">Prompt gửi AI cho mỗi nhóm (toàn bộ, có thể chỉnh sửa)</h3>
+            <p class="hint" data-i18n="exp_survey_prompt_preview_hint">Đây là toàn bộ thông tin (hồ sơ từng Worker + điều kiện + câu hỏi khảo sát) sẽ gửi cho AI -- bạn có thể sửa trực tiếp trước khi chạy.</p>
+            <div id="expSurveyPromptGroups"></div>
+          </div>
+
+          <div id="expSurveyConfigError" class="error-box hidden"></div>
+          <div class="ai-gen-nav">
+            <button class="btn" id="expDesignBackBtn" data-i18n="s1_ai_back">← Quay lại</button>
+            <button class="btn primary" id="expSurveyPreviewBtn" data-i18n="exp_survey_preview_btn">🔍 Xem trước Prompt</button>
+          </div>
+          <div class="ai-gen-nav hidden" id="expSurveyConfirmNav">
+            <button class="btn ghost" id="expSurveyPreviewRegenBtn" data-i18n="s1_ai_config_regenerate">🔄 Gợi ý lại</button>
+            <button class="btn primary" id="expSurveyStartBtn" data-i18n="exp_survey_start_btn">▶ Sinh dữ liệu khảo sát</button>
+          </div>
+        </div>
+
+        <!-- Sub-step 4: batched survey generation + auto-finalize -->
+        <div class="ai-gen-substep" id="expStep4">
+          <div class="ai-gen-progress-wrap" id="expProgressWrap">
+            <progress id="expProgressBar" max="1" value="0"></progress>
+            <p class="ai-gen-progress-text" id="expProgressText"></p>
+          </div>
+          <div id="expError" class="error-box hidden"></div>
+          <div class="ai-gen-result-actions hidden" id="expErrorActions">
+            <button class="btn" id="expRetryBtn" data-i18n="s1_ai_gen_retry_batch">Thử lại lô này</button>
+            <button class="btn ghost" id="expCancelBtn" data-i18n="s1_ai_gen_cancel">Huỷ</button>
+          </div>
+          <div id="expLiveTransparencyWrap" class="hidden">
+            <h3 data-i18n="exp_live_transparency_title">🔍 Minh bạch prompt (cập nhật theo từng lô đang chạy)</h3>
+            <div id="expLiveTransparency" class="source-transparency"></div>
+          </div>
+        </div>
+      </div>
+
       <div id="dataPreviewWrap" class="hidden">
         <h3 id="previewTitle"></h3>
         <div class="table-scroll"><table id="previewTable"></table></div>
@@ -338,11 +605,13 @@
             <div class="indicator-picker" id="indicatorPicker"></div>
           </div>
           <div id="interactionSourcesSection" class="hidden">
-            <p class="hint" data-i18n="s2_interaction_sources_label">Nguồn của biến tương tác (chọn 2 construct)</p>
+            <p class="hint" data-i18n="s2_interaction_sources_label">Nguồn của biến tương tác (chọn 2 hoặc 3 construct)</p>
             <label data-i18n="s2_interaction_source_a">Construct A</label>
             <select id="cSourceA"></select>
             <label data-i18n="s2_interaction_source_b">Construct B</label>
             <select id="cSourceB"></select>
+            <label data-i18n="s2_interaction_source_c">Construct C (tuỳ chọn — tương tác 3 chiều)</label>
+            <select id="cSourceC"></select>
             <div id="interactionSourceError" class="error-box hidden"></div>
 
             <label data-i18n="s2_calc_method_label">Phương pháp tính (Calculation Method)</label>
@@ -352,6 +621,7 @@
               <label class="radio-row"><input type="radio" name="cCalcMethod" value="orthogonalization"><span data-i18n="s2_calc_method_orthogonalization">Orthogonalization</span></label>
             </div>
             <p class="hint" data-i18n="s2_calc_method_cbsem_note">Lưu ý: CB-SEM luôn dùng Two Stage, bất kể lựa chọn ở đây.</p>
+            <p class="hint hidden" id="cCalcMethodThreeWayNote" data-i18n="s2_interaction_three_way_two_stage_note">Tương tác 3 chiều chỉ hỗ trợ phương pháp Two Stage.</p>
 
             <div id="productTermSection">
               <label data-i18n="s2_product_term_label">Sinh Product Term (Advanced)</label>

@@ -128,16 +128,19 @@ def _generate_indicator_based_interactions(
 def compute_interaction_scores(
     model: Model, stage1_scores: pd.DataFrame, ids: list[str] | None = None
 ) -> pd.DataFrame:
-    """Product of each "two_stage" interaction construct's two source scores,
-    re-standardized (mean 0, population variance 1) — standard practice for
-    product terms, both to keep the score on a comparable scale to the other
-    (standardized) constructs and to reduce its collinearity with the
-    main-effect terms. `ids` defaults to every interaction construct in the
-    model (CB-SEM's usage, which always treats all of them as two-stage)."""
+    """Product of each "two_stage" interaction construct's source scores
+    (two-way: A*B, or three-way: A*B*C), re-standardized (mean 0, population
+    variance 1) — standard practice for product terms, both to keep the
+    score on a comparable scale to the other (standardized) constructs and
+    to reduce its collinearity with the main-effect terms. `ids` defaults to
+    every interaction construct in the model (CB-SEM's usage, which always
+    treats all of them as two-stage)."""
     out = {}
     for cid in (ids if ids is not None else model.interaction_ids()):
-        a, b = model.constructs[cid].interaction_of
-        raw = stage1_scores[a].values * stage1_scores[b].values
+        sources = model.constructs[cid].interaction_of
+        raw = stage1_scores[sources[0]].values.copy()
+        for sid in sources[1:]:
+            raw = raw * stage1_scores[sid].values
         std = raw.std(ddof=0)
         out[cid] = (raw - raw.mean()) / std if std > 0 else raw - raw.mean()
     return pd.DataFrame(out, index=stage1_scores.index)

@@ -37,7 +37,7 @@ class Construct:
     name: str
     mode: str  # "A" (reflective), "B" (formative), or "I" (interaction/moderation term)
     indicators: list[str] = field(default_factory=list)
-    interaction_of: list[str] | None = None  # for mode "I": [source_a_id, source_b_id]
+    interaction_of: list[str] | None = None  # for mode "I": [source_a_id, source_b_id] or, two-stage only, [source_a_id, source_b_id, source_c_id] for a three-way interaction
     calc_method: str = "two_stage"  # for mode "I": one of CALC_METHODS
     product_term_generation: str = "standardized"  # for mode "I": one of PRODUCT_TERM_METHODS
 
@@ -78,11 +78,19 @@ class Model:
             if mode == "I":
                 raw_pair = c.get("interaction_of") or []
                 interaction_of = [str(x).strip() for x in raw_pair if str(x).strip()]
-                if len(interaction_of) != 2 or interaction_of[0] == interaction_of[1]:
+                if len(interaction_of) not in (2, 3) or len(set(interaction_of)) != len(interaction_of):
                     raise ModelError(t("err_interaction_invalid_sources", lang, name=name))
                 calc_method = str(c.get("calc_method") or "two_stage").strip().lower()
                 if calc_method not in CALC_METHODS:
                     raise ModelError(t("err_interaction_invalid_calc_method", lang, name=name))
+                # Three-way terms are Two-Stage only: product-indicator/
+                # orthogonalization would multiply every indicator TRIPLE
+                # across all three source blocks (e.g. 3x3x3 = 27 columns),
+                # making the already-known product-indicator multicollinearity
+                # problem (see build_product_indicators's docstring) far worse
+                # for no real benefit over the two-stage factor-score product.
+                if len(interaction_of) == 3 and calc_method != "two_stage":
+                    raise ModelError(t("err_interaction_three_way_requires_two_stage", lang, name=name))
                 product_term_generation = str(c.get("product_term_generation") or "standardized").strip().lower()
                 if product_term_generation not in PRODUCT_TERM_METHODS:
                     raise ModelError(t("err_interaction_invalid_product_term", lang, name=name))
@@ -109,8 +117,7 @@ class Model:
         for c in constructs.values():
             if c.mode != "I":
                 continue
-            a, b = c.interaction_of
-            for ref in (a, b):
+            for ref in c.interaction_of:
                 if ref not in constructs:
                     raise ModelError(t("err_interaction_invalid_sources", lang, name=c.name))
                 if constructs[ref].mode == "I":
@@ -182,9 +189,8 @@ class Model:
             targets = model.successors(c.id)
             if not targets:
                 raise ModelError(t("err_interaction_no_target", lang, name=c.name))
-            a, b = c.interaction_of
             for target in targets:
-                for src in (a, b):
+                for src in c.interaction_of:
                     if target not in model.successors(src):
                         raise ModelError(t(
                             "err_interaction_missing_main_effect", lang,

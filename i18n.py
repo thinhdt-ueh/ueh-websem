@@ -45,10 +45,13 @@ _CATALOG: dict[str, dict[str, str]] = {
         "err_model_min_paths": "Mô hình cấu trúc cần ít nhất 1 đường dẫn (path) giữa các construct.",
         "err_model_cycle": "Mô hình cấu trúc chứa vòng lặp (cycle) — cần mô hình đệ quy (không vòng lặp).",
         "err_interaction_invalid_sources": (
-            "Biến tương tác '{name}' cần đúng 2 construct nguồn hợp lệ, khác nhau, và không phải "
+            "Biến tương tác '{name}' cần 2 hoặc 3 construct nguồn hợp lệ, khác nhau, và không phải "
             "là biến tương tác khác."
         ),
         "err_interaction_of_interaction": "Biến tương tác '{name}' không thể lấy một biến tương tác khác làm nguồn.",
+        "err_interaction_three_way_requires_two_stage": (
+            "Biến tương tác 3 chiều '{name}' chỉ hỗ trợ phương pháp tính Two Stage."
+        ),
         "err_interaction_has_predecessor": "Biến tương tác '{name}' không thể có đường dẫn đi vào (luôn là biến ngoại sinh).",
         "err_interaction_no_target": "Biến tương tác '{name}' cần ít nhất 1 đường dẫn đến biến bị điều tiết.",
         "err_interaction_missing_main_effect": (
@@ -150,6 +153,13 @@ _CATALOG: dict[str, dict[str, str]] = {
         "err_ai_gen_bad_construct_search": "AI trả về dữ liệu không hợp lệ: {detail}",
         "err_ai_gen_missing_constructs": "Cần ít nhất {min} construct để đề xuất mô hình.",
         "err_ai_gen_bad_paths": "AI đề xuất mô hình không hợp lệ: {detail}",
+
+        # --- AI Lab Experiment: Worker Pool + Survey Experiment (routes/ai_worker_api.py) ---
+        "err_worker_pool_not_found": "Không tìm thấy Worker Pool này (có thể đã hết hạn hoặc pool_id sai).",
+        "err_worker_pool_import_bad_file": "File không đúng định dạng Worker Pool — cần có các cột worker_id, persona_description, resp_age, resp_gender.",
+        "err_worker_select_invalid_groups": "Cấu hình nhóm điều kiện không hợp lệ — mỗi nhóm cần cỡ mẫu (số nguyên dương) hợp lệ.",
+        "err_worker_select_too_many_groups": "Tối đa {max} nhóm điều kiện.",
+        "err_worker_select_m_too_large": "Tổng số worker cần chọn ({m}) vượt quá số worker có trong pool ({n}).",
 
         # --- shared report labels (pls/report.py & cbsem/report.py) ---
         "rpt_title_pls": "PLS-SEM — Báo cáo phân tích",
@@ -375,10 +385,13 @@ _CATALOG: dict[str, dict[str, str]] = {
         "err_model_min_paths": "The structural model needs at least 1 path between constructs.",
         "err_model_cycle": "The structural model contains a cycle — a recursive (acyclic) model is required.",
         "err_interaction_invalid_sources": (
-            "Interaction term '{name}' needs exactly 2 valid, distinct source constructs, neither "
+            "Interaction term '{name}' needs 2 or 3 valid, distinct source constructs, none "
             "of which may itself be an interaction term."
         ),
         "err_interaction_of_interaction": "Interaction term '{name}' cannot use another interaction term as a source.",
+        "err_interaction_three_way_requires_two_stage": (
+            "Three-way interaction term '{name}' only supports the Two Stage calculation method."
+        ),
         "err_interaction_has_predecessor": "Interaction term '{name}' cannot have an incoming path (it is always exogenous).",
         "err_interaction_no_target": "Interaction term '{name}' needs at least 1 path to the moderated construct.",
         "err_interaction_missing_main_effect": (
@@ -475,6 +488,13 @@ _CATALOG: dict[str, dict[str, str]] = {
         "err_ai_gen_bad_construct_search": "The AI returned invalid data: {detail}",
         "err_ai_gen_missing_constructs": "At least {min} constructs are needed to suggest a model.",
         "err_ai_gen_bad_paths": "The AI's proposed model is invalid: {detail}",
+
+        # --- AI Lab Experiment: Worker Pool + Survey Experiment (routes/ai_worker_api.py) ---
+        "err_worker_pool_not_found": "This Worker Pool could not be found (it may have expired, or the pool_id is wrong).",
+        "err_worker_pool_import_bad_file": "This file isn't a valid Worker Pool export — it needs worker_id, persona_description, resp_age, and resp_gender columns.",
+        "err_worker_select_invalid_groups": "Invalid condition-group configuration — each group needs a valid positive integer group size.",
+        "err_worker_select_too_many_groups": "At most {max} condition groups are allowed.",
+        "err_worker_select_m_too_large": "The total number of workers requested ({m}) exceeds how many are in the pool ({n}).",
 
         "rpt_title_pls": "PLS-SEM — Analysis Report",
         "rpt_title_cbsem": "CB-SEM Analysis Report (Maximum Likelihood)",

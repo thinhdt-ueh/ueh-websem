@@ -168,6 +168,34 @@ def test_skips_both_stage_moderated_mediation():
     assert find_moderated_mediation_opportunities(model) == []
 
 
+def test_skips_three_way_moderated_mediation():
+    """A three-way interaction (x*w1*w2) moderating the m->y edge is the
+    same "un-indexable" situation as two separate moderators on that edge
+    (see test_skips_both_stage_moderated_mediation) -- Hayes doesn't define
+    a scalar index for a trilinear indirect effect either, so it must be
+    silently excluded here too, not crash or report a wrong number."""
+    payload = {
+        "constructs": [
+            {"id": "x", "name": "X", "mode": "A", "indicators": ["X1", "X2", "X3"]},
+            {"id": "w1", "name": "W1", "mode": "A", "indicators": ["A1", "A2", "A3"]},
+            {"id": "w2", "name": "W2", "mode": "A", "indicators": ["B1", "B2", "B3"]},
+            {"id": "m", "name": "M", "mode": "A", "indicators": ["M1", "M2", "M3"]},
+            {"id": "y", "name": "Y", "mode": "A", "indicators": ["Y1", "Y2", "Y3"]},
+            {"id": "m_w1_w2", "name": "M x W1 x W2", "mode": "I", "interaction_of": ["m", "w1", "w2"],
+             "calc_method": "two_stage", "product_term_generation": "standardized"},
+        ],
+        "paths": [
+            {"source": "x", "target": "m"},
+            {"source": "m", "target": "y"},
+            {"source": "w1", "target": "y"},
+            {"source": "w2", "target": "y"},
+            {"source": "m_w1_w2", "target": "y"},
+        ],
+    }
+    model = Model.from_json(payload)
+    assert find_moderated_mediation_opportunities(model) == []
+
+
 def test_no_opportunities_for_plain_mediation(tam_model_json):
     model = Model.from_json(tam_model_json)
     assert find_moderated_mediation_opportunities(model) == []

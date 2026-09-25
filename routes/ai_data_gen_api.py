@@ -1509,11 +1509,26 @@ def export_full():
     data_matches = [p for p in os.listdir(_upload_dir()) if p.startswith(file_id) and p.lower().endswith(".csv")] if file_id else []
     if not data_matches:
         return jsonify(error=t("err_analyze_file_not_found", lang)), 404
-    indicator_df = pd.read_csv(os.path.join(_upload_dir(), data_matches[0]))
+    try:
+        indicator_df = pd.read_csv(os.path.join(_upload_dir(), data_matches[0]))
+    except pd.errors.EmptyDataError:
+        # An all-qualitative codebook legitimately produces zero indicator
+        # columns -- pandas can't tell "zero columns" apart from "truly
+        # empty" when reading such a file back, so treat that read failure
+        # as "no indicator columns" rather than a missing/broken file. The
+        # export still proceeds with the Respondent Profile/qualitative
+        # data; the Survey Data sheet just has no indicator columns to show.
+        indicator_df = pd.DataFrame()
 
     meta, demo_df = _load_ai_gen_metadata(file_id)
     if meta is None:
         return jsonify(error=t("err_ai_gen_export_not_found", lang)), 404
+    if indicator_df.shape[1] == 0:
+        # Recover the row count lost to the EmptyDataError fallback above,
+        # from demo_df (which always has real columns) -- so the Survey
+        # Data sheet still lists one row per respondent, just with no
+        # indicator columns, instead of appearing to have zero rows.
+        indicator_df = pd.DataFrame(index=range(len(demo_df)))
 
     demo_attributes = meta.get("demo_attributes") or []
     stats = _compute_descriptive_stats(indicator_df, demo_df, demo_attributes)
@@ -1591,6 +1606,34 @@ def export_full():
         for construct_name, theory in construct_theories.items():
             doi = (theory or {}).get("doi") or ""
             ws.append([construct_name, (theory or {}).get("citation_apa") or "", f"https://doi.org/{doi}" if doi else ""])
+
+    # Present only for a file finalized by the AI Lab Experiment feature
+    # (routes/ai_worker_api.py's finalize_experiment) -- a plain AI Lab
+    # generation's metadata never has these keys, so this adds nothing for
+    # every export this function already served before that feature existed.
+    if meta.get("pool_id"):
+        snapshot = meta.get("worker_pool_snapshot") or []
+        excluded_ids = set(meta.get("excluded_worker_ids") or [])
+        group_by_worker = {}
+        for g in meta.get("condition_groups") or []:
+            for wid in g.get("worker_ids") or []:
+                group_by_worker[wid] = g.get("condition_text") or f"Group {g.get('group_index')}"
+        worker_cols = list(snapshot[0].keys()) if snapshot else ["worker_id", PERSONA_COLUMN, "resp_age", "resp_gender"]
+
+        ws = wb.create_sheet("Worker Pool")
+        pool_header = worker_cols + ["status", "condition_group"]
+        pool_rows = []
+        for w in snapshot:
+            wid = w.get("worker_id")
+            status = "Excluded" if wid in excluded_ids else "Selected"
+            pool_rows.append([w.get(c) for c in worker_cols] + [status, group_by_worker.get(wid, "")])
+        _write_sheet(ws, [pool_header] + pool_rows)
+
+        ws = wb.create_sheet("Conditions")
+        _write_sheet(ws, [["Group", "Condition Prompt", "N Workers"]] + [
+            [g.get("group_index"), g.get("condition_text"), len(g.get("worker_ids") or [])]
+            for g in meta.get("condition_groups") or []
+        ])
 
     buf = io.BytesIO()
     wb.save(buf)

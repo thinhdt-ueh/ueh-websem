@@ -249,12 +249,15 @@ Thái độ (ATT)                 <span class="arrow">──▶</span> Ý địn
     <p>Logic hai giai đoạn này được áp dụng như nhau cho cả PLS-SEM (điểm số composite) và CB-SEM (điểm số factor), nên bạn có thể kiểm định moderation với cả hai phương pháp ước lượng.</p>
 
     <h3 id="moderator-create">Tạo biến tương tác trên canvas</h3>
+    <p>Có 2 cách — chọn cách phù hợp với thao tác hiện tại của bạn:</p>
     <ol>
-      <li>Thêm ít nhất hai construct thông thường trước (biến tương tác luôn là tích của hai construct <em>đã tồn tại</em>, không phải biến tương tác khác).</li>
-      <li>Bấm <strong>“+ Construct”</strong>, đặt tên, và chọn <strong>Loại đo lường</strong> là <em>“Biến tương tác / điều tiết (Interaction, A × B)”</em>.</li>
-      <li>Chọn hai construct nguồn (ví dụ “Nhận thức hữu ích” và “Thái độ”).</li>
-      <li>Vẽ một path đi <em>từ</em> node biến tương tác mới <em>đến</em> construct bị điều tiết (ví dụ → Ý định hành vi).</li>
+      <li><strong>Kéo-thả:</strong> kéo một construct đã có sẵn và thả trực tiếp lên path cấu trúc mà nó cần điều tiết. Biến tương tác sẽ được tạo tự động (đặt ở giữa path, kèm đường nối nét đứt từ mỗi nguồn vào nó), và path hiệu ứng chính (main effect) của moderator cũng được thêm tự động. Thả thêm moderator thứ hai vào CHÍNH path đó (đã là biến tương tác) sẽ nâng cấp thành tương tác 3 chiều (A × B × C) — thả thêm cái thứ tư sẽ bị từ chối, vì ứng dụng chỉ hỗ trợ tối đa 3 chiều.</li>
+      <li><strong>Qua hộp thoại (kiểm soát chi tiết hơn):</strong> thêm ít nhất hai construct thông thường trước (biến tương tác luôn là tích của hai hoặc ba construct <em>đã tồn tại</em>, không phải biến tương tác khác). Bấm <strong>“+ Construct”</strong>, đặt tên, và chọn <strong>Loại đo lường</strong> là <em>“Biến tương tác / điều tiết (Interaction, A × B, tuỳ chọn thêm C)”</em>. Chọn các construct nguồn (Construct C là tuỳ chọn), rồi vẽ một path đi <em>từ</em> node biến tương tác mới <em>đến</em> construct bị điều tiết. Cách này cũng cho chọn trực tiếp Phương pháp tính (Two Stage / Product Indicator / Orthogonalization) — kéo-thả luôn mặc định dùng Two Stage.</li>
     </ol>
+    <div class="callout warn">
+      <strong class="label">Tương tác 3 chiều chỉ hỗ trợ Two Stage</strong>
+      Product Indicator và Orthogonalization nhân từng cặp indicator giữa các khối nguồn — với 3 nguồn, đó trở thành tích chéo BA chiều (VD 3×3×3 = 27 cột được sinh ra), khiến vấn đề đa cộng tuyến mà 2 phương pháp này vốn đã phải xử lý trở nên nặng hơn nhiều, mà không mang lại lợi ích thống kê thực sự nào so với tích factor score kiểu two-stage. Ứng dụng tự áp dụng quy tắc này: chọn nguồn thứ 3 sẽ tự khoá Phương pháp tính về Two Stage.
+    </div>
 
     <figure class="screenshot">
       <img src="/static/docs/images/moderator-01-add-construct-modal.png" alt="Hộp thoại Thêm Construct mới với Loại đo lường được chọn là Biến tương tác/điều tiết">
@@ -277,9 +280,9 @@ Thái độ (ATT)                 <span class="arrow">──▶</span> Ý địn
 
     <div class="callout warn">
       <strong class="label">Quy tắc xác thực (validation)</strong>
-      Cả hai construct nguồn phải đã có sẵn path <em>trực tiếp</em> của riêng mình đến construct mà biến tương tác dự báo. Điều này khớp với thông lệ kiểm định moderation chuẩn: nếu thiếu một trong hai path hiệu ứng chính (main effect), biến tương tác có thể âm thầm "hút" phần phương sai vốn thuộc về hiệu ứng chính đó. Nếu một nguồn thiếu path trực tiếp, ứng dụng sẽ từ chối mô hình kèm thông báo rõ ràng nêu tên path còn thiếu — hãy thêm path đó rồi chạy lại.
+      Mọi construct nguồn phải đã có sẵn path <em>trực tiếp</em> của riêng mình đến construct mà biến tương tác dự báo (2 path cho tương tác 2 chiều, 3 path cho 3 chiều). Điều này khớp với thông lệ kiểm định moderation chuẩn: nếu thiếu một path hiệu ứng chính (main effect) nào, biến tương tác có thể âm thầm "hút" phần phương sai vốn thuộc về hiệu ứng chính đó. Nếu một nguồn thiếu path trực tiếp, ứng dụng sẽ từ chối mô hình kèm thông báo rõ ràng nêu tên path còn thiếu — hãy thêm path đó rồi chạy lại. Cách kéo-thả ở trên tự thêm các path này; cách qua hộp thoại cần vẽ tay.
     </div>
-    <p>Biến tương tác luôn là biến ngoại sinh (exogenous) — không thể là đích của một path khác — và không có indicator riêng; trên canvas nó được vẽ với viền nét đứt màu hổ phách để phân biệt với construct thông thường.</p>
+    <p>Biến tương tác luôn là biến ngoại sinh (exogenous) — không thể là đích của một path khác — và không có indicator riêng; trên canvas nó được vẽ với viền nét đứt màu hổ phách, kèm đường nối nét đứt từ mỗi nguồn của nó, để phân biệt với construct thông thường.</p>
 
     <h3 id="moderator-example">Ví dụ minh hoạ, với con số thật từ dữ liệu mẫu TAM</h3>
     <p>Thêm <code>PU × Thái độ → Ý định hành vi</code> vào mô hình mẫu (cả PU và Thái độ đều đã có path trực tiếp đến Ý định, nên mô hình hợp lệ) cho kết quả:</p>

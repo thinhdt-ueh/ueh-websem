@@ -265,8 +265,7 @@ def run_bootstrap_with_moderation(
 
     two_stage_ids = model.two_stage_interaction_ids()
     interaction_sources = {
-        icid: (base_pos[model.constructs[icid].interaction_of[0]],
-               base_pos[model.constructs[icid].interaction_of[1]])
+        icid: tuple(base_pos[sid] for sid in model.constructs[icid].interaction_of)
         for icid in two_stage_ids
     }
 
@@ -304,14 +303,19 @@ def run_bootstrap_with_moderation(
 
         def sign_of(cid: str) -> float:
             if cid in interaction_sources:
-                pa, pb = interaction_sources[cid]
-                return block_sign[pa] * block_sign[pb]
+                result = 1.0
+                for p in interaction_sources[cid]:
+                    result *= block_sign[p]
+                return result
             return block_sign[base_pos[cid]]
 
         full_score: dict[str, np.ndarray] = {cid: Y[:, base_pos[cid]] for cid in topo.construct_ids}
         for icid in two_stage_ids:
-            pa, pb = interaction_sources[icid]
-            full_score[icid] = _standardize_cols((Y[:, pa] * Y[:, pb])[:, None])[:, 0]
+            positions = interaction_sources[icid]
+            prod = Y[:, positions[0]].copy()
+            for p in positions[1:]:
+                prod = prod * Y[:, p]
+            full_score[icid] = _standardize_cols(prod[:, None])[:, 0]
 
         iter_coef: dict[tuple[str, str], float] = {}
         for tgt in endogenous:

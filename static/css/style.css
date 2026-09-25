@@ -297,6 +297,12 @@ canvas { width: 100%; border: 1px solid var(--border); border-radius: 10px; back
 .codebook-row-remove:hover { background: #fdecec; }
 .codebook-actions { display: flex; gap: 8px; margin: 10px 0 4px; flex-wrap: wrap; }
 
+.exp-group-condition-input { width: 100%; padding: 6px 8px; border: 1px solid var(--border); border-radius: 6px; font-size: 13px; resize: vertical; }
+.exp-group-size-input { width: 90px; padding: 6px 8px; border: 1px solid var(--border); border-radius: 6px; font-size: 13px; }
+.exp-group-result { margin-bottom: 10px; padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px; }
+.exp-survey-prompt-group { margin-bottom: 14px; }
+.exp-survey-prompt-group > label { display: block; font-weight: 600; margin-bottom: 4px; }
+
 .ai-gen-form-row { display: flex; gap: 14px; margin-bottom: 12px; flex-wrap: wrap; }
 .ai-gen-form-row > div { flex: 1; min-width: 160px; }
 .ai-gen-form-row label { display: block; font-size: 13px; color: var(--text); margin-bottom: 4px; }

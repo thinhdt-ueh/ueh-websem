@@ -280,6 +280,7 @@ document.getElementById("dataSourceTabs").addEventListener("click", (e) => {
   document.querySelectorAll("#dataSourceTabs .ai-provider-tab").forEach((b) => b.classList.toggle("active", b === btn));
   document.getElementById("uploadSourcePane").classList.toggle("hidden", source !== "upload");
   document.getElementById("aiGenSourcePane").classList.toggle("hidden", source !== "ai_gen");
+  document.getElementById("aiExperimentSourcePane").classList.toggle("hidden", source !== "ai_experiment");
 });
 
 let aiGenMaxSubstepReached = 1;
@@ -329,8 +330,8 @@ document.getElementById("aiGenSteps").addEventListener("click", (e) => {
 });
 
 // ---- Sub-step 1: Codebook ----
-function codebookAddRow(column, question, construct, type) {
-  const tbody = document.getElementById("codebookTableBody");
+function codebookAddRow(column, question, construct, type, tbodyId) {
+  const tbody = document.getElementById(tbodyId || "codebookTableBody");
   const tr = document.createElement("tr");
   const colInput = document.createElement("input");
   colInput.type = "text";
@@ -375,8 +376,8 @@ function codebookAddRow(column, question, construct, type) {
 }
 document.getElementById("codebookAddRowBtn").addEventListener("click", () => codebookAddRow());
 
-function collectCodebook() {
-  return Array.from(document.querySelectorAll("#codebookTableBody tr"))
+function collectCodebook(tbodyId) {
+  return Array.from(document.querySelectorAll(`#${tbodyId || "codebookTableBody"} tr`))
     .map((tr) => ({
       column: tr.querySelector(".codebook-col-input").value.trim(),
       construct: tr.querySelector(".codebook-construct-input").value.trim(),
@@ -666,8 +667,8 @@ document.getElementById("demoBackBtn").addEventListener("click", () => aiGenGoTo
 // Mirrors the codebook table's dynamic-row pattern; the server (not this
 // code) is the source of truth for validation and for deriving a stable
 // column name from the attribute's display name.
-function demoAttrAddRow(name, type, valueText) {
-  const tbody = document.getElementById("demoAttrsTableBody");
+function demoAttrAddRow(name, type, valueText, tbodyId) {
+  const tbody = document.getElementById(tbodyId || "demoAttrsTableBody");
   const tr = document.createElement("tr");
 
   const nameInput = document.createElement("input");
@@ -722,9 +723,9 @@ document.getElementById("demoAttrsAddRowBtn").addEventListener("click", () => de
 // _validate_demo_attributes expects; error is a user-facing message if any
 // row's value doesn't parse for its declared type. Empty rows (no name) are
 // silently skipped, same as the codebook's collectCodebook().
-function collectDemoAttrs() {
+function collectDemoAttrs(tbodyId) {
   const attrs = [];
-  for (const tr of document.querySelectorAll("#demoAttrsTableBody tr")) {
+  for (const tr of document.querySelectorAll(`#${tbodyId || "demoAttrsTableBody"} tr`)) {
     const name = tr.querySelector(".demo-attr-name-input").value.trim();
     const type = tr.querySelector(".demo-attr-type-select").value;
     const valueText = tr.querySelector(".demo-attr-value-input").value.trim();
@@ -1184,6 +1185,793 @@ function renderAiGenTransparency(batchLog) {
     .join("");
 }
 
+// ---------------- Step 1: AI Lab Experiment (worker pool + condition survey) ----------------
+// A third path into Step 1: define a reusable pool of N "AI Worker" personas
+// (persona + demographics, no survey answers), persisted server-side by
+// pool_id. Then randomly select M<=N of them, split into one or more
+// condition groups (a between-subjects design -- each group gets its own
+// condition prompt), and have each selected worker answer a codebook survey
+// in character, under their group's condition. finalizeExperiment() hands
+// off into the exact same applyUploadResult()/Step 2 pipeline the AI Gen and
+// upload paths use, via routes/ai_worker_api.py's finalize_experiment.
+const expState = {
+  populationPrompt: "",
+  demographics: {},
+  demoAttributes: [],
+  provider: "openai",
+  apiKey: "",
+  model: "",
+  temperature: 1,
+  systemPrompt: "",
+  userPrompt: "",
+  nWorkers: 100,
+  batchSize: 25,
+  totalBatches: 0,
+  currentBatch: 0,
+  workerRows: [],
+
+  poolId: null,
+  nPoolWorkers: 0,
+
+  selectedGroups: [], // [{group_index, condition_text, worker_ids, systemPrompt, userPrompt, batchSize}] after /select + /suggest_survey_prompt
+  excludedWorkerIds: [],
+
+  codebook: [],
+  qualColumns: [],
+  likertMin: 1,
+  likertMax: 5,
+  batchLog: [],
+  rows: [], // accumulated {worker_id, ...columns}
+  groupCursor: 0,
+};
+let expPromptEdited = false;
+let expMaxSubstepReached = 1;
+
+// Appends one batch's ACTUAL prompt to a live-updating transparency panel
+// as soon as that batch's response arrives -- so the user can see exactly
+// what was sent to the AI while generation is still running. Every entry
+// is shown fully expanded (not just the first) and nothing auto-scrolls,
+// so the whole log stays put and readable as more batches complete.
+function appendLiveTransparencyEntry(containerId, label, promptText) {
+  const el = document.getElementById(containerId);
+  const details = document.createElement("details");
+  details.open = true;
+  details.innerHTML = `
+    <summary>${escapeHtml(label)}</summary>
+    <pre><code>${escapeHtml(promptText || "")}</code></pre>
+  `;
+  el.appendChild(details);
+}
+
+// The actual chat-completion call still needs a system+user message pair,
+// but the user only ever sees/edits ONE combined prompt -- everything goes
+// into "system", and "user" carries just the per-batch trigger instruction
+// the server appends. This reassembles the two back into one block for
+// display, matching exactly what was conceptually sent.
+function combinePromptParts(systemPrompt, userPrompt) {
+  const sys = (systemPrompt || "").trim();
+  const usr = (userPrompt || "").trim();
+  return usr ? `${sys}\n\n${usr}` : sys;
+}
+
+function expGoToSubstep(n) {
+  expMaxSubstepReached = Math.max(expMaxSubstepReached, n);
+  document.querySelectorAll("#aiExperimentSourcePane .ai-gen-substep").forEach((el) => el.classList.remove("active"));
+  document.getElementById("expStep" + n).classList.add("active");
+  document.querySelectorAll("#expSteps .ai-gen-step-dot").forEach((dot) => {
+    const num = Number(dot.dataset.substep);
+    dot.classList.toggle("active", num === n);
+    dot.classList.toggle("done", num < n);
+    dot.classList.toggle("reached", num <= expMaxSubstepReached);
+  });
+}
+document.getElementById("expSteps").addEventListener("click", (e) => {
+  const dot = e.target.closest(".ai-gen-step-dot");
+  if (!dot) return;
+  const target = Number(dot.dataset.substep);
+  if (target > expMaxSubstepReached) return;
+  expGoToSubstep(target);
+});
+
+function collectExpDemographics() {
+  return {
+    age_min: document.getElementById("expDemoAgeMin").value || null,
+    age_max: document.getElementById("expDemoAgeMax").value || null,
+    gender_mix: document.getElementById("expDemoGenderMix").value,
+    occupation: document.getElementById("expDemoOccupation").value.trim(),
+    location: document.getElementById("expDemoLocation").value.trim(),
+    target_population: document.getElementById("expDemoTargetPopulation").value.trim(),
+  };
+}
+
+// ---- Sub-step 1: population, demographics, provider config, pool generation ----
+function renderExpProviderFields() {
+  document.getElementById("expProviderTabs").innerHTML = AI_PROVIDER_ORDER.map(
+    (id) => `<button type="button" class="ai-provider-tab${id === expState.provider ? " active" : ""}" data-provider="${id}">${aiReportEscapeHtml(AI_PROVIDERS[id].label)}</button>`,
+  ).join("");
+  applyExpProvider(expState.provider);
+}
+renderExpProviderFields();
+
+function applyExpProvider(providerId) {
+  expState.provider = providerId;
+  document.querySelectorAll("#expProviderTabs .ai-provider-tab").forEach((btn) => btn.classList.toggle("active", btn.dataset.provider === providerId));
+  const cfg = AI_PROVIDERS[providerId];
+  const stored = aiReportGetStoredKey(providerId);
+  const keyInput = document.getElementById("expApiKey");
+  keyInput.value = stored;
+  keyInput.placeholder = cfg.keyPlaceholder;
+  document.getElementById("expRememberKey").checked = !!stored;
+  document.getElementById("expModel").value = cfg.defaultModel;
+  document.getElementById("expModelSuggestions").innerHTML = cfg.modelSuggestions.map((m) => `<option value="${aiReportEscapeAttr(m)}">`).join("");
+  document.getElementById("expApiKeyHint").textContent = t("ai_modal_api_key_hint", { provider: cfg.label });
+}
+document.getElementById("expProviderTabs").addEventListener("click", (e) => {
+  const btn = e.target.closest(".ai-provider-tab");
+  if (btn) applyExpProvider(btn.dataset.provider);
+});
+document.getElementById("expKeyToggle").addEventListener("click", () => {
+  const input = document.getElementById("expApiKey");
+  input.type = input.type === "password" ? "text" : "password";
+});
+const expTemperatureInput = document.getElementById("expTemperature");
+expTemperatureInput.addEventListener("input", () => {
+  document.getElementById("expTemperatureValue").textContent = Number(expTemperatureInput.value).toFixed(1);
+});
+
+function clampExpNWorkers() {
+  const input = document.getElementById("expNWorkers");
+  let n = parseInt(input.value, 10);
+  if (!Number.isFinite(n)) n = 100;
+  n = Math.max(30, Math.min(500, n));
+  input.value = n;
+  return n;
+}
+function updateExpNWorkersHint() {
+  document.getElementById("expNWorkersHint").textContent = t("exp_n_workers_hint");
+}
+updateExpNWorkersHint();
+
+function clampExpBatchSize() {
+  const input = document.getElementById("expBatchSize");
+  let n = parseInt(input.value, 10);
+  if (!Number.isFinite(n)) n = 25;
+  n = Math.max(1, Math.min(50, n));
+  input.value = n;
+  return n;
+}
+
+async function requestExpPromptSuggestion() {
+  const nWorkers = clampExpNWorkers();
+  const { attrs } = collectDemoAttrs("expDemoAttrsTableBody");
+  try {
+    const res = await fetch("/api/ai_worker/suggest_prompt", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        population_prompt: document.getElementById("expPopulationPrompt").value.trim(),
+        demographics: collectExpDemographics(),
+        demo_attributes: attrs || [],
+        n_workers: nWorkers,
+        batch_size: clampExpBatchSize(),
+        lang: getLang(),
+      }),
+    });
+    const data = await res.json();
+    if (!res.ok) return;
+    expState.batchSize = data.batch_size;
+    expState.totalBatches = data.total_batches;
+    if (!expPromptEdited) {
+      document.getElementById("expCombinedPrompt").value = combinePromptParts(data.system_prompt, data.user_prompt);
+    }
+    expState.firstBatchInstruction = data.first_batch_instruction || "";
+    updateExpFirstBatchPreview();
+  } catch {
+    // Best-effort preview only -- the actual "Generate" click re-fetches this.
+  }
+}
+// Exact WYSIWYG preview of what /ai_worker/batch will actually send for the
+// first call: the (possibly hand-edited) combined prompt plus the real
+// per-batch instruction suffix the server computed for it -- so the user can
+// review (and still edit) everything before clicking "Sinh Worker Pool",
+// mirroring the existing AI Gen wizard's own first-batch preview.
+function updateExpFirstBatchPreview() {
+  const base = document.getElementById("expCombinedPrompt").value;
+  const instruction = expState.firstBatchInstruction || "";
+  document.getElementById("expFirstBatchPreview").textContent = instruction ? `${base}\n\n${instruction}` : base;
+}
+document.getElementById("expCombinedPrompt").addEventListener("input", () => {
+  expPromptEdited = true;
+  updateExpFirstBatchPreview();
+});
+document.getElementById("expRegenBtn").addEventListener("click", () => {
+  expPromptEdited = false;
+  requestExpPromptSuggestion();
+});
+document.getElementById("expNWorkers").addEventListener("change", () => {
+  clampExpNWorkers();
+  requestExpPromptSuggestion();
+});
+document.getElementById("expDemoAttrsAddRowBtn").addEventListener("click", () => demoAttrAddRow(undefined, undefined, undefined, "expDemoAttrsTableBody"));
+document.getElementById("expBatchSize").addEventListener("change", () => {
+  clampExpBatchSize();
+  requestExpPromptSuggestion();
+});
+["expDemoAgeMin", "expDemoAgeMax", "expDemoGenderMix"].forEach((id) => {
+  document.getElementById(id).addEventListener("change", requestExpPromptSuggestion);
+});
+["expDemoOccupation", "expDemoLocation", "expDemoTargetPopulation", "expPopulationPrompt"].forEach((id) => {
+  document.getElementById(id).addEventListener("blur", requestExpPromptSuggestion);
+});
+requestExpPromptSuggestion();
+
+document.getElementById("expPoolImportBtn").addEventListener("click", () => {
+  document.getElementById("expPoolImportInput").click();
+});
+document.getElementById("expPoolImportInput").addEventListener("change", async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const errBox = document.getElementById("expPoolImportError");
+  errBox.classList.add("hidden");
+  const fd = new FormData();
+  fd.append("file", file);
+  fd.append("lang", getLang());
+  try {
+    const res = await fetch("/api/ai_worker/import_pool", { method: "POST", body: fd });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "import failed");
+    applyExpPoolResult(data);
+    expGoToSubstep(2);
+  } catch (err) {
+    errBox.textContent = t("exp_pool_import_failed", { msg: err.message });
+    errBox.classList.remove("hidden");
+  } finally {
+    e.target.value = "";
+  }
+});
+
+function renderExpPoolPreviewTable(rows) {
+  const table = document.getElementById("expPoolPreviewTable");
+  if (!rows || !rows.length) {
+    table.innerHTML = "";
+    return;
+  }
+  const cols = Object.keys(rows[0]);
+  let html = "<thead><tr>" + cols.map((c) => `<th>${escapeHtml(c)}</th>`).join("") + "</tr></thead><tbody>";
+  for (const row of rows) {
+    html += "<tr>" + cols.map((c) => `<td>${row[c] ?? ""}</td>`).join("") + "</tr>";
+  }
+  html += "</tbody>";
+  table.innerHTML = html;
+}
+
+function applyExpPoolResult(data) {
+  expState.poolId = data.pool_id;
+  expState.nPoolWorkers = data.n_workers;
+  document.getElementById("expPoolSummary").textContent = t("exp_pool_ready_summary", { n: data.n_workers });
+  renderExpPoolPreviewTable(data.preview);
+  document.getElementById("expPoolExportBtn").href = `/api/ai_worker/pool_export?pool_id=${encodeURIComponent(data.pool_id)}`;
+  const mInput = document.getElementById("expM");
+  mInput.max = data.n_workers;
+  mInput.value = Math.min(30, data.n_workers);
+}
+
+document.getElementById("expGenerateBtn").addEventListener("click", async () => {
+  const errBox = document.getElementById("expConfigError");
+  errBox.classList.add("hidden");
+  const apiKey = document.getElementById("expApiKey").value.trim();
+  if (!apiKey) {
+    errBox.textContent = t("s1_ai_config_missing_key");
+    errBox.classList.remove("hidden");
+    return;
+  }
+  const { attrs, error } = collectDemoAttrs("expDemoAttrsTableBody");
+  if (error) {
+    errBox.textContent = error;
+    errBox.classList.remove("hidden");
+    return;
+  }
+  const remember = document.getElementById("expRememberKey").checked;
+  try {
+    const storageKey = AI_PROVIDERS[expState.provider].keyStorageKey;
+    if (remember) localStorage.setItem(storageKey, apiKey);
+    else localStorage.removeItem(storageKey);
+  } catch {
+    // localStorage unavailable -- key just won't persist, not fatal.
+  }
+
+  await requestExpPromptSuggestion();
+
+  expState.apiKey = apiKey;
+  expState.model = document.getElementById("expModel").value.trim() || AI_PROVIDERS[expState.provider].defaultModel;
+  expState.temperature = Number(expTemperatureInput.value);
+  // Everything lives in ONE combined, user-editable prompt now -- sent
+  // entirely as the "system" message, with "user" left empty so only the
+  // real per-batch trigger instruction (appended server-side) occupies it.
+  expState.systemPrompt = document.getElementById("expCombinedPrompt").value.trim();
+  expState.userPrompt = "";
+  expState.populationPrompt = document.getElementById("expPopulationPrompt").value.trim();
+  expState.demographics = collectExpDemographics();
+  expState.demoAttributes = attrs || [];
+  expState.nWorkers = clampExpNWorkers();
+  expState.batchSize = Math.min(expState.batchSize || 25, expState.nWorkers);
+  expState.totalBatches = Math.ceil(expState.nWorkers / expState.batchSize);
+  expState.workerRows = [];
+  expState.currentBatch = 0;
+
+  document.getElementById("expPoolError").classList.add("hidden");
+  document.getElementById("expPoolErrorActions").classList.add("hidden");
+  document.getElementById("expPoolProgressWrap").classList.remove("hidden");
+  document.getElementById("expPoolLiveTransparency").innerHTML = "";
+  document.getElementById("expPoolLiveTransparencyWrap").classList.remove("hidden");
+  runWorkerPoolGeneration();
+});
+
+async function runWorkerPoolGeneration() {
+  const bar = document.getElementById("expPoolProgressBar");
+  const text = document.getElementById("expPoolProgressText");
+  bar.max = expState.totalBatches;
+  const maxIterations = expState.totalBatches + 5;
+
+  while (expState.workerRows.length < expState.nWorkers && expState.currentBatch < maxIterations) {
+    const startRow = expState.workerRows.length + 1;
+    const endRow = Math.min(expState.nWorkers, startRow + expState.batchSize - 1);
+    bar.value = Math.min(expState.currentBatch, expState.totalBatches);
+    text.textContent = t("s1_ai_gen_progress", { done: expState.currentBatch, total: expState.totalBatches });
+    try {
+      const res = await fetch("/api/ai_worker/batch", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          provider: expState.provider,
+          api_key: expState.apiKey,
+          model: expState.model,
+          temperature: expState.temperature,
+          system_prompt: expState.systemPrompt,
+          user_prompt: expState.userPrompt,
+          start_row: startRow,
+          end_row: endRow,
+          demo_age_min: document.getElementById("expDemoAgeMin").value || null,
+          demo_age_max: document.getElementById("expDemoAgeMax").value || null,
+          demo_attributes: expState.demoAttributes,
+          lang: getLang(),
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "batch failed");
+      expState.workerRows.push(...data.rows);
+      appendLiveTransparencyEntry(
+        "expPoolLiveTransparency",
+        t("exp_live_transparency_pool_batch", { n: expState.currentBatch + 1, start: startRow, end: startRow + data.rows.length - 1 }),
+        combinePromptParts(data.used_system_prompt || expState.systemPrompt, data.used_user_prompt || expState.userPrompt),
+      );
+      expState.currentBatch += 1;
+    } catch (err) {
+      showExpPoolBatchError(err.message);
+      return;
+    }
+  }
+
+  if (expState.workerRows.length < expState.nWorkers) {
+    showExpPoolBatchError(t("s1_ai_gen_error_incomplete", { got: expState.workerRows.length, total: expState.nWorkers }));
+    return;
+  }
+
+  bar.value = expState.totalBatches;
+  text.textContent = t("s1_ai_gen_finalizing");
+  await finalizeWorkerPool();
+}
+
+function showExpPoolBatchError(message) {
+  document.getElementById("expPoolError").textContent = t("s1_ai_gen_error_batch", { detail: message });
+  document.getElementById("expPoolError").classList.remove("hidden");
+  document.getElementById("expPoolErrorActions").classList.remove("hidden");
+}
+document.getElementById("expPoolRetryBtn").addEventListener("click", () => {
+  document.getElementById("expPoolError").classList.add("hidden");
+  document.getElementById("expPoolErrorActions").classList.add("hidden");
+  runWorkerPoolGeneration();
+});
+document.getElementById("expPoolCancelBtn").addEventListener("click", () => {
+  document.getElementById("expPoolError").classList.add("hidden");
+  document.getElementById("expPoolErrorActions").classList.add("hidden");
+  document.getElementById("expPoolProgressWrap").classList.add("hidden");
+});
+
+async function finalizeWorkerPool() {
+  try {
+    const res = await fetch("/api/ai_worker/finalize_pool", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        rows: expState.workerRows,
+        demo_attributes: expState.demoAttributes,
+        population_prompt: expState.populationPrompt,
+        demographics: expState.demographics,
+        provider: expState.provider,
+        model: expState.model,
+        temperature: expState.temperature,
+        lang: getLang(),
+      }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "finalize failed");
+    applyExpPoolResult(data);
+    document.getElementById("expPoolProgressWrap").classList.add("hidden");
+    expGoToSubstep(2);
+  } catch (err) {
+    showExpPoolBatchError(err.message);
+  }
+}
+
+// ---- Sub-step 2: pool ready (preview, export, next) ----
+document.getElementById("expPoolBackBtn").addEventListener("click", () => expGoToSubstep(1));
+document.getElementById("expPoolNextBtn").addEventListener("click", () => {
+  if (!document.querySelector("#expGroupsTableBody tr")) {
+    expGroupAddRow("", clampExpM());
+  }
+  expGoToSubstep(3);
+});
+
+// ---- Sub-step 3: design the experiment (M, condition groups, selection, codebook) ----
+function clampExpSurveyBatchSize() {
+  const input = document.getElementById("expSurveyBatchSize");
+  let n = parseInt(input.value, 10);
+  if (!Number.isFinite(n)) n = 25;
+  n = Math.max(1, Math.min(50, n));
+  input.value = n;
+  return n;
+}
+
+function clampExpM() {
+  const input = document.getElementById("expM");
+  let n = parseInt(input.value, 10);
+  if (!Number.isFinite(n) || n < 1) n = 1;
+  n = Math.min(n, expState.nPoolWorkers || 500);
+  input.value = n;
+  return n;
+}
+
+function collectExpGroupDrafts() {
+  return Array.from(document.querySelectorAll("#expGroupsTableBody tr")).map((tr) => ({
+    condition_text: tr.querySelector(".exp-group-condition-input").value.trim(),
+    size: parseInt(tr.querySelector(".exp-group-size-input").value, 10) || 0,
+  }));
+}
+
+function updateExpGroupsSizeTotal() {
+  const total = collectExpGroupDrafts().reduce((s, g) => s + g.size, 0);
+  document.getElementById("expMHint").textContent = t("exp_m_hint", { total, m: clampExpM() });
+}
+
+function expGroupAddRow(conditionText, size) {
+  const tbody = document.getElementById("expGroupsTableBody");
+  const tr = document.createElement("tr");
+
+  const condInput = document.createElement("textarea");
+  condInput.rows = 2;
+  condInput.className = "exp-group-condition-input";
+  condInput.value = conditionText || "";
+  const tdCond = document.createElement("td");
+  tdCond.appendChild(condInput);
+
+  const sizeInput = document.createElement("input");
+  sizeInput.type = "number";
+  sizeInput.min = "1";
+  sizeInput.className = "exp-group-size-input";
+  sizeInput.value = size || 10;
+  sizeInput.addEventListener("input", updateExpGroupsSizeTotal);
+  const tdSize = document.createElement("td");
+  tdSize.appendChild(sizeInput);
+
+  const tdRemove = document.createElement("td");
+  tdRemove.className = "codebook-remove-cell";
+  const removeBtn = document.createElement("button");
+  removeBtn.type = "button";
+  removeBtn.className = "codebook-row-remove";
+  removeBtn.textContent = t("s1_ai_codebook_remove");
+  removeBtn.addEventListener("click", () => {
+    tr.remove();
+    updateExpGroupsSizeTotal();
+  });
+  tdRemove.appendChild(removeBtn);
+
+  tr.append(tdCond, tdSize, tdRemove);
+  tbody.appendChild(tr);
+  updateExpGroupsSizeTotal();
+}
+document.getElementById("expGroupsAddRowBtn").addEventListener("click", () => expGroupAddRow());
+document.getElementById("expM").addEventListener("change", updateExpGroupsSizeTotal);
+document.getElementById("expCodebookAddRowBtn").addEventListener("click", () => codebookAddRow(undefined, undefined, undefined, undefined, "expCodebookTableBody"));
+
+function renderExpSelectionResult() {
+  document.getElementById("expSelectedLists").innerHTML = expState.selectedGroups.map((g, i) => `
+    <div class="exp-group-result">
+      <strong>${escapeHtml(t("exp_group_n", { n: i + 1 }))}</strong> — <em>${escapeHtml(g.condition_text || "")}</em>
+      <p class="hint">${g.worker_ids.map(escapeHtml).join(", ")}</p>
+    </div>
+  `).join("");
+  document.getElementById("expExcludedList").textContent = expState.excludedWorkerIds.length
+    ? expState.excludedWorkerIds.join(", ")
+    : t("exp_excluded_none");
+  document.getElementById("expSelectionResult").classList.remove("hidden");
+}
+
+document.getElementById("expSelectBtn").addEventListener("click", async () => {
+  const errBox = document.getElementById("expGroupsValidationError");
+  errBox.classList.add("hidden");
+  const drafts = collectExpGroupDrafts().filter((g) => g.size > 0);
+  if (!drafts.length) {
+    errBox.textContent = t("exp_groups_min_rows");
+    errBox.classList.remove("hidden");
+    return;
+  }
+  const m = clampExpM();
+  const total = drafts.reduce((s, g) => s + g.size, 0);
+  if (total !== m) {
+    errBox.textContent = t("exp_groups_size_mismatch", { total, m });
+    errBox.classList.remove("hidden");
+    return;
+  }
+  try {
+    const res = await fetch("/api/ai_worker/select", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ pool_id: expState.poolId, group_sizes: drafts.map((g) => g.size), lang: getLang() }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "selection failed");
+    expState.selectedGroups = data.groups.map((g, i) => ({
+      group_index: g.group_index,
+      condition_text: drafts[i].condition_text,
+      worker_ids: g.worker_ids,
+    }));
+    expState.excludedWorkerIds = data.excluded_worker_ids || [];
+    renderExpSelectionResult();
+  } catch (err) {
+    errBox.textContent = err.message;
+    errBox.classList.remove("hidden");
+  }
+});
+
+document.getElementById("expDesignBackBtn").addEventListener("click", () => expGoToSubstep(2));
+
+// Fetches each selected group's full combined prompt (worker roster +
+// condition + codebook, exactly as _build_survey_messages assembles it) and
+// renders one editable textarea PER GROUP -- so the user can review and
+// hand-edit the exact content before any AI call is made, same idea as the
+// Worker Pool step's first-batch preview, just one prompt per group here
+// since each group's roster/condition differs.
+async function fetchExpSurveyPromptPreview() {
+  const errBox = document.getElementById("expSurveyConfigError");
+  errBox.classList.add("hidden");
+  if (!expState.selectedGroups.length) {
+    errBox.textContent = t("exp_select_first");
+    errBox.classList.remove("hidden");
+    return;
+  }
+  const items = collectCodebook("expCodebookTableBody");
+  if (!items.length) {
+    errBox.textContent = t("s1_ai_codebook_min_rows");
+    errBox.classList.remove("hidden");
+    return;
+  }
+  const seen = new Set();
+  for (const item of items) {
+    if (seen.has(item.column)) {
+      errBox.textContent = t("s1_ai_codebook_duplicate_column", { name: item.column });
+      errBox.classList.remove("hidden");
+      return;
+    }
+    seen.add(item.column);
+  }
+  expState.codebook = items;
+  expState.qualColumns = items.filter((c) => c.type === "qualitative").map((c) => c.column);
+  const likertScale = Number(document.querySelector('input[name="expLikert"]:checked').value);
+  expState.likertMin = 1;
+  expState.likertMax = likertScale;
+
+  try {
+    const res = await fetch("/api/ai_worker/suggest_survey_prompt", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        pool_id: expState.poolId,
+        codebook: expState.codebook,
+        likert_scale: likertScale,
+        groups: expState.selectedGroups,
+        batch_size: clampExpSurveyBatchSize(),
+        lang: getLang(),
+      }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "suggest failed");
+    data.groups.forEach((pg) => {
+      const g = expState.selectedGroups.find((sg) => sg.group_index === pg.group_index);
+      if (g) {
+        g.combinedPrompt = combinePromptParts(pg.system_prompt, pg.user_prompt);
+        g.batchSize = pg.batch_size;
+      }
+    });
+  } catch (err) {
+    errBox.textContent = err.message;
+    errBox.classList.remove("hidden");
+    return;
+  }
+
+  renderExpSurveyPromptGroups();
+  document.getElementById("expSurveyPromptPreviewWrap").classList.remove("hidden");
+  document.getElementById("expSurveyConfirmNav").classList.remove("hidden");
+}
+
+function renderExpSurveyPromptGroups() {
+  document.getElementById("expSurveyPromptGroups").innerHTML = expState.selectedGroups.map((g, i) => `
+    <div class="exp-survey-prompt-group">
+      <label>${escapeHtml(t("exp_group_n", { n: i + 1 }))} — ${escapeHtml(g.condition_text || "")}</label>
+      <textarea class="exp-survey-prompt-textarea ai-gen-prompt-preview" rows="8" data-group-index="${g.group_index}">${escapeHtml(g.combinedPrompt || "")}</textarea>
+    </div>
+  `).join("");
+}
+
+document.getElementById("expSurveyPreviewBtn").addEventListener("click", fetchExpSurveyPromptPreview);
+document.getElementById("expSurveyPreviewRegenBtn").addEventListener("click", fetchExpSurveyPromptPreview);
+
+// A selection re-roll invalidates whatever prompt preview was already
+// shown (it named specific worker_ids that no longer match), so hide it
+// until the user re-runs the preview against the new selection.
+document.getElementById("expSelectBtn").addEventListener("click", () => {
+  document.getElementById("expSurveyPromptPreviewWrap").classList.add("hidden");
+  document.getElementById("expSurveyConfirmNav").classList.add("hidden");
+});
+
+document.getElementById("expSurveyStartBtn").addEventListener("click", () => {
+  // Commit whatever the user actually sees/edited in each group's textarea
+  // (possibly hand-edited) as the exact prompt that call will use.
+  document.querySelectorAll(".exp-survey-prompt-textarea").forEach((ta) => {
+    const gi = Number(ta.dataset.groupIndex);
+    const g = expState.selectedGroups.find((sg) => sg.group_index === gi);
+    if (g) {
+      // Same reasoning as the Worker Pool step: everything the user edited
+      // goes into "system", "user" stays empty for just the per-batch
+      // trigger instruction appended server-side.
+      g.systemPrompt = ta.value;
+      g.userPrompt = "";
+    }
+  });
+
+  expState.rows = [];
+  expState.batchLog = [];
+  expState.groupCursor = 0;
+  document.getElementById("expError").classList.add("hidden");
+  document.getElementById("expErrorActions").classList.add("hidden");
+  document.getElementById("expLiveTransparency").innerHTML = "";
+  document.getElementById("expLiveTransparencyWrap").classList.remove("hidden");
+  expGoToSubstep(4);
+  runExperimentSurveyGeneration();
+});
+
+// ---- Sub-step 4: batched survey generation loop, then auto-finalize ----
+async function runExperimentSurveyGeneration() {
+  const bar = document.getElementById("expProgressBar");
+  const text = document.getElementById("expProgressText");
+  const totalWorkers = expState.selectedGroups.reduce((s, g) => s + g.worker_ids.length, 0);
+  bar.max = totalWorkers;
+
+  for (let gi = expState.groupCursor; gi < expState.selectedGroups.length; gi++) {
+    const group = expState.selectedGroups[gi];
+    const batchSize = group.batchSize || Math.min(25, group.worker_ids.length);
+    const answeredIds = new Set(expState.rows.map((r) => r.worker_id));
+    let cursor = group.worker_ids.filter((wid) => answeredIds.has(wid)).length;
+
+    while (cursor < group.worker_ids.length) {
+      const idsSlice = group.worker_ids.slice(cursor, cursor + batchSize);
+      bar.value = expState.rows.length;
+      text.textContent = t("s1_ai_gen_progress", { done: expState.rows.length, total: totalWorkers });
+      try {
+        const res = await fetch("/api/ai_worker/survey_batch", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            provider: expState.provider,
+            api_key: expState.apiKey,
+            model: expState.model,
+            temperature: expState.temperature,
+            system_prompt: group.systemPrompt,
+            user_prompt: group.userPrompt,
+            columns: expState.codebook.map((c) => c.column),
+            qualitative_columns: expState.qualColumns,
+            likert_min: expState.likertMin,
+            likert_max: expState.likertMax,
+            worker_ids: idsSlice,
+            lang: getLang(),
+          }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "batch failed");
+        expState.rows.push(...data.rows);
+        expState.batchLog.push({
+          worker_ids: idsSlice,
+          system_prompt: data.used_system_prompt || group.systemPrompt,
+          user_prompt: data.used_user_prompt || group.userPrompt,
+        });
+        appendLiveTransparencyEntry(
+          "expLiveTransparency",
+          t("exp_live_transparency_survey_batch", { group: gi + 1, n: expState.batchLog.length, ids: idsSlice.join(", ") }),
+          combinePromptParts(data.used_system_prompt || group.systemPrompt, data.used_user_prompt || group.userPrompt),
+        );
+        cursor += idsSlice.length;
+      } catch (err) {
+        expState.groupCursor = gi;
+        showExpSurveyBatchError(err.message);
+        return;
+      }
+    }
+    expState.groupCursor = gi + 1;
+  }
+
+  bar.value = totalWorkers;
+  text.textContent = t("s1_ai_gen_finalizing");
+  await finalizeExperiment();
+}
+
+function showExpSurveyBatchError(message) {
+  document.getElementById("expError").textContent = t("s1_ai_gen_error_batch", { detail: message });
+  document.getElementById("expError").classList.remove("hidden");
+  document.getElementById("expErrorActions").classList.remove("hidden");
+}
+document.getElementById("expRetryBtn").addEventListener("click", () => {
+  document.getElementById("expError").classList.add("hidden");
+  document.getElementById("expErrorActions").classList.add("hidden");
+  runExperimentSurveyGeneration();
+});
+document.getElementById("expCancelBtn").addEventListener("click", () => {
+  document.getElementById("expError").classList.add("hidden");
+  document.getElementById("expErrorActions").classList.add("hidden");
+  expGoToSubstep(3);
+});
+
+async function finalizeExperiment() {
+  try {
+    const res = await fetch("/api/ai_worker/finalize_experiment", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        pool_id: expState.poolId,
+        codebook: expState.codebook,
+        condition_groups: expState.selectedGroups.map((g) => ({
+          group_index: g.group_index, condition_text: g.condition_text, worker_ids: g.worker_ids,
+        })),
+        excluded_worker_ids: expState.excludedWorkerIds,
+        rows: expState.rows,
+        likert_scale: expState.likertMax,
+        provider: expState.provider,
+        model: expState.model,
+        temperature: expState.temperature,
+        batches: expState.batchLog,
+        lang: getLang(),
+      }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "finalize failed");
+    applyUploadResult(data);
+    state.pendingConstructSeed = buildConstructGroupsFromCodebook(expState.codebook).map((g) => ({ ...g, theory: null }));
+    const exportBtn = document.getElementById("aiGenExportBtn");
+    exportBtn.href = `/api/ai_data_gen/export?file_id=${encodeURIComponent(data.file_id)}`;
+    exportBtn.classList.remove("hidden");
+    renderAiGenDemoSummary(data.demographics_summary, data.demo_attributes);
+    renderAiGenStatsTables(data.descriptive_stats);
+    renderAiGenTransparency(expState.batchLog.map((b) => ({
+      start_row: b.worker_ids[0], end_row: b.worker_ids[b.worker_ids.length - 1],
+      system_prompt: b.system_prompt, user_prompt: b.user_prompt,
+    })));
+    document.getElementById("aiGenResultExtra").classList.remove("hidden");
+    document.getElementById("expProgressWrap").classList.add("hidden");
+    document.getElementById("dataPreviewWrap").scrollIntoView({ behavior: "smooth", block: "start" });
+  } catch (err) {
+    showExpSurveyBatchError(err.message);
+  }
+}
+
 // ---- Export/import the entire wizard configuration as one CSV file ----
 // (codebook + respondent profile + custom demographic attributes +
 // generation settings) so a later session can restore everything with a
@@ -1440,10 +2228,17 @@ function onEditorChange(evt) {
     openAddConstructModal(evt.requestAddConstruct);
     return;
   }
+  // renderModelSummary() unconditionally clears #modelError at its own end
+  // (a fresh render implicitly means "no error to show" in every other
+  // case) -- so any message for THIS event must be shown after it runs,
+  // not before, or it gets wiped in the same call.
+  renderModelSummary();
   if (evt && evt.pathRejected) {
     showModelMessage(t("s2_path_rejected"));
   }
-  renderModelSummary();
+  if (evt && evt.moderatorAttachRejected) {
+    showModelMessage(t("s2_moderator_attach_rejected"));
+  }
 }
 
 document.getElementById("addConstructBtn").addEventListener("click", () => {
@@ -1498,6 +2293,8 @@ function openAddConstructModal(pos) {
           <select id="modalSourceA"></select>
           <label>${t("s2_interaction_source_b")}</label>
           <select id="modalSourceB"></select>
+          <label>${t("s2_interaction_source_c")}</label>
+          <select id="modalSourceC"></select>
           <div id="modalInteractionError" class="error-box hidden"></div>
         </div>
         <div class="modal-actions">
@@ -1507,18 +2304,20 @@ function openAddConstructModal(pos) {
       </div>
     </div>`;
 
-  const fillSourceSelect = (sel, preferIndex) => {
+  const fillSourceSelect = (sel, preferIndex, allowNone) => {
     const options = eligibleInteractionSources();
-    sel.innerHTML = options.map((c) => `<option value="${escapeAttr(c.id)}">${escapeHtml(c.name)}</option>`).join("");
-    if (options[preferIndex]) sel.value = options[preferIndex].id;
+    const optHtml = options.map((c) => `<option value="${escapeAttr(c.id)}">${escapeHtml(c.name)}</option>`).join("");
+    sel.innerHTML = allowNone ? `<option value="">${t("s2_interaction_source_c_none")}</option>${optHtml}` : optHtml;
+    if (!allowNone && options[preferIndex]) sel.value = options[preferIndex].id;
   };
 
   document.getElementById("modalCMode").addEventListener("change", (e) => {
     const isInteraction = e.target.value === "I";
     document.getElementById("modalInteractionSources").classList.toggle("hidden", !isInteraction);
     if (isInteraction) {
-      fillSourceSelect(document.getElementById("modalSourceA"), 0);
-      fillSourceSelect(document.getElementById("modalSourceB"), 1);
+      fillSourceSelect(document.getElementById("modalSourceA"), 0, false);
+      fillSourceSelect(document.getElementById("modalSourceB"), 1, false);
+      fillSourceSelect(document.getElementById("modalSourceC"), null, true);
     }
   });
 
@@ -1528,15 +2327,18 @@ function openAddConstructModal(pos) {
     const mode = document.getElementById("modalCMode").value;
     let interactionOf = null;
     if (mode === "I") {
-      const a = document.getElementById("modalSourceA").value;
-      const b = document.getElementById("modalSourceB").value;
-      if (!a || !b || a === b) {
+      const sources = [
+        document.getElementById("modalSourceA").value,
+        document.getElementById("modalSourceB").value,
+        document.getElementById("modalSourceC").value,
+      ].filter(Boolean);
+      if (sources.length < 2 || new Set(sources).size !== sources.length) {
         const errBox = document.getElementById("modalInteractionError");
         errBox.textContent = t("s2_interaction_same_source");
         errBox.classList.remove("hidden");
         return;
       }
-      interactionOf = [a, b];
+      interactionOf = sources;
     }
     const id = editor.addConstruct(name, mode, pos.x, pos.y, interactionOf);
     root.innerHTML = "";
@@ -1795,7 +2597,8 @@ function renderAiPathsReview(constructsPayload, paths, rationale, moderatorSugge
     btn.addEventListener("click", () => {
       const c = editor.getConstruct(btn.dataset.constructId);
       if (!c) return;
-      if (eligibleInteractionSources(c.id).length < 2) {
+      const sources = eligibleInteractionSources(c.id);
+      if (sources.length < 2) {
         showModelMessage(t("s2_interaction_not_enough"));
         return;
       }
@@ -1805,11 +2608,29 @@ function renderAiPathsReview(constructsPayload, paths, rationale, moderatorSugge
       // own and can't remain the target of any existing path.
       c.mode = "I";
       c.indicators = [];
+      c.calc_method = "two_stage";
+      c.product_term_generation = "standardized";
       editor.paths = editor.paths.filter((p) => p.target !== c.id);
+      // The AI only flags WHICH construct looks like a moderator, not which
+      // two (or three) others it multiplies with -- that's the same kind of
+      // semantic judgment call this app already defers to a human for
+      // elsewhere. Default to the first two eligible constructs so the
+      // moderator renders correctly right away (dashed border, "A × B"
+      // label, connector lines into it) instead of looking broken/empty;
+      // the hint below tells the user to open the side panel and adjust the
+      // sources if the AI's default guess isn't the right pair.
+      c.interaction_of = [sources[0].id, sources[1].id];
       editor.render();
       renderModelSummary();
       btn.disabled = true;
       btn.textContent = t("s2_ai_moderator_converted");
+      const row = btn.closest(".moderator-suggestion-row");
+      if (row) {
+        const hint = document.createElement("p");
+        hint.className = "hint";
+        hint.textContent = t("s2_ai_moderator_pick_sources_hint", { a: sources[0].name, b: sources[1].name });
+        row.querySelector("div").appendChild(hint);
+      }
     });
   });
 
@@ -1872,30 +2693,21 @@ function renderInteractionSourcePicker(construct) {
   const errBox = document.getElementById("interactionSourceError");
   errBox.classList.add("hidden");
   const optHtml = options.map((c) => `<option value="${escapeAttr(c.id)}">${escapeHtml(c.name)}</option>`).join("");
+  const noneOptHtml = `<option value="">${t("s2_interaction_source_c_none")}</option>` + optHtml;
   const selA = document.getElementById("cSourceA");
   const selB = document.getElementById("cSourceB");
+  const selC = document.getElementById("cSourceC");
   selA.innerHTML = optHtml;
   selB.innerHTML = optHtml;
-  const [curA, curB] = construct.interaction_of || [];
+  selC.innerHTML = noneOptHtml;
+  const [curA, curB, curC] = construct.interaction_of || [];
   if (curA && options.some((o) => o.id === curA)) selA.value = curA;
   else if (options[0]) selA.value = options[0].id;
   if (curB && options.some((o) => o.id === curB)) selB.value = curB;
   else if (options[1]) selB.value = options[1].id;
-  construct.interaction_of = [selA.value, selB.value];
+  selC.value = curC && options.some((o) => o.id === curC) ? curC : "";
 
-  const onSourceChange = () => {
-    if (selA.value === selB.value) {
-      errBox.textContent = t("s2_interaction_same_source");
-      errBox.classList.remove("hidden");
-      return;
-    }
-    errBox.classList.add("hidden");
-    construct.interaction_of = [selA.value, selB.value];
-    editor.render();
-    renderModelSummary();
-  };
-  selA.onchange = onSourceChange;
-  selB.onchange = onSourceChange;
+  const collectSources = () => [selA.value, selB.value, selC.value].filter(Boolean);
 
   // "Standardized" isn't a separate choice under Two Stage — it multiplies
   // two stage-1 factor scores, which are already standardized by
@@ -1913,6 +2725,40 @@ function renderInteractionSourcePicker(construct) {
     document.getElementById("productTermTwoStageNote").classList.toggle("hidden", !isTwoStage);
   }
 
+  // A three-way interaction (3 sources) only supports Two Stage (see
+  // pls/model.py's own validation) — lock the other two radios out rather
+  // than letting the user pick an invalid combination the server would
+  // just reject.
+  function updateCalcMethodLock(isThreeWay) {
+    document.querySelectorAll('#cCalcMethod input[name="cCalcMethod"]').forEach((r) => {
+      r.disabled = isThreeWay && r.value !== "two_stage";
+      if (isThreeWay && r.value === "two_stage") r.checked = true;
+    });
+    document.getElementById("cCalcMethodThreeWayNote").classList.toggle("hidden", !isThreeWay);
+    if (isThreeWay) {
+      construct.calc_method = "two_stage";
+      updateProductTermUI(true);
+    }
+  }
+
+  const onSourceChange = () => {
+    const sources = collectSources();
+    if (new Set(sources).size !== sources.length) {
+      errBox.textContent = t("s2_interaction_same_source");
+      errBox.classList.remove("hidden");
+      return;
+    }
+    errBox.classList.add("hidden");
+    construct.interaction_of = sources;
+    updateCalcMethodLock(sources.length === 3);
+    editor.render();
+    renderModelSummary();
+  };
+  selA.onchange = onSourceChange;
+  selB.onchange = onSourceChange;
+  selC.onchange = onSourceChange;
+  construct.interaction_of = collectSources();
+
   const calcMethod = construct.calc_method || "two_stage";
   document.querySelectorAll('#cCalcMethod input[name="cCalcMethod"]').forEach((r) => {
     r.checked = r.value === calcMethod;
@@ -1923,6 +2769,7 @@ function renderInteractionSourcePicker(construct) {
     };
   });
   updateProductTermUI(calcMethod === "two_stage");
+  updateCalcMethodLock((construct.interaction_of || []).length === 3);
 
   document.querySelectorAll('#cProductTerm input[name="cProductTerm"]').forEach((r) => {
     r.onchange = () => {
@@ -1994,8 +2841,8 @@ function renderIndicatorPicker(construct) {
 let expandedConstructs = new Set();
 
 function interactionOfLabel(c) {
-  const [a, b] = (c.interaction_of || []).map((sid) => editor.getConstruct(sid));
-  return a && b ? `${a.name} × ${b.name}` : t("lbl_dash");
+  const sources = (c.interaction_of || []).map((sid) => editor.getConstruct(sid));
+  return sources.length >= 2 && sources.every(Boolean) ? sources.map((s) => s.name).join(" × ") : t("lbl_dash");
 }
 
 function updateAiDrawPathsBtnState() {
@@ -3062,7 +3909,7 @@ function buildSemReportContext(data, method) {
 // (unswapped default) and same b_focal*x + b_mod*z + b_int*x*z model as
 // renderSimpleSlopes/drawSimpleSlopesChart use for the on-screen chart.
 function buildSimpleSlopesCards(data, method, idToName) {
-  const interactions = data.constructs.filter((c) => c.mode === "I" && c.interaction_of);
+  const interactions = data.constructs.filter((c) => c.mode === "I" && c.interaction_of && c.interaction_of.length === 2);
   const coefOf = {};
   data.structural.paths.forEach((p) => {
     coefOf[`${p.source}->${p.target}`] = method === "cbsem" ? p.std : p.coefficient;
@@ -3086,7 +3933,7 @@ function buildSimpleSlopesCards(data, method, idToName) {
 }
 
 function captureSimpleSlopesImages(data, gridId) {
-  const interactions = data.constructs.filter((c) => c.mode === "I" && c.interaction_of);
+  const interactions = data.constructs.filter((c) => c.mode === "I" && c.interaction_of && c.interaction_of.length === 2);
   const cards = interactions
     .map((ic) => data.structural.paths.find((p) => p.source === ic.id))
     .filter(Boolean);
@@ -3305,7 +4152,7 @@ function renderSimpleSlopes(data, sectionId, gridId) {
   const idToName = {};
   data.constructs.forEach((c) => (idToName[c.id] = c.name));
 
-  const interactions = data.constructs.filter((c) => c.mode === "I" && c.interaction_of);
+  const interactions = data.constructs.filter((c) => c.mode === "I" && c.interaction_of && c.interaction_of.length === 2);
   const cards = interactions
     .map((ic) => {
       const targetPath = data.structural.paths.find((p) => p.source === ic.id);

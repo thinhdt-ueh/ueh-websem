@@ -249,12 +249,15 @@ Attitude (ATT)                <span class="arrow">──▶</span> Behavioral In
     <p>The same two-stage logic is applied for both PLS-SEM (composite scores) and CB-SEM (factor scores), so you can test moderation with either estimator.</p>
 
     <h3 id="moderator-create">Creating an interaction term in the builder</h3>
+    <p>Two ways to build one — pick whichever fits how you're already working:</p>
     <ol>
-      <li>Add at least two ordinary constructs first (an interaction always multiplies two <em>existing</em>, non-interaction constructs).</li>
-      <li>Click <strong>“+ Construct”</strong>, enter a name, and set <strong>Measurement type</strong> to <em>“Interaction / moderation term (A × B)”</em>.</li>
-      <li>Pick the two source constructs (e.g. “Perceived Usefulness” and “Attitude”).</li>
-      <li>Draw a structural path <em>from</em> the new interaction node <em>to</em> the construct being moderated (e.g. → Behavioral Intention).</li>
+      <li><strong>Drag-and-drop:</strong> drag an existing construct and drop it directly on top of the structural path it should moderate. This creates the interaction term automatically (positioned at the path's midpoint, with a dashed connector line drawn from each source into it) and adds the moderator's own required main-effect path for you. Drop a <em>second</em> moderator onto the same (now-moderated) path to upgrade it to a three-way interaction (A × B × C) — dropping a fourth is rejected, since this app supports at most three-way.</li>
+      <li><strong>Modal-based (more control):</strong> add at least two ordinary constructs first (an interaction always multiplies two or three <em>existing</em>, non-interaction constructs). Click <strong>“+ Construct”</strong>, enter a name, and set <strong>Measurement type</strong> to <em>“Interaction / moderation term (A × B, optionally C)”</em>. Pick the source constructs (Construct C is optional), then draw a structural path <em>from</em> the new interaction node <em>to</em> the construct being moderated. This flow also exposes the Calculation Method choice (Two Stage / Product Indicator / Orthogonalization) directly, which the drag gesture always defaults to Two Stage for.</li>
     </ol>
+    <div class="callout warn">
+      <strong class="label">Three-way interactions are Two-Stage only</strong>
+      Product Indicator and Orthogonalization multiply raw indicators pairwise across source blocks — for three sources that becomes a triple cross-product (e.g. 3×3×3 = 27 generated columns), which makes the multicollinearity these methods already have to manage far worse for no real statistical benefit over the two-stage factor-score product. The app enforces this: picking a third source locks the Calculation Method to Two Stage.
+    </div>
 
     <figure class="screenshot">
       <img src="/static/docs/images/moderator-01-add-construct-modal.png" alt="Add New Construct dialog with Measurement type set to Interaction / moderation term">
@@ -277,9 +280,9 @@ Attitude (ATT)                <span class="arrow">──▶</span> Behavioral In
 
     <div class="callout warn">
       <strong class="label">Validation rule</strong>
-      Both source constructs must already have their own <em>direct</em> path to whatever the interaction term predicts. This mirrors standard moderation practice: without both main-effect paths present, the interaction term could silently absorb variance that actually belongs to a main effect. If a source is missing its direct path, the app rejects the model with a clear message naming the missing path — add it and re-run.
+      Every source construct must already have its own <em>direct</em> path to whatever the interaction term predicts (two paths for a two-way interaction, three for a three-way one). This mirrors standard moderation practice: without every main-effect path present, the interaction term could silently absorb variance that actually belongs to a main effect. If a source is missing its direct path, the app rejects the model with a clear message naming the missing path — add it and re-run. The drag-and-drop gesture above adds these automatically; the modal-based flow requires drawing them by hand.
     </div>
-    <p>An interaction term is always exogenous (it cannot itself be the target of another path) and has no indicators of its own — on the canvas it is drawn with a dashed amber border to distinguish it from ordinary constructs.</p>
+    <p>An interaction term is always exogenous (it cannot itself be the target of another path) and has no indicators of its own — on the canvas it is drawn with a dashed amber border, with a dashed connector line from each of its sources, to distinguish it from ordinary constructs.</p>
 
     <h3 id="moderator-example">Worked example, with real numbers from the TAM sample</h3>
     <p>Adding <code>PU × Attitude → Behavioral Intention</code> to the sample model (both PU and Attitude already have direct paths to Intention, so the model validates) gives:</p>

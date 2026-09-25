@@ -22,6 +22,8 @@ class PathDiagram {
     this.pendingSource = null;
     this.dragging = null;
     this.dragMoved = false;
+    this._dragHoverEdge = null;
+    this._dragRejectedDrop = null;
 
     this.RADIUS_X = 64;
     this.RADIUS_Y = 36;
@@ -191,8 +193,8 @@ class PathDiagram {
     const isInteraction = c.mode === "I";
     let sub;
     if (isInteraction) {
-      const [a, b] = (c.interaction_of || []).map((sid) => this.getConstruct(sid));
-      sub = a && b ? `${a.name} × ${b.name}` : t("s2_summary_interaction");
+      const sources = (c.interaction_of || []).map((sid) => this.getConstruct(sid));
+      sub = sources.length >= 2 && sources.every(Boolean) ? sources.map((s) => s.name).join(" × ") : t("s2_summary_interaction");
     } else {
       sub = t(c.mode === "A" ? "diagram_reflective" : "diagram_formative");
     }
@@ -270,6 +272,83 @@ class PathDiagram {
       if (d < THRESH) return p;
     }
     return null;
+  }
+
+  // Drag-and-drop moderator attachment: is (x,y) close enough to an
+  // existing path to attach `draggedNode` as that path's moderator if
+  // dropped here? A wider threshold than _edgeAt's click-selection one --
+  // this is a deliberate drag gesture, not a precise click, so it should be
+  // forgiving. Returns {edge, rejectedReason}: `edge` is the eligible
+  // target Path (or null if none), `rejectedReason` is set only when an
+  // edge WAS nearby but couldn't accept this drop (dragged node is itself
+  // an interaction term, or the edge's source is already a three-way
+  // interaction / already has this node as a source) -- distinct from
+  // "not near any edge at all", so the caller only shows a rejection toast
+  // when the user clearly attempted the gesture.
+  _nearbyEdgeForDrop(x, y, draggedNode) {
+    const THRESH = 16;
+    let best = null, bestDist = Infinity, rejected = false;
+    for (const p of this.paths) {
+      if (p.source === draggedNode.id || p.target === draggedNode.id) continue;
+      const a = this.getConstruct(p.source);
+      const b = this.getConstruct(p.target);
+      if (!a || !b) continue;
+      const d = this._pointToSegmentDist(x, y, a.x, a.y, b.x, b.y);
+      if (d >= THRESH || d >= bestDist) continue;
+      bestDist = d;
+      if (draggedNode.mode === "I") {
+        best = null;
+        rejected = true;
+        continue;
+      }
+      if (a.mode === "I") {
+        const sources = a.interaction_of || [];
+        if (sources.length >= 3 || sources.includes(draggedNode.id)) {
+          best = null;
+          rejected = true;
+          continue;
+        }
+      }
+      best = p;
+      rejected = false;
+    }
+    return { edge: best, rejectedReason: best ? null : (rejected ? "rejected" : null) };
+  }
+
+  // Attaches `moderatorId` as a moderator of `edge` -- either creating a
+  // brand-new two-way interaction term (edge.source is a plain construct)
+  // or upgrading an existing interaction to three-way (edge.source is
+  // already an interaction term with fewer than 3 sources). The dragged
+  // moderator construct itself is left wherever it was dropped; only the
+  // interaction construct and the required main-effect paths are created.
+  attachModerator(moderatorId, edge) {
+    const moderator = this.getConstruct(moderatorId);
+    const source = this.getConstruct(edge.source);
+    const target = this.getConstruct(edge.target);
+    if (!moderator || !source || !target) return;
+    if (source.mode === "I") {
+      source.interaction_of = [...(source.interaction_of || []), moderatorId];
+      source.calc_method = "two_stage";
+      source.product_term_generation = source.product_term_generation || "standardized";
+      this.addPath(moderatorId, edge.target);
+    } else {
+      // Offset perpendicular to the source->target line, not placed exactly
+      // on it -- otherwise the new interaction's own outgoing edge (to the
+      // same target) is perfectly collinear with the original main-effect
+      // edge, making the two geometrically indistinguishable to
+      // _nearbyEdgeForDrop (any point on the shorter edge is also on the
+      // longer one) and visually overlapping on the canvas.
+      const dx = target.x - source.x, dy = target.y - source.y;
+      const len = Math.hypot(dx, dy) || 1;
+      const OFFSET = 34;
+      const mx = (source.x + target.x) / 2 - (dy / len) * OFFSET;
+      const my = (source.y + target.y) / 2 + (dx / len) * OFFSET;
+      const newId = this.addConstruct(`${source.name} × ${moderator.name}`, "I", mx, my, [edge.source, moderatorId]);
+      this.addPath(moderatorId, edge.target);
+      this.addPath(newId, edge.target);
+    }
+    this.render();
+    this.onChange();
   }
 
   _pointToSegmentDist(px, py, x1, y1, x2, y2) {
@@ -378,12 +457,26 @@ class PathDiagram {
     this.dragging.x = Math.max(this.RADIUS_X, Math.min(w - this.RADIUS_X, pt.x));
     this.dragging.y = Math.max(this.RADIUS_Y, Math.min(h - this.RADIUS_Y, pt.y));
     this.dragMoved = true;
+    const drop = this._nearbyEdgeForDrop(this.dragging.x, this.dragging.y, this.dragging);
+    this._dragHoverEdge = drop.edge;
+    this._dragRejectedDrop = drop.rejectedReason;
     this.render();
   }
 
   _pointerUp() {
-    if (this.dragging && this.dragMoved) this.onChange();
+    if (this.dragging && this.dragMoved) {
+      if (this._dragHoverEdge) {
+        this.attachModerator(this.dragging.id, this._dragHoverEdge);
+      } else if (this._dragRejectedDrop) {
+        this.onChange({ moderatorAttachRejected: true });
+      } else {
+        this.onChange();
+      }
+    }
     this.dragging = null;
+    this._dragHoverEdge = null;
+    this._dragRejectedDrop = null;
+    this.render();
   }
 
   deleteSelected() {
@@ -473,6 +566,54 @@ class PathDiagram {
     const ctx = this.ctx;
     const W = this._logicalWidth, H = this._logicalHeight;
     ctx.clearRect(0, 0, W, H);
+
+    // live preview while dragging a construct near an eligible path -- a
+    // translucent amber halo underneath that edge's normal line, drawn
+    // before it so the normal line still renders crisply on top.
+    if (this._dragHoverEdge) {
+      const ha = this.getConstruct(this._dragHoverEdge.source);
+      const hb = this.getConstruct(this._dragHoverEdge.target);
+      if (ha && hb) {
+        const hStart = this._borderIntersection(hb, ha);
+        const hEnd = this._borderIntersection(ha, hb);
+        ctx.save();
+        ctx.globalAlpha = 0.35;
+        ctx.strokeStyle = "#c98a1f";
+        ctx.lineWidth = 10;
+        ctx.beginPath();
+        ctx.moveTo(hStart.x, hStart.y);
+        ctx.lineTo(hEnd.x, hEnd.y);
+        ctx.stroke();
+        ctx.restore();
+      }
+    }
+
+    // interaction-term source connectors -- dashed lines from each source
+    // construct into its interaction node, purely visual (computed live
+    // from interaction_of every render, never stored as a Path; an
+    // interaction construct has no real incoming edge in the model -- see
+    // pls/model.py's own "interaction constructs are always exogenous"
+    // validation). Drawn before the main edges pass so the interaction
+    // node's own outgoing edge (drawn below) still reads as the primary,
+    // solid connection.
+    for (const c of this.constructs) {
+      if (c.mode !== "I" || !c.interaction_of) continue;
+      for (const sid of c.interaction_of) {
+        const s = this.getConstruct(sid);
+        if (!s) continue;
+        const start = this._borderIntersection(c, s);
+        const end = this._borderIntersection(s, c);
+        ctx.strokeStyle = "#c98a1f";
+        ctx.lineWidth = 1.4;
+        ctx.setLineDash([4, 3]);
+        ctx.beginPath();
+        ctx.moveTo(start.x, start.y);
+        ctx.lineTo(end.x, end.y);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        this._drawArrowHead(start, end, "#c98a1f");
+      }
+    }
 
     // edges
     for (const p of this.paths) {

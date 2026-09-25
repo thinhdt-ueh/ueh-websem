@@ -947,6 +947,34 @@ def test_finalize_success_matches_upload_shape_plus_new_keys(client):
     assert "resp_gender" not in data["columns"]
 
 
+def test_finalize_and_export_allow_all_qualitative_codebook(client):
+    # An all-qualitative codebook is legitimate (no limit on how many
+    # quantitative vs qualitative items there are) and must not be
+    # rejected -- it just means indicator_df ends up with zero columns, so
+    # the "Survey Data" sheet has nothing to show for it, without crashing
+    # (see export_full()'s EmptyDataError fallback).
+    rows = [
+        {"persona_description": f"Respondent {i}", "OPEN1": "Some open-ended answer",
+         "resp_age": 25, "resp_gender": "male"}
+        for i in range(ai_data_gen_api.MIN_AI_ROWS)
+    ]
+    resp = client.post("/api/ai_data_gen/finalize", json=_finalize_payload(
+        ["OPEN1"], rows,
+        codebook=[{"column": "OPEN1", "question_text": "Why?", "type": "qualitative"}],
+    ))
+    assert resp.status_code == 200, resp.get_json()
+    data = resp.get_json()
+    assert data["columns"] == []
+    assert data["n_rows"] == ai_data_gen_api.MIN_AI_ROWS
+
+    export_resp = client.get(f"/api/ai_data_gen/export?file_id={data['file_id']}")
+    assert export_resp.status_code == 200
+    wb = openpyxl.load_workbook(io.BytesIO(export_resp.data))
+    ws = wb["Respondent Profile"]
+    header_row = next(row for row in ws.iter_rows(values_only=True) if row and "persona_description" in row)
+    assert "OPEN1" in header_row
+
+
 def test_finalize_descriptive_stats_are_correct(client):
     rows = _rows(30, columns=("PU1",), value=4, age=25)
     resp = client.post("/api/ai_data_gen/finalize", json=_finalize_payload(["PU1"], rows))

@@ -143,6 +143,14 @@ def find_moderated_mediation_opportunities(model: Model) -> list[ModeratedMediat
     for c in model.constructs.values():
         if c.mode != "I" or not c.interaction_of:
             continue
+        # A three-way interaction (A*B*C) is the exact same "un-indexable"
+        # situation as two different moderators on one edge, just packaged
+        # as a single construct instead of two -- the indirect effect is a
+        # trilinear, not linear, function of its moderators, so it's
+        # deliberately never registered here either (see this function's
+        # own docstring on the two-different-moderators case above).
+        if len(c.interaction_of) != 2:
+            continue
         a, b = c.interaction_of
         for target in model.successors(c.id):
             moderators_of_edge.setdefault((a, target), []).append(c.id)
