@@ -399,10 +399,10 @@
             <button class="btn" id="expPoolRetryBtn" data-i18n="s1_ai_gen_retry_batch">Thử lại lô này</button>
             <button class="btn ghost" id="expPoolCancelBtn" data-i18n="s1_ai_gen_cancel">Huỷ</button>
           </div>
-          <div id="expPoolLiveTransparencyWrap" class="hidden">
-            <h3 data-i18n="exp_live_transparency_title">🔍 Minh bạch prompt (cập nhật theo từng lô đang chạy)</h3>
+          <details id="expPoolLiveTransparencyWrap" class="hidden source-transparency-outer">
+            <summary data-i18n="exp_live_transparency_title">🔍 Minh bạch prompt (cập nhật theo từng lô đang chạy)</summary>
             <div id="expPoolLiveTransparency" class="source-transparency"></div>
-          </div>
+          </details>
         </div>
 
         <!-- Sub-step 2: pool ready -->
@@ -430,13 +430,17 @@
             </div>
           </div>
 
+          <label data-i18n="exp_shared_context_label">Bối cảnh chung (áp dụng cho mọi nhóm)</label>
+          <p class="hint" data-i18n="exp_shared_context_hint">Tình huống chung mà TẤT CẢ người tham gia đều trải qua, giống nhau giữa các nhóm — phần khác nhau giữa các nhóm nhập ở bảng "Thao túng" bên dưới.</p>
+          <textarea id="expSharedContext" rows="2" data-i18n-placeholder="exp_shared_context_placeholder"></textarea>
+
           <h3 data-i18n="exp_groups_title">Nhóm điều kiện (Condition Groups)</h3>
-          <p class="hint" data-i18n="exp_groups_hint">Mỗi nhóm có một điều kiện (prompt) khác nhau; tổng số Worker của các nhóm phải bằng M.</p>
+          <p class="hint" data-i18n="exp_groups_hint">Mỗi nhóm có một thao túng (manipulation) khác nhau; tổng số Worker của các nhóm phải bằng M.</p>
           <div class="table-scroll">
             <table class="codebook-table" id="expGroupsTable">
               <thead>
                 <tr>
-                  <th data-i18n="exp_groups_col_condition">Điều kiện (prompt)</th>
+                  <th data-i18n="exp_groups_col_condition">Thao túng (Manipulation)</th>
                   <th data-i18n="exp_groups_col_size">Số Worker</th>
                   <th></th>
                 </tr>
@@ -477,7 +481,12 @@
           </div>
           <div class="codebook-actions">
             <button class="btn" id="expCodebookAddRowBtn" data-i18n="s1_ai_codebook_add_row">+ Thêm biến quan sát</button>
+            <button class="btn ghost" id="expCodebookExportBtn" data-i18n="s1_ai_codebook_export">⬇ Xuất định nghĩa</button>
+            <button class="btn ghost" id="expCodebookImportBtn" data-i18n="s1_ai_codebook_import">⬆ Nhập định nghĩa</button>
+            <input type="file" id="expCodebookImportInput" accept=".json" hidden>
           </div>
+          <p class="hint" data-i18n="s1_ai_codebook_import_hint">Chấp nhận file định nghĩa (JSON) hoặc file mô hình đã xuất ở Bước 2 (construct + indicator).</p>
+          <div id="expCodebookImportError" class="error-box hidden"></div>
           <div id="expCodebookValidationError" class="error-box hidden"></div>
 
           <div class="ai-gen-form-row">
@@ -521,10 +530,10 @@
             <button class="btn" id="expRetryBtn" data-i18n="s1_ai_gen_retry_batch">Thử lại lô này</button>
             <button class="btn ghost" id="expCancelBtn" data-i18n="s1_ai_gen_cancel">Huỷ</button>
           </div>
-          <div id="expLiveTransparencyWrap" class="hidden">
-            <h3 data-i18n="exp_live_transparency_title">🔍 Minh bạch prompt (cập nhật theo từng lô đang chạy)</h3>
+          <details id="expLiveTransparencyWrap" class="hidden source-transparency-outer">
+            <summary data-i18n="exp_live_transparency_title">🔍 Minh bạch prompt (cập nhật theo từng lô đang chạy)</summary>
             <div id="expLiveTransparency" class="source-transparency"></div>
-          </div>
+          </details>
         </div>
       </div>
 
@@ -545,9 +554,11 @@
         <h3 data-i18n="s1_ai_result_stats_title">Thống kê mô tả</h3>
         <div id="aiGenStatsTables"></div>
 
-        <h3 data-i18n="s1_ai_result_transparency_title">Minh bạch prompt theo lô</h3>
         <p class="hint" data-i18n="s1_ai_result_transparency_hint">Mỗi lô sinh ra nhiều dòng từ CÙNG một prompt.</p>
-        <div id="aiGenTransparency" class="source-transparency"></div>
+        <details class="source-transparency-outer">
+          <summary data-i18n="s1_ai_result_transparency_title">Minh bạch prompt theo lô</summary>
+          <div id="aiGenTransparency" class="source-transparency"></div>
+        </details>
       </div>
     </div>
   </section>
@@ -560,8 +571,11 @@
           <button class="btn" id="addConstructBtn" data-i18n="s2_add_construct">+ Construct</button>
           <button class="btn" id="pathModeBtn" data-i18n="s2_draw_path">↗ Vẽ đường dẫn (Path)</button>
           <button class="btn" id="aiDrawPathsBtn" data-i18n="s2_ai_draw_paths">🤖 AI vẽ mô hình</button>
+          <button class="btn hidden" id="qualScoreBtn" data-i18n="s2_qual_score_btn">🤖 Chấm điểm câu hỏi mở</button>
           <button class="btn danger" id="deleteSelBtn" data-i18n="s2_delete_selected">🗑 Xoá mục chọn</button>
           <span class="toolbar-sep"></span>
+          <a class="btn ghost hidden" id="step2ExportCsvBtn" data-i18n="s2_export_csv_btn">⬇ Xuất CSV dữ liệu</a>
+          <a class="btn ghost hidden" id="step2ExportExcelBtn" data-i18n="s2_export_excel_btn">⬇ Xuất Excel đầy đủ</a>
           <button class="btn" id="exportModelBtn" data-i18n="s2_export_model">⬇ Xuất mô hình</button>
           <button class="btn" id="importModelBtn" data-i18n="s2_import_model">⬆ Nhập mô hình</button>
           <input type="file" id="importModelInput" accept=".json" hidden>

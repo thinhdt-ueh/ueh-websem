@@ -1617,7 +1617,7 @@ def export_full():
         group_by_worker = {}
         for g in meta.get("condition_groups") or []:
             for wid in g.get("worker_ids") or []:
-                group_by_worker[wid] = g.get("condition_text") or f"Group {g.get('group_index')}"
+                group_by_worker[wid] = g.get("manipulation_text") or f"Group {g.get('group_index')}"
         worker_cols = list(snapshot[0].keys()) if snapshot else ["worker_id", PERSONA_COLUMN, "resp_age", "resp_gender"]
 
         ws = wb.create_sheet("Worker Pool")
@@ -1630,8 +1630,12 @@ def export_full():
         _write_sheet(ws, [pool_header] + pool_rows)
 
         ws = wb.create_sheet("Conditions")
-        _write_sheet(ws, [["Group", "Condition Prompt", "N Workers"]] + [
-            [g.get("group_index"), g.get("condition_text"), len(g.get("worker_ids") or [])]
+        _write_sheet(ws, [
+            ["Shared Context", meta.get("context_text") or "", ""],
+            ["", "", ""],
+            ["Group", "Manipulation Prompt", "N Workers"],
+        ] + [
+            [g.get("group_index"), g.get("manipulation_text"), len(g.get("worker_ids") or [])]
             for g in meta.get("condition_groups") or []
         ])
 

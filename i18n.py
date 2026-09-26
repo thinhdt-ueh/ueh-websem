@@ -169,6 +169,11 @@ _CATALOG: dict[str, dict[str, str]] = {
         "err_worker_select_invalid_groups": "Cấu hình nhóm điều kiện không hợp lệ — mỗi nhóm cần cỡ mẫu (số nguyên dương) hợp lệ.",
         "err_worker_select_too_many_groups": "Tối đa {max} nhóm điều kiện.",
         "err_worker_select_m_too_large": "Tổng số worker cần chọn ({m}) vượt quá số worker có trong pool ({n}).",
+        "err_qual_score_missing_rubric": "Vui lòng nhập tiêu chí chấm điểm (rubric) cho AI.",
+        "err_qual_score_no_metadata": "Không tìm thấy dữ liệu do AI Lab/AI Lab Experiment sinh ra cho file này — tính năng chấm điểm chỉ áp dụng cho dữ liệu tự sinh bằng AI.",
+        "err_qual_score_bad_column": "Cột đã chọn không phải là một câu hỏi mở (qualitative) hợp lệ của dữ liệu này.",
+        "err_qual_score_bad_new_column": "Tên cột mới không hợp lệ — chỉ dùng chữ, số và dấu gạch dưới.",
+        "err_qual_score_column_exists": "Cột \"{name}\" đã tồn tại trong dữ liệu — hãy chọn tên khác.",
 
         # --- shared report labels (pls/report.py & cbsem/report.py) ---
         "rpt_title_pls": "PLS-SEM — Báo cáo phân tích",
@@ -513,6 +518,11 @@ _CATALOG: dict[str, dict[str, str]] = {
         "err_worker_select_invalid_groups": "Invalid condition-group configuration — each group needs a valid positive integer group size.",
         "err_worker_select_too_many_groups": "At most {max} condition groups are allowed.",
         "err_worker_select_m_too_large": "The total number of workers requested ({m}) exceeds how many are in the pool ({n}).",
+        "err_qual_score_missing_rubric": "Please enter a scoring rubric for the AI.",
+        "err_qual_score_no_metadata": "No AI Lab/AI Lab Experiment-generated data was found for this file — the AI-scoring feature only works on AI-generated data.",
+        "err_qual_score_bad_column": "The selected column isn't a valid qualitative (open-ended) column in this dataset.",
+        "err_qual_score_bad_new_column": "Invalid new column name — use only letters, numbers, and underscores.",
+        "err_qual_score_column_exists": "A column named \"{name}\" already exists in the dataset — choose a different name.",
 
         "rpt_title_pls": "PLS-SEM — Analysis Report",
         "rpt_title_cbsem": "CB-SEM Analysis Report (Maximum Likelihood)",

@@ -21,6 +21,206 @@ let lastAnalysisResult = null;
 let lastCbsemResult = null;
 let cbsemResultDiagram = null;
 
+// ---------------- Whole-app session persistence (localStorage) ----------------
+// No login exists in this app -- this is the only "don't lose your work on
+// refresh" mechanism. Saved continuously (beforeunload + a periodic safety
+// net for a hard crash mid-AI-batch-loop) and restored once on load. Wrapped
+// in try/catch throughout: a private window, a full quota, or a shape from
+// an older app version must never block the page from loading normally.
+const SESSION_KEY = "websem_session_v1";
+const SESSION_VERSION = 1;
+
+// Generic {id: value} snapshot/restore for plain form fields scoped to one
+// container -- covers every simple input/textarea/select field in a wizard
+// pane for free, without hand-listing dozens of ids per tab (dynamic-row
+// tables like the codebook are handled separately, see saveSession/
+// restoreSession below, since their rows have no ids to walk). Unlabeled
+// radio groups (name but no id, e.g. the Likert-scale choices) are captured
+// by group name instead.
+function serializeFormFields(root) {
+  const out = {};
+  if (!root) return out;
+  root.querySelectorAll("input[id], textarea[id], select[id]").forEach((el) => {
+    if (el.type === "file" || el.disabled) return;
+    if (el.type === "radio") return; // handled via name below
+    out[el.id] = el.type === "checkbox" ? el.checked : el.value;
+  });
+  const radioNames = new Set();
+  root.querySelectorAll('input[type="radio"][name]').forEach((el) => radioNames.add(el.name));
+  radioNames.forEach((name) => {
+    const checked = root.querySelector(`input[type="radio"][name="${name}"]:checked`);
+    if (checked) out["radio:" + name] = checked.value;
+  });
+  return out;
+}
+
+function restoreFormFields(root, saved) {
+  if (!root || !saved) return;
+  Object.entries(saved).forEach(([key, value]) => {
+    if (key.startsWith("radio:")) {
+      const name = key.slice(6);
+      const el = root.querySelector(`input[type="radio"][name="${CSS.escape(name)}"][value="${CSS.escape(String(value))}"]`);
+      if (el) el.checked = true;
+      return;
+    }
+    const el = document.getElementById(key);
+    if (!el || !root.contains(el)) return;
+    if (el.type === "checkbox") el.checked = !!value;
+    else el.value = value;
+  });
+}
+
+function saveSession() {
+  try {
+    // Flush whatever's currently sitting in the dynamic-row tables (which
+    // have no ids for serializeFormFields to walk) into aiGenState/expState
+    // first, so the snapshot below is never stale relative to an
+    // uncommitted edit -- unconditional (not gated to "only if that substep
+    // is currently active" like aiGenCommitCurrentSubstepState/step-dot
+    // navigation do) since a hidden substep's DOM rows are still sitting
+    // there unchanged and are just as worth capturing.
+    aiGenState.codebook = collectCodebook();
+    { const { attrs } = collectDemoAttrs(); if (attrs) aiGenState.demoAttributes = attrs; }
+    expState.codebook = collectCodebook("expCodebookTableBody");
+    { const { attrs } = collectDemoAttrs("expDemoAttrsTableBody"); if (attrs) expState.demoAttributes = attrs; }
+    // The condition-group DEFINITION drafts (substep 3, before "🎲 Chọn
+    // ngẫu nhiên Workers" is clicked) are a separate thing from
+    // expState.selectedGroups (the resulting random M-sized pick) -- both
+    // are worth preserving independently.
+    expState.groupDrafts = collectExpGroupDrafts();
+
+    const activeTabBtn = document.querySelector("#dataSourceTabs .ai-provider-tab.active");
+    const activePanel = document.querySelector(".step-panel.active");
+    const aiGenActiveSubstep = document.querySelector("#aiGenSourcePane .ai-gen-substep.active");
+    const expActiveSubstep = document.querySelector("#aiExperimentSourcePane .ai-gen-substep.active");
+
+    const snapshot = {
+      version: SESSION_VERSION,
+      savedAt: new Date().toISOString(),
+      step: activePanel ? Number(activePanel.id.replace("panel-", "")) : 1,
+      activeTab: activeTabBtn ? activeTabBtn.dataset.source : "upload",
+      aiGenSubstep: aiGenActiveSubstep ? Number(aiGenActiveSubstep.id.replace("aiGenStep", "")) : 1,
+      aiGenMaxSubstepReached: typeof aiGenMaxSubstepReached !== "undefined" ? aiGenMaxSubstepReached : 1,
+      expSubstep: expActiveSubstep ? Number(expActiveSubstep.id.replace("expStep", "")) : 1,
+      expMaxSubstepReached: typeof expMaxSubstepReached !== "undefined" ? expMaxSubstepReached : 1,
+      state,
+      editor: editor ? { constructs: editor.constructs, paths: editor.paths } : null,
+      lastAnalysisResult,
+      lastCbsemResult,
+      resultsMode: lastCbsemResult && !document.getElementById("cbsemResultsContent").classList.contains("hidden") ? "cbsem" : "pls",
+      aiGenState,
+      expState,
+      uploadFields: serializeFormFields(document.getElementById("uploadSourcePane")),
+      aiGenFields: serializeFormFields(document.getElementById("aiGenSourcePane")),
+      expFields: serializeFormFields(document.getElementById("aiExperimentSourcePane")),
+    };
+    localStorage.setItem(SESSION_KEY, JSON.stringify(snapshot));
+  } catch {
+    // Private window, full quota, or a mid-render DOM state -- never block
+    // the page (or the beforeunload/interval trigger) over this.
+  }
+}
+
+function restoreSession() {
+  let saved;
+  try {
+    const raw = localStorage.getItem(SESSION_KEY);
+    if (!raw) return;
+    saved = JSON.parse(raw);
+    if (!saved || saved.version !== SESSION_VERSION) {
+      localStorage.removeItem(SESSION_KEY);
+      return;
+    }
+  } catch {
+    localStorage.removeItem(SESSION_KEY);
+    return;
+  }
+
+  try {
+    if (saved.state) Object.assign(state, saved.state);
+    if (saved.aiGenState) Object.assign(aiGenState, saved.aiGenState);
+    if (saved.expState) Object.assign(expState, saved.expState);
+
+    // Dynamic-row tables: rebuilt from the already-restored state objects,
+    // the exact same way codebookImportBtn/aiGenImportAllInput already
+    // rebuild a table from saved JSON (see those handlers).
+    document.getElementById("codebookTableBody").innerHTML = "";
+    (aiGenState.codebook || []).forEach((it) => codebookAddRow(it.column, it.question_text, it.construct, it.type));
+    document.getElementById("demoAttrsTableBody").innerHTML = "";
+    (aiGenState.demoAttributes || []).forEach((attr) => {
+      const valueText = attr.type === "categorical" ? (attr.options || []).join(", ") : `${attr.min},${attr.max}`;
+      demoAttrAddRow(attr.name, attr.type, valueText);
+    });
+    document.getElementById("expCodebookTableBody").innerHTML = "";
+    (expState.codebook || []).forEach((it) => codebookAddRow(it.column, it.question_text, it.construct, it.type, "expCodebookTableBody"));
+    document.getElementById("expDemoAttrsTableBody").innerHTML = "";
+    (expState.demoAttributes || []).forEach((attr) => {
+      const valueText = attr.type === "categorical" ? (attr.options || []).join(", ") : `${attr.min},${attr.max}`;
+      demoAttrAddRow(attr.name, attr.type, valueText, "expDemoAttrsTableBody");
+    });
+    document.getElementById("expGroupsTableBody").innerHTML = "";
+    (expState.groupDrafts || []).forEach((g) => expGroupAddRow(g.manipulation_text, g.size || 10));
+    if (typeof updateExpGroupsSizeTotal === "function") updateExpGroupsSizeTotal();
+    if (expState.selectedGroups && expState.selectedGroups.length) renderExpSelectionResult();
+
+    // Plain form fields (age/gender/prompts/provider config/...) -- restored
+    // after the state objects above so provider-tab re-rendering (which
+    // reads aiGenState.provider/expState.provider) happens first, since that
+    // rebuilds the API-key/model inputs this step then fills in.
+    if (typeof renderAiGenProviderFields === "function") renderAiGenProviderFields();
+    if (typeof applyExpProvider === "function") applyExpProvider(expState.provider || "openai");
+    restoreFormFields(document.getElementById("uploadSourcePane"), saved.uploadFields);
+    restoreFormFields(document.getElementById("aiGenSourcePane"), saved.aiGenFields);
+    restoreFormFields(document.getElementById("aiExperimentSourcePane"), saved.expFields);
+    if (typeof updateExpGroupsSizeTotal === "function") updateExpGroupsSizeTotal();
+
+    // Model builder + results (editor must exist before renderResults/
+    // renderCbsemResults, since both read editor.constructs/editor.paths).
+    if (saved.editor && saved.editor.constructs) {
+      if (!editor) initEditor();
+      editor.loadFrom(saved.editor.constructs, saved.editor.paths || []);
+      goToStep2Enable();
+    }
+    if (saved.lastAnalysisResult && saved.resultsMode !== "cbsem") {
+      renderResults(saved.lastAnalysisResult);
+    } else if (saved.lastCbsemResult) {
+      renderCbsemResults(saved.lastCbsemResult);
+    }
+    if (state.fileId) refreshQualScorePanel();
+
+    // Navigation: land exactly where the user left off.
+    if (typeof aiGenMaxSubstepReached !== "undefined") aiGenMaxSubstepReached = saved.aiGenMaxSubstepReached || 1;
+    if (typeof expMaxSubstepReached !== "undefined") expMaxSubstepReached = saved.expMaxSubstepReached || 1;
+    const tabBtn = document.querySelector(`#dataSourceTabs .ai-provider-tab[data-source="${saved.activeTab}"]`);
+    if (tabBtn) tabBtn.click();
+    if (typeof aiGenGoToSubstep === "function") aiGenGoToSubstep(saved.aiGenSubstep || 1);
+    if (typeof expGoToSubstep === "function") expGoToSubstep(saved.expSubstep || 1);
+    goToStep(saved.step || 1);
+  } catch {
+    // A shape mismatch mid-restore must not leave the page half-wired --
+    // clear the (apparently incompatible) saved session and let the rest
+    // of this script's own normal initialization take over from here.
+    localStorage.removeItem(SESSION_KEY);
+  }
+}
+
+window.addEventListener("beforeunload", saveSession);
+setInterval(saveSession, 20000);
+
+document.getElementById("clearSessionBtn").addEventListener("click", () => {
+  if (!confirm(t("footer_clear_session_confirm"))) return;
+  // Reloading itself fires beforeunload, which would otherwise call
+  // saveSession() one more time and silently re-write the very session
+  // this click is trying to delete -- drop that listener first.
+  window.removeEventListener("beforeunload", saveSession);
+  try {
+    localStorage.removeItem(SESSION_KEY);
+  } catch {
+    // Nothing to clear if storage was never reachable in the first place.
+  }
+  location.reload();
+});
+
 // ---------------- Language switch ----------------
 applyStaticTranslations();
 document.querySelectorAll(".lang-btn").forEach((b) => b.classList.toggle("active", b.dataset.lang === getLang()));
@@ -202,6 +402,51 @@ function applyUploadResult(data) {
   document.getElementById("aiGenResultExtra").classList.add("hidden");
   goToStep2Enable();
   updateRunAnalysisBtnState();
+  refreshQualScorePanel();
+}
+
+// Server-authoritative visibility check for the "🤖 Chấm điểm câu hỏi mở"
+// toolbar button (Step 2) -- a plain upload/sample load has no AI-gen
+// metadata at all (404s here), which is exactly the confirmed scope
+// (AI-generated data only), so the button simply stays hidden for those
+// instead of needing a separate client-side "is this AI-generated" flag.
+async function refreshQualScorePanel() {
+  const btn = document.getElementById("qualScoreBtn");
+  const csvBtn = document.getElementById("step2ExportCsvBtn");
+  const excelBtn = document.getElementById("step2ExportExcelBtn");
+  state.qualitativeColumns = [];
+  if (!state.fileId) {
+    btn.classList.add("hidden");
+    csvBtn.classList.add("hidden");
+    excelBtn.classList.add("hidden");
+    return;
+  }
+  // The raw CSV download works for any file_id (AI-generated or a plain
+  // upload) -- always offer it once there's data at all.
+  csvBtn.href = `/api/ai_data_gen/download?file_id=${encodeURIComponent(state.fileId)}`;
+  csvBtn.classList.remove("hidden");
+  try {
+    const res = await fetch(`/api/ai_qual_score/columns?file_id=${encodeURIComponent(state.fileId)}`);
+    const data = await res.json();
+    if (res.ok && Array.isArray(data.qualitative_columns) && data.qualitative_columns.length) {
+      state.qualitativeColumns = data.qualitative_columns;
+      btn.classList.remove("hidden");
+    } else {
+      btn.classList.add("hidden");
+    }
+    // The full Excel export (Survey Data/Respondent Profile/Stats/Prompt
+    // Transparency, + any AI-rater-derived score columns since it's built
+    // fresh from disk on every request) only exists for AI-generated data.
+    if (res.ok && data.is_ai_generated) {
+      excelBtn.href = `/api/ai_data_gen/export?file_id=${encodeURIComponent(state.fileId)}`;
+      excelBtn.classList.remove("hidden");
+    } else {
+      excelBtn.classList.add("hidden");
+    }
+  } catch {
+    btn.classList.add("hidden");
+    excelBtn.classList.add("hidden");
+  }
 }
 
 function updatePreviewTitle() {
@@ -473,6 +718,54 @@ document.getElementById("codebookImportInput").addEventListener("change", (e) =>
       if (!cleanItems.length) throw new Error(t("s1_ai_codebook_min_rows"));
       document.getElementById("codebookTableBody").innerHTML = "";
       cleanItems.forEach((it) => codebookAddRow(it.column, it.question_text || "", it.construct || "", it.type));
+    } catch (err) {
+      errBox.textContent = t("s1_ai_codebook_import_failed", { msg: err.message });
+      errBox.classList.remove("hidden");
+    } finally {
+      e.target.value = "";
+    }
+  };
+  reader.readAsText(file);
+});
+
+// AI Lab Experiment's own codebook table gets the exact same definition
+// export/import as the plain AI Lab wizard above -- same JSON shape, same
+// model-export fallback, just scoped to expCodebookTableBody.
+document.getElementById("expCodebookExportBtn").addEventListener("click", () => {
+  const payload = {
+    format: "pls-sem-web-codebook",
+    version: 1,
+    exported_at: new Date().toISOString(),
+    items: collectCodebook("expCodebookTableBody"),
+  };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "survey_codebook.json";
+  a.click();
+  URL.revokeObjectURL(url);
+});
+
+document.getElementById("expCodebookImportBtn").addEventListener("click", () => {
+  document.getElementById("expCodebookImportInput").click();
+});
+document.getElementById("expCodebookImportInput").addEventListener("change", (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const errBox = document.getElementById("expCodebookImportError");
+  const reader = new FileReader();
+  reader.onload = () => {
+    errBox.classList.add("hidden");
+    try {
+      const parsed = JSON.parse(reader.result);
+      const isModelExport = parsed.format === "pls-sem-web-model" || Array.isArray(parsed.constructs);
+      const rawItems = isModelExport ? codebookItemsFromModelExport(parsed) : parsed.items;
+      if (!Array.isArray(rawItems)) throw new Error(t("s1_ai_codebook_min_rows"));
+      const cleanItems = rawItems.filter((it) => it && String(it.column || "").trim());
+      if (!cleanItems.length) throw new Error(t("s1_ai_codebook_min_rows"));
+      document.getElementById("expCodebookTableBody").innerHTML = "";
+      cleanItems.forEach((it) => codebookAddRow(it.column, it.question_text || "", it.construct || "", it.type, "expCodebookTableBody"));
     } catch (err) {
       errBox.textContent = t("s1_ai_codebook_import_failed", { msg: err.message });
       errBox.classList.remove("hidden");
@@ -1174,7 +1467,7 @@ function renderAiGenTransparency(batchLog) {
   const el = document.getElementById("aiGenTransparency");
   el.innerHTML = (batchLog || [])
     .map((b, i) => `
-      <details${i === 0 ? " open" : ""}>
+      <details>
         <summary>${escapeHtml(t("s1_ai_result_transparency_batch", { n: i + 1, start: b.start_row, end: b.end_row }))}</summary>
         <p class="hint">${escapeHtml(t("s1_ai_result_transparency_system"))}</p>
         <pre><code>${escapeHtml(b.system_prompt)}</code></pre>
@@ -1209,12 +1502,14 @@ const expState = {
   totalBatches: 0,
   currentBatch: 0,
   workerRows: [],
+  demoSeed: null, // fixes the target-matching demographic assignment for this whole generation run (see _assign_demographics)
 
   poolId: null,
   nPoolWorkers: 0,
 
-  selectedGroups: [], // [{group_index, condition_text, worker_ids, systemPrompt, userPrompt, batchSize}] after /select + /suggest_survey_prompt
+  selectedGroups: [], // [{group_index, manipulation_text, worker_ids, systemPrompt, userPrompt, batchSize}] after /select + /suggest_survey_prompt
   excludedWorkerIds: [],
+  sharedContext: "", // one context shared by every group, entered once (see #expSharedContext)
 
   codebook: [],
   qualColumns: [],
@@ -1229,13 +1524,14 @@ let expMaxSubstepReached = 1;
 
 // Appends one batch's ACTUAL prompt to a live-updating transparency panel
 // as soon as that batch's response arrives -- so the user can see exactly
-// what was sent to the AI while generation is still running. Every entry
-// is shown fully expanded (not just the first) and nothing auto-scrolls,
-// so the whole log stays put and readable as more batches complete.
+// what was sent to the AI while generation is still running. Collapsed by
+// default (both this entry and the whole section it lives in, see
+// .source-transparency-outer) -- nothing forces itself open, so a long run
+// with many batches never turns into a wall of text the reader didn't ask
+// to see; each entry expands only when a reader deliberately clicks it.
 function appendLiveTransparencyEntry(containerId, label, promptText) {
   const el = document.getElementById(containerId);
   const details = document.createElement("details");
-  details.open = true;
   details.innerHTML = `
     <summary>${escapeHtml(label)}</summary>
     <pre><code>${escapeHtml(promptText || "")}</code></pre>
@@ -1361,6 +1657,7 @@ async function requestExpPromptSuggestion() {
     if (!res.ok) return;
     expState.batchSize = data.batch_size;
     expState.totalBatches = data.total_batches;
+    expState.demoSeed = data.seed;
     if (!expPromptEdited) {
       document.getElementById("expCombinedPrompt").value = combinePromptParts(data.system_prompt, data.user_prompt);
     }
@@ -1531,8 +1828,9 @@ async function runWorkerPoolGeneration() {
           user_prompt: expState.userPrompt,
           start_row: startRow,
           end_row: endRow,
-          demo_age_min: document.getElementById("expDemoAgeMin").value || null,
-          demo_age_max: document.getElementById("expDemoAgeMax").value || null,
+          n_workers: expState.nWorkers,
+          seed: expState.demoSeed,
+          demographics: expState.demographics,
           demo_attributes: expState.demoAttributes,
           lang: getLang(),
         }),
@@ -1634,7 +1932,7 @@ function clampExpM() {
 
 function collectExpGroupDrafts() {
   return Array.from(document.querySelectorAll("#expGroupsTableBody tr")).map((tr) => ({
-    condition_text: tr.querySelector(".exp-group-condition-input").value.trim(),
+    manipulation_text: tr.querySelector(".exp-group-manipulation-input").value.trim(),
     size: parseInt(tr.querySelector(".exp-group-size-input").value, 10) || 0,
   }));
 }
@@ -1644,14 +1942,14 @@ function updateExpGroupsSizeTotal() {
   document.getElementById("expMHint").textContent = t("exp_m_hint", { total, m: clampExpM() });
 }
 
-function expGroupAddRow(conditionText, size) {
+function expGroupAddRow(manipulationText, size) {
   const tbody = document.getElementById("expGroupsTableBody");
   const tr = document.createElement("tr");
 
   const condInput = document.createElement("textarea");
   condInput.rows = 2;
-  condInput.className = "exp-group-condition-input";
-  condInput.value = conditionText || "";
+  condInput.className = "exp-group-manipulation-input";
+  condInput.value = manipulationText || "";
   const tdCond = document.createElement("td");
   tdCond.appendChild(condInput);
 
@@ -1687,7 +1985,7 @@ document.getElementById("expCodebookAddRowBtn").addEventListener("click", () => 
 function renderExpSelectionResult() {
   document.getElementById("expSelectedLists").innerHTML = expState.selectedGroups.map((g, i) => `
     <div class="exp-group-result">
-      <strong>${escapeHtml(t("exp_group_n", { n: i + 1 }))}</strong> — <em>${escapeHtml(g.condition_text || "")}</em>
+      <strong>${escapeHtml(t("exp_group_n", { n: i + 1 }))}</strong> — <em>${escapeHtml(g.manipulation_text || "")}</em>
       <p class="hint">${g.worker_ids.map(escapeHtml).join(", ")}</p>
     </div>
   `).join("");
@@ -1723,7 +2021,7 @@ document.getElementById("expSelectBtn").addEventListener("click", async () => {
     if (!res.ok) throw new Error(data.error || "selection failed");
     expState.selectedGroups = data.groups.map((g, i) => ({
       group_index: g.group_index,
-      condition_text: drafts[i].condition_text,
+      manipulation_text: drafts[i].manipulation_text,
       worker_ids: g.worker_ids,
     }));
     expState.excludedWorkerIds = data.excluded_worker_ids || [];
@@ -1770,6 +2068,7 @@ async function fetchExpSurveyPromptPreview() {
   const likertScale = Number(document.querySelector('input[name="expLikert"]:checked').value);
   expState.likertMin = 1;
   expState.likertMax = likertScale;
+  expState.sharedContext = document.getElementById("expSharedContext").value.trim();
 
   try {
     const res = await fetch("/api/ai_worker/suggest_survey_prompt", {
@@ -1779,6 +2078,7 @@ async function fetchExpSurveyPromptPreview() {
         pool_id: expState.poolId,
         codebook: expState.codebook,
         likert_scale: likertScale,
+        context_text: expState.sharedContext,
         groups: expState.selectedGroups,
         batch_size: clampExpSurveyBatchSize(),
         lang: getLang(),
@@ -1791,6 +2091,7 @@ async function fetchExpSurveyPromptPreview() {
       if (g) {
         g.combinedPrompt = combinePromptParts(pg.system_prompt, pg.user_prompt);
         g.batchSize = pg.batch_size;
+        g.firstBatchPreview = pg.first_batch_preview || "";
       }
     });
   } catch (err) {
@@ -1807,8 +2108,10 @@ async function fetchExpSurveyPromptPreview() {
 function renderExpSurveyPromptGroups() {
   document.getElementById("expSurveyPromptGroups").innerHTML = expState.selectedGroups.map((g, i) => `
     <div class="exp-survey-prompt-group">
-      <label>${escapeHtml(t("exp_group_n", { n: i + 1 }))} — ${escapeHtml(g.condition_text || "")}</label>
+      <label>${escapeHtml(t("exp_group_n", { n: i + 1 }))} — ${escapeHtml(g.manipulation_text || "")}</label>
       <textarea class="exp-survey-prompt-textarea ai-gen-prompt-preview" rows="8" data-group-index="${g.group_index}">${escapeHtml(g.combinedPrompt || "")}</textarea>
+      <label>${escapeHtml(t("s1_ai_config_first_batch_preview_label"))}</label>
+      <div class="ai-gen-prompt-preview">${escapeHtml(g.firstBatchPreview || "")}</div>
     </div>
   `).join("");
 }
@@ -1878,6 +2181,7 @@ async function runExperimentSurveyGeneration() {
             temperature: expState.temperature,
             system_prompt: group.systemPrompt,
             user_prompt: group.userPrompt,
+            pool_id: expState.poolId,
             columns: expState.codebook.map((c) => c.column),
             qualitative_columns: expState.qualColumns,
             likert_min: expState.likertMin,
@@ -1938,8 +2242,9 @@ async function finalizeExperiment() {
       body: JSON.stringify({
         pool_id: expState.poolId,
         codebook: expState.codebook,
+        context_text: expState.sharedContext,
         condition_groups: expState.selectedGroups.map((g) => ({
-          group_index: g.group_index, condition_text: g.condition_text, worker_ids: g.worker_ids,
+          group_index: g.group_index, manipulation_text: g.manipulation_text, worker_ids: g.worker_ids,
         })),
         excluded_worker_ids: expState.excludedWorkerIds,
         rows: expState.rows,
@@ -2652,6 +2957,232 @@ function renderAiPathsReview(constructsPayload, paths, rationale, moderatorSugge
     // a full, unremarkable success needs no red-styled banner.
     if (applied < checkedCount) {
       showModelMessage(t("s2_ai_paths_applied", { applied, total: checkedCount }));
+    }
+  };
+}
+
+// ---- AI-rater: score a qualitative column into a new Likert indicator ----
+// New, purpose-built modal (same "small, self-contained, per-feature modal"
+// convention as openAiPathsModal above), but with a batch-accumulation loop
+// instead of one call, since scoring potentially hundreds of respondents'
+// free-text answers can't fit in a single AI response any more than
+// generating that many rows could (see routes/ai_qual_score_api.py).
+const QUAL_SCORE_BATCH_SIZE = 25;
+
+document.getElementById("qualScoreBtn").addEventListener("click", () => {
+  if (state.qualitativeColumns && state.qualitativeColumns.length) openQualScoreModal();
+});
+
+function openQualScoreModal() {
+  const root = document.getElementById("modalRoot");
+  let currentProvider = "openai";
+
+  const providerTabsHtml = AI_PROVIDER_ORDER.map((id) =>
+    `<button type="button" class="ai-provider-tab${id === currentProvider ? " active" : ""}" data-provider="${id}">${aiReportEscapeHtml(AI_PROVIDERS[id].label)}</button>`,
+  ).join("");
+  const columnOptionsHtml = state.qualitativeColumns.map((c) => `<option value="${escapeAttr(c)}">${escapeHtml(c)}</option>`).join("");
+
+  root.innerHTML = `
+    <div class="modal-backdrop">
+      <div class="modal-box modal-wide">
+        <h3>${t("s2_qual_score_modal_title")}</h3>
+        <p class="hint">${t("s2_qual_score_modal_hint")}</p>
+
+        <label>${t("s2_qual_score_column_label")}</label>
+        <select id="qualScoreColumn">${columnOptionsHtml}</select>
+
+        <label>${t("s2_qual_score_rubric_label")}</label>
+        <textarea id="qualScoreRubric" rows="4" placeholder="${aiReportEscapeAttr(t("s2_qual_score_rubric_placeholder"))}"></textarea>
+
+        <div class="ai-gen-form-row">
+          <div>
+            <label>${t("s1_ai_config_likert")}</label>
+            <label class="radio-row"><input type="radio" name="qualScoreLikert" value="5" checked> <span data-i18n="s1_ai_config_likert5">5 mức (1-5)</span></label>
+            <label class="radio-row"><input type="radio" name="qualScoreLikert" value="7"> <span data-i18n="s1_ai_config_likert7">7 mức (1-7)</span></label>
+          </div>
+          <div>
+            <label>${t("s2_qual_score_new_column_label")}</label>
+            <input type="text" id="qualScoreNewColumn">
+          </div>
+        </div>
+
+        <label>${t("ai_modal_provider_label")}</label>
+        <div class="ai-provider-tabs" id="qualScoreProviderTabs">${providerTabsHtml}</div>
+
+        <label>${t("ai_modal_api_key_label")}</label>
+        <div class="ai-key-row">
+          <input type="password" id="qualScoreApiKey" autocomplete="off">
+          <button type="button" class="btn ghost" id="qualScoreKeyToggle">👁</button>
+        </div>
+        <p class="hint" id="qualScoreApiKeyHint"></p>
+        <label class="checkbox-row">
+          <input type="checkbox" id="qualScoreRememberKey">
+          ${t("ai_modal_remember_key")}
+        </label>
+
+        <label>${t("ai_modal_model_label")}</label>
+        <input type="text" id="qualScoreModel" list="qualScoreModelSuggestions">
+        <datalist id="qualScoreModelSuggestions"></datalist>
+        <p class="hint">${t("ai_modal_model_hint")}</p>
+
+        <label>${t("ai_modal_temperature_label")} — <span id="qualScoreTemperatureValue">1.0</span></label>
+        <div class="ai-temp-row">
+          <span class="ai-temp-endpoint">${t("ai_modal_temperature_low")}</span>
+          <input type="range" id="qualScoreTemperature" min="0" max="1" step="0.1" value="1">
+          <span class="ai-temp-endpoint">${t("ai_modal_temperature_high")}</span>
+        </div>
+
+        <div id="qualScoreError" class="error-box hidden"></div>
+        <div id="qualScoreProgressWrap" class="ai-gen-progress-wrap hidden">
+          <progress id="qualScoreProgressBar" value="0" max="1"></progress>
+          <p class="hint" id="qualScoreProgressText"></p>
+        </div>
+        <div class="modal-actions">
+          <button class="btn" id="qualScoreCancel">${t("modal_cancel")}</button>
+          <button class="btn primary" id="qualScoreRun">${t("s2_qual_score_run")}</button>
+        </div>
+      </div>
+    </div>`;
+
+  const columnSelect = document.getElementById("qualScoreColumn");
+  const newColumnInput = document.getElementById("qualScoreNewColumn");
+  const keyInput = document.getElementById("qualScoreApiKey");
+  const modelInput = document.getElementById("qualScoreModel");
+  const modelDatalist = document.getElementById("qualScoreModelSuggestions");
+  const rememberCheckbox = document.getElementById("qualScoreRememberKey");
+  const keyHint = document.getElementById("qualScoreApiKeyHint");
+  const temperatureInput = document.getElementById("qualScoreTemperature");
+
+  // Scoring the same column again (a different rubric, a second rater
+  // pass, ...) is expected -- pick the first name that doesn't already
+  // collide with an existing indicator, instead of always suggesting
+  // "<column>_score" and making every re-run hit the collision error.
+  function syncNewColumnDefault() {
+    const base = `${columnSelect.value}_score`;
+    let candidate = base;
+    let n = 2;
+    while ((state.columns || []).includes(candidate)) {
+      candidate = `${base}_v${n}`;
+      n += 1;
+    }
+    newColumnInput.value = candidate;
+  }
+  columnSelect.addEventListener("change", syncNewColumnDefault);
+  syncNewColumnDefault();
+
+  function applyProvider(providerId) {
+    currentProvider = providerId;
+    document.querySelectorAll("#qualScoreProviderTabs .ai-provider-tab").forEach((btn) => btn.classList.toggle("active", btn.dataset.provider === providerId));
+    const cfg = AI_PROVIDERS[providerId];
+    const stored = aiReportGetStoredKey(providerId);
+    keyInput.value = stored;
+    keyInput.placeholder = cfg.keyPlaceholder;
+    rememberCheckbox.checked = !!stored;
+    modelInput.value = cfg.defaultModel;
+    modelDatalist.innerHTML = cfg.modelSuggestions.map((m) => `<option value="${aiReportEscapeAttr(m)}">`).join("");
+    keyHint.textContent = t("ai_modal_api_key_hint", { provider: cfg.label });
+  }
+  applyProvider(currentProvider);
+
+  document.getElementById("qualScoreProviderTabs").addEventListener("click", (e) => {
+    const btn = e.target.closest(".ai-provider-tab");
+    if (btn) applyProvider(btn.dataset.provider);
+  });
+  document.getElementById("qualScoreKeyToggle").onclick = () => {
+    keyInput.type = keyInput.type === "password" ? "text" : "password";
+  };
+  temperatureInput.addEventListener("input", () => {
+    document.getElementById("qualScoreTemperatureValue").textContent = Number(temperatureInput.value).toFixed(1);
+  });
+  document.getElementById("qualScoreCancel").onclick = () => (root.innerHTML = "");
+
+  document.getElementById("qualScoreRun").onclick = async () => {
+    const errBox = document.getElementById("qualScoreError");
+    errBox.classList.add("hidden");
+    const qualColumn = columnSelect.value;
+    const rubricPrompt = document.getElementById("qualScoreRubric").value.trim();
+    const newColumn = newColumnInput.value.trim();
+    const apiKey = keyInput.value.trim();
+    if (!rubricPrompt) {
+      errBox.textContent = t("s2_qual_score_missing_rubric");
+      errBox.classList.remove("hidden");
+      return;
+    }
+    if (!newColumn) {
+      errBox.textContent = t("s2_qual_score_missing_new_column");
+      errBox.classList.remove("hidden");
+      return;
+    }
+    if (!apiKey) {
+      errBox.textContent = t("s1_ai_config_missing_key");
+      errBox.classList.remove("hidden");
+      return;
+    }
+    const model = modelInput.value.trim() || AI_PROVIDERS[currentProvider].defaultModel;
+    const temperature = Number(temperatureInput.value);
+    const likertScale = Number(document.querySelector('input[name="qualScoreLikert"]:checked').value);
+    const remember = rememberCheckbox.checked;
+    try {
+      const storageKey = AI_PROVIDERS[currentProvider].keyStorageKey;
+      if (remember) localStorage.setItem(storageKey, apiKey);
+      else localStorage.removeItem(storageKey);
+    } catch {
+      // localStorage unavailable -- key just won't persist, not fatal.
+    }
+
+    document.getElementById("qualScoreRun").disabled = true;
+    const bar = document.getElementById("qualScoreProgressBar");
+    const text = document.getElementById("qualScoreProgressText");
+    document.getElementById("qualScoreProgressWrap").classList.remove("hidden");
+    const total = state.nRows;
+    bar.max = total;
+
+    const accumulated = [];
+    try {
+      let cursor = 0;
+      while (cursor < total) {
+        const startRow = cursor + 1;
+        const endRow = Math.min(total, cursor + QUAL_SCORE_BATCH_SIZE);
+        bar.value = cursor;
+        text.textContent = t("s1_ai_gen_progress", { done: cursor, total });
+        const res = await fetch("/api/ai_qual_score/batch", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            provider: currentProvider, api_key: apiKey, model, temperature,
+            file_id: state.fileId, qual_column: qualColumn, rubric_prompt: rubricPrompt,
+            likert_scale: likertScale, start_row: startRow, end_row: endRow, lang: getLang(),
+          }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "batch failed");
+        accumulated.push(...data.rows);
+        cursor = endRow;
+      }
+
+      bar.value = total;
+      text.textContent = t("s1_ai_gen_finalizing");
+      const finalizeRes = await fetch("/api/ai_qual_score/finalize", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          file_id: state.fileId, qual_column: qualColumn, new_column: newColumn,
+          rubric_prompt: rubricPrompt, likert_scale: likertScale, scores: accumulated,
+        }),
+      });
+      const finalizeData = await finalizeRes.json();
+      if (!finalizeRes.ok) throw new Error(finalizeData.error || "finalize failed");
+
+      state.numericColumns = finalizeData.numeric_columns;
+      state.columns = finalizeData.columns;
+      root.innerHTML = "";
+      showModelMessage(t("s2_qual_score_success", { column: newColumn }));
+      refreshQualScorePanel();
+    } catch (err) {
+      errBox.textContent = err.message;
+      errBox.classList.remove("hidden");
+      document.getElementById("qualScoreRun").disabled = false;
+      document.getElementById("qualScoreProgressWrap").classList.add("hidden");
     }
   };
 }
@@ -5207,3 +5738,8 @@ function escapeHtml(s) {
 function escapeAttr(s) {
   return escapeHtml(s);
 }
+
+// Runs last -- every function/DOM element it depends on (initEditor,
+// codebookAddRow, renderResults, the wizard substep navigators, ...) is
+// already defined and wired up by this point in the script.
+restoreSession();

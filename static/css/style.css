@@ -134,7 +134,13 @@ main { max-width: 1600px; margin: 0 auto; padding: 24px; }
   font-size: 12.5px;
   color: var(--muted);
   text-align: center;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
 }
+.footer-inner .btn.ghost { font-size: 12.5px; padding: 4px 10px; }
 
 .step-panel { display: none; }
 .step-panel.active { display: block; }
@@ -470,6 +476,33 @@ textarea.ai-gen-prompt-preview { color: var(--text); resize: vertical; max-heigh
   line-height: 1.55;
   color: #e6e9f5;
   white-space: pre;
+}
+/* One extra outer collapse level around an already-collapsible
+ * .source-transparency list (each batch's own entry stays individually
+ * collapsible once expanded) -- so the whole section takes no vertical
+ * space at all until a reader deliberately opens it, matching every other
+ * page section's own <details> convention. */
+.source-transparency-outer > summary {
+  cursor: pointer;
+  padding: 10px 14px;
+  font-weight: 600;
+  font-size: 13.5px;
+  color: var(--text);
+  list-style: none;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+}
+.source-transparency-outer > summary::-webkit-details-marker { display: none; }
+.source-transparency-outer > summary::before { content: "▸ "; color: var(--muted); }
+.source-transparency-outer[open] > summary { border-radius: 8px 8px 0 0; }
+.source-transparency-outer[open] > summary::before { content: "▾ "; }
+.source-transparency-outer > .source-transparency {
+  padding: 10px 14px 14px;
+  border: 1px solid var(--border);
+  border-top: none;
+  border-radius: 0 0 8px 8px;
+  background: var(--bg);
 }
 
 /* Reading guide / glossary at the bottom of a results-style page — same

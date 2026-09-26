@@ -9,11 +9,16 @@ Two independent phases:
 
   Phase 1 (Worker Pool): describe the target population, generate N worker
   profiles (persona_description + resp_age + resp_gender + custom
-  attributes -- exactly the demographic columns ai_data_gen_api.py already
-  generates, just with NO codebook/indicator columns at all). Reuses
-  `_batch_instruction`/`_parse_batch_csv`/`_corrective_note` from that
-  module completely unchanged: both are already fully generic over an EMPTY
-  `columns`/`qual_columns` list, which degrades them to exactly this shape.
+  attributes). Unlike ai_data_gen_api.py's own generator, age/gender/custom
+  attributes are NOT left to the AI to freely pick from a soft text
+  instruction ("balanced mix", "18-65 range", ...) -- an LLM asked to hit a
+  target ratio independently, batch by batch, with no running tally,
+  reliably drifts from it (its own generation biases compound instead of
+  averaging out). Instead, `_assign_demographics` draws them with real,
+  seeded `numpy` randomness (exact quota + shuffle for a declared ratio like
+  "balanced", independent uniform draws for "any"/age/numeric attrs), and
+  the AI's only job is writing a `persona_description` consistent with each
+  row's already-fixed values -- see `_worker_persona_batch_instruction`.
   Persisted server-side by `pool_id`, exportable to and re-importable from
   Excel (so a pool survives across sessions without needing its own
   database).
@@ -57,11 +62,8 @@ from routes.ai_data_gen_api import (
     AI_BATCH_SIZE,
     DEMO_COLUMNS,
     GEN_CODEBOOK_LABEL,
-    GEN_CUSTOM_ATTR_INSTRUCTION,
     GEN_DEMOGRAPHICS_LABEL,
-    GEN_DEMO_COLUMNS_INSTRUCTION,
     GEN_NO_DEMOGRAPHICS,
-    GEN_OUTPUT_FORMAT_EXTRA_NOTE,
     GEN_OUTPUT_FORMAT_QUAL_NOTE,
     GEN_QUALITATIVE_INSTRUCTION,
     GENDER_VALUES,
@@ -73,21 +75,16 @@ from routes.ai_data_gen_api import (
     MIN_BATCH_SIZE,
     PERSONA_COLUMN,
     _ai_meta_dir,
-    _batch_instruction,
     _call_ai_provider_mapped,
     _clean,
     _compute_descriptive_stats,
-    _corrective_note,
     _demo_attr_columns,
     _extract_csv_block,
     _format_codebook,
-    _format_custom_attrs,
     _format_demographics,
     _load_ai_gen_metadata,
     _normalize_categorical_value,
-    _parse_batch_csv,
     _resolve_age_bounds,
-    _resolve_gender_desc,
     _save_ai_gen_metadata,
     _split_codebook_columns,
     _validate_codebook,
@@ -120,48 +117,59 @@ GEN_WORKER_ROLE_FRAMING = {
     "vi": (
         "Bạn đang tạo một nhóm người tham gia khảo sát (participant) giả lập cho một nghiên cứu học "
         "thuật, để dùng lại nhiều lần sau này -- KHÔNG trả lời câu hỏi khảo sát nào ở bước này, chỉ "
-        "tạo hồ sơ nhân vật (persona) và thông tin cá nhân của họ."
+        "tạo hồ sơ nhân vật (persona) cho từng người."
     ),
     "en": (
         "You are creating a pool of simulated survey participants for an academic study, to be reused "
-        "many times later -- do NOT answer any survey questions at this step, only create each "
-        "person's persona profile and personal attributes."
+        "many times later -- do NOT answer any survey questions at this step, only write each "
+        "person's persona profile."
     ),
 }
 
-GEN_WORKER_PERSONA_INSTRUCTION = {
+# Unlike a soft "you choose the demographics" instruction, each person's age/
+# gender/custom attributes are already fixed by _assign_demographics (real
+# seeded randomness, not left to the AI) before this instruction is ever
+# built -- see the module docstring for why. The AI's only remaining job is
+# writing a persona sentence consistent with those given values.
+GEN_WORKER_ASSIGNED_PERSONA_INSTRUCTION = {
     "vi": (
-        "Với MỖI người (mỗi dòng), hãy DỰNG RA một hồ sơ nhân vật cụ thể, thực tế, và KHÁC BIỆT thật "
-        "sự so với những người khác trong nhóm (không chỉ khác ở vài chi tiết ngẫu nhiên) -- phù hợp "
-        "với đối tượng mục tiêu được mô tả bên dưới: tuổi, giới tính, nghề nghiệp/bối cảnh sống, tính "
-        "cách, và các đặc điểm liên quan khác. Viết hồ sơ này thành MỘT câu THẬT NGẮN GỌN (tối đa 15 "
-        "từ, KHÔNG đặt tên riêng) vào cột `persona_description`. Toàn bộ nhóm phải đa dạng thực tế -- "
-        "tránh lặp lại cùng một khuôn mẫu tính cách cho nhiều người."
+        "Với MỖI người trong danh sách bên dưới, các thuộc tính cá nhân (tuổi, giới tính, và mọi thuộc "
+        "tính bổ sung nếu có) đã được ấn định CHÍNH XÁC sẵn -- bạn KHÔNG được thay đổi các giá trị đó. "
+        "Nhiệm vụ của bạn chỉ là DỰNG RA một hồ sơ nhân vật (persona) cụ thể, thực tế, và KHÁC BIỆT "
+        "thật sự so với những người khác trong danh sách (không chỉ khác ở vài chi tiết ngẫu nhiên) -- "
+        "PHÙ HỢP với đúng các thuộc tính đã cho của người đó: nghề nghiệp/bối cảnh sống, tính cách, và "
+        "các đặc điểm liên quan khác. Viết mỗi persona thành MỘT câu THẬT NGẮN GỌN (tối đa 15 từ, "
+        "KHÔNG đặt tên riêng, KHÔNG nhắc lại số tuổi hay từ giới tính vì đã có sẵn ở thuộc tính riêng) "
+        "vào cột `persona_description`. "
+        "Toàn bộ danh sách phải đa dạng thực tế -- tránh lặp lại cùng một khuôn mẫu tính cách cho nhiều "
+        "người."
     ),
     "en": (
-        "For EACH person (row), CONSTRUCT a concrete, realistic persona that is genuinely DIFFERENT "
-        "from every other person in the pool (not just varied by a few random details) -- consistent "
-        "with the target population described below: age, gender, occupation/life context, "
-        "personality, and other relevant traits. Write this profile as ONE VERY SHORT sentence (15 "
-        "words max, NO invented proper names) into the `persona_description` column. The whole pool "
-        "must be realistically varied -- avoid repeating the same personality template across people."
+        "For EACH person in the list below, their personal attributes (age, gender, and any extra "
+        "attributes) are ALREADY fixed exactly as given -- you must NOT change those values. Your only "
+        "job is to CONSTRUCT a concrete, realistic persona that is genuinely DIFFERENT from every other "
+        "person in the list (not just varied by a few random details) -- consistent with that exact "
+        "person's given attributes: occupation/life context, personality, and other relevant traits. "
+        "Write each persona as ONE VERY SHORT sentence (15 words max, NO invented proper names, do not "
+        "restate the age number or gender word since those already have their own attribute) into the "
+        "`persona_description` column. The whole list must be realistically varied -- avoid repeating "
+        "the same personality template across people."
     ),
 }
 
-GEN_WORKER_OUTPUT_FORMAT = {
+GEN_WORKER_PERSONA_ONLY_OUTPUT_FORMAT = {
     "vi": (
-        "Chỉ xuất ra một bảng CSV -- dòng đầu tiên là chính xác header sau: {header}. Sau đó mỗi dòng "
-        "là một người: cột đầu tiên `persona_description` (một câu ngắn, LUÔN đặt trong dấu ngoặc kép "
-        "\"...\" vì có thể chứa dấu phẩy), rồi `resp_age` (số nguyên trong khoảng đã nêu), "
-        "`resp_gender` (`male` hoặc `female`){extra_note}. KHÔNG markdown code fence, KHÔNG giải "
-        "thích, KHÔNG có văn bản nào khác ngoài bảng CSV."
+        "Chỉ xuất ra một bảng CSV đúng MỘT cột -- dòng đầu tiên là chính xác header: persona_description. "
+        "Sau đó đúng {n} dòng, mỗi dòng là MỘT câu persona (luôn đặt trong dấu ngoặc kép \"...\" vì có "
+        "thể chứa dấu phẩy), theo ĐÚNG THỨ TỰ danh sách người đã cho bên trên (dòng 1 ứng với người thứ "
+        "1, v.v.). KHÔNG markdown code fence, KHÔNG giải thích, KHÔNG có văn bản nào khác ngoài bảng CSV."
     ),
     "en": (
-        "Output ONLY a CSV table -- the first line must be exactly this header: {header}. Each "
-        "following line is one person: the first column `persona_description` (one short sentence, "
-        "ALWAYS wrapped in double quotes \"...\" since it may contain commas), then `resp_age` (an "
-        "integer in the stated range), `resp_gender` (`male` or `female`){extra_note}. NO markdown "
-        "code fences, NO explanations, NO text other than the CSV table."
+        "Output ONLY a single-column CSV table -- the first line must be exactly this header: "
+        "persona_description. Then exactly {n} lines, each one persona sentence (always wrapped in "
+        "double quotes \"...\" since it may contain commas), in the EXACT SAME ORDER as the list of "
+        "people given above (line 1 = person 1, etc). NO markdown code fences, NO explanations, NO "
+        "text other than the CSV table."
     ),
 }
 
@@ -169,35 +177,17 @@ GEN_WORKER_OUTPUT_FORMAT = {
 def _build_worker_generation_messages(
     population_prompt: str, demographics: dict, demo_attributes: list[dict], n_workers: int, lang: str,
 ) -> tuple[str, str]:
-    # Reuses the exact same formatting helpers ai_data_gen_api.py's own
-    # codebook-based prompt builder uses for demographics/custom attrs.
-    demo_attr_columns = _demo_attr_columns(demo_attributes)
-    header = ",".join([PERSONA_COLUMN] + DEMO_COLUMNS + demo_attr_columns)
-    age_min, age_max = _resolve_age_bounds(demographics)
-    gender_desc = _resolve_gender_desc(demographics, lang)
     demo_label = GEN_DEMOGRAPHICS_LABEL.get(lang, GEN_DEMOGRAPHICS_LABEL["en"])
-    extra_note = GEN_OUTPUT_FORMAT_EXTRA_NOTE.get(lang, GEN_OUTPUT_FORMAT_EXTRA_NOTE["en"]) if demo_attributes else ""
-
     demo_text = _format_demographics(demographics, lang)
-    if not demo_text or demo_text == GEN_NO_DEMOGRAPHICS.get(lang, GEN_NO_DEMOGRAPHICS["en"]):
+    if not demo_text:
         demo_text = GEN_NO_DEMOGRAPHICS.get(lang, GEN_NO_DEMOGRAPHICS["en"])
     population_text = (population_prompt or "").strip()
 
     parts = [
         GEN_WORKER_ROLE_FRAMING.get(lang, GEN_WORKER_ROLE_FRAMING["en"]),
-        GEN_WORKER_PERSONA_INSTRUCTION.get(lang, GEN_WORKER_PERSONA_INSTRUCTION["en"]),
+        GEN_WORKER_ASSIGNED_PERSONA_INSTRUCTION.get(lang, GEN_WORKER_ASSIGNED_PERSONA_INSTRUCTION["en"]),
         f"{demo_label}:\n{population_text}\n{demo_text}" if population_text else f"{demo_label}:\n{demo_text}",
-        GEN_DEMO_COLUMNS_INSTRUCTION.get(lang, GEN_DEMO_COLUMNS_INSTRUCTION["en"]).format(
-            age_min=age_min, age_max=age_max, gender_desc=gender_desc,
-        ),
     ]
-    if demo_attributes:
-        parts.append(
-            GEN_CUSTOM_ATTR_INSTRUCTION.get(lang, GEN_CUSTOM_ATTR_INSTRUCTION["en"]).format(
-                attr_list=_format_custom_attrs(demo_attributes, lang),
-            )
-        )
-    parts.append(GEN_WORKER_OUTPUT_FORMAT.get(lang, GEN_WORKER_OUTPUT_FORMAT["en"]).format(header=header, extra_note=extra_note))
     system_msg = "\n\n".join(parts)
     user_msg = {
         "vi": f"Hãy tạo bộ hồ sơ người tham gia (AI Worker) cho nghiên cứu mô tả ở trên. Tổng số người cần: {n_workers}.",
@@ -206,10 +196,149 @@ def _build_worker_generation_messages(
     return system_msg, user_msg
 
 
-def _worker_batch_instruction(start_row: int, end_row: int, lang: str, demo_attr_columns: list[str] | None = None) -> str:
-    # Identical in spirit to _batch_instruction, just with columns=[] baked
-    # in (no indicator/Likert questions exist at the worker-pool stage).
-    return _batch_instruction([], 1, 1, start_row, end_row, lang, demo_attr_columns, [])
+# ---------------- Phase 1: true-random demographic assignment ----------------
+# Real, seeded numpy randomness assigns age/gender/custom attributes BEFORE
+# the AI ever sees this person -- the AI's job narrows to writing a
+# persona_description consistent with the given values (see
+# _build_worker_generation_messages above). This guarantees a declared
+# target (e.g. "balanced" gender) exactly, instead of hoping an LLM
+# approximates it from a soft text instruction across independent batches.
+
+# gender_mix -> exact fraction assigned "male" (the rest "female"). "any"/
+# unrecognized values are handled separately below as an UNCONSTRAINED
+# independent coin flip per row, not a forced exact quota -- "any" means "no
+# preference", which is a different thing from "exactly half".
+GENDER_MIX_RATIOS = {"balanced": 0.5, "mostly_male": 0.8, "mostly_female": 0.2}
+
+
+def _assign_exact_quota(n: int, labels: list, rng: np.random.Generator) -> list:
+    """Splits n slots evenly across `labels` (remainder to the first few),
+    then shuffles -- an exact, fair distribution across the given labels
+    rather than n independent draws that only converge to "even" in
+    expectation. Used for categorical demo attributes (no per-option target
+    ratio exists in the UI, so "even across all options" is the fair
+    default) and, via a 2-label call, for a fixed gender_mix ratio."""
+    k = len(labels)
+    base, remainder = divmod(n, k)
+    counts = [base + (1 if i < remainder else 0) for i in range(k)]
+    values = [label for label, c in zip(labels, counts) for _ in range(c)]
+    return rng.permutation(values).tolist()
+
+
+def _assign_demographics(n_workers: int, demographics: dict, demo_attributes: list[dict], seed: int) -> list[dict]:
+    """Returns a list of n_workers dicts, each {resp_age, resp_gender,
+    ...custom attribute columns} -- deterministic for a given
+    (n_workers, demographics, demo_attributes, seed), so every batch HTTP
+    call can recompute the exact same full assignment and slice out just
+    its own rows, with no server-side session state needed."""
+    rng = np.random.default_rng(seed)
+    age_min, age_max = _resolve_age_bounds(demographics)
+    ages = rng.integers(age_min, age_max + 1, size=n_workers)
+
+    gender_mix = demographics.get("gender_mix") or "any"
+    if gender_mix in GENDER_MIX_RATIOS:
+        n_male = round(n_workers * GENDER_MIX_RATIOS[gender_mix])
+        genders = _assign_exact_quota(n_workers, ["male"] * n_male + ["female"] * (n_workers - n_male), rng)
+    else:
+        genders = ["male" if v else "female" for v in rng.integers(0, 2, size=n_workers)]
+
+    rows = [{"resp_age": int(a), "resp_gender": g} for a, g in zip(ages, genders)]
+    for attr in demo_attributes:
+        col = attr["column"]
+        if attr["type"] == "numeric":
+            values = rng.integers(attr["min"], attr["max"] + 1, size=n_workers).tolist()
+        else:
+            values = _assign_exact_quota(n_workers, attr["options"], rng)
+        for row, v in zip(rows, values):
+            row[col] = int(v) if attr["type"] == "numeric" else v
+    return rows
+
+
+def _format_assigned_rows(assigned_slice: list[dict], demo_attributes: list[dict], lang: str) -> str:
+    col_to_name = {a["column"]: a["name"] for a in demo_attributes}
+    lines = []
+    for i, row in enumerate(assigned_slice, start=1):
+        extra = ", ".join(
+            f"{col_to_name.get(k, k)}={v}" for k, v in row.items() if k not in ("resp_age", "resp_gender")
+        )
+        base = {
+            "vi": f"{i}. tuổi {row['resp_age']}, {row['resp_gender']}",
+            "en": f"{i}. age {row['resp_age']}, {row['resp_gender']}",
+        }.get(lang, f"{i}. age {row['resp_age']}, {row['resp_gender']}")
+        if extra:
+            base += f", {extra}"
+        lines.append(base)
+    return "\n".join(lines)
+
+
+def _worker_persona_batch_instruction(assigned_slice: list[dict], demo_attributes: list[dict], start_row: int, lang: str) -> str:
+    n = len(assigned_slice)
+    end_row = start_row + n - 1
+    roster = _format_assigned_rows(assigned_slice, demo_attributes, lang)
+    header_line = {
+        "vi": (
+            f"Sinh persona cho đúng {n} người sau (người thứ {start_row}-{end_row} trong tổng mẫu -- "
+            f"đa dạng hoá so với những người đã sinh trước đó nếu có):"
+        ),
+        "en": (
+            f"Generate personas for exactly these {n} people now (representing #{start_row}-#{end_row} "
+            f"of the full sample -- vary from any generated before):"
+        ),
+    }.get(lang, (
+        f"Generate personas for exactly these {n} people now (representing #{start_row}-#{end_row} of "
+        f"the full sample):"
+    ))
+    output_format = GEN_WORKER_PERSONA_ONLY_OUTPUT_FORMAT.get(lang, GEN_WORKER_PERSONA_ONLY_OUTPUT_FORMAT["en"]).format(n=n)
+    return f"{header_line}\n{roster}\n\n{output_format}"
+
+
+def _worker_persona_corrective_note(reason: str, assigned_slice: list[dict], lang: str) -> str:
+    n = len(assigned_slice)
+    return {
+        "vi": (
+            f"Phản hồi trước không hợp lệ ({reason}). CHỈ xuất bảng CSV MỘT cột với header CHÍNH XÁC "
+            f"`persona_description`, đúng {n} dòng, theo đúng thứ tự đã cho -- không markdown, không "
+            f"giải thích."
+        ),
+        "en": (
+            f"Your previous response was invalid ({reason}). Output ONLY a single-column CSV table "
+            f"with header EXACTLY `persona_description`, exactly {n} rows, in the given order -- no "
+            f"markdown, no explanation."
+        ),
+    }.get(lang, (
+        f"Your previous response was invalid ({reason}). Output ONLY a single-column CSV table with "
+        f"header EXACTLY `persona_description`, exactly {n} rows, in the given order -- no markdown, "
+        f"no explanation."
+    ))
+
+
+def _parse_persona_only_batch_csv(text: str, expected_n: int):
+    """Returns (list[str] personas, None) or (None, reason) -- same
+    never-raises contract and small-shortfall tolerance as
+    ai_data_gen_api._parse_batch_csv, just for a single free-text column
+    (demographics are no longer AI output, see _assign_demographics)."""
+    cleaned = _extract_csv_block(text)
+    try:
+        df = pd.read_csv(io.StringIO(cleaned))
+    except Exception as exc:  # noqa: BLE001
+        return None, f"could not parse as CSV ({exc})"
+
+    if list(df.columns) != [PERSONA_COLUMN]:
+        return None, f"column mismatch (expected only {PERSONA_COLUMN})"
+
+    if len(df) > expected_n:
+        df = df.iloc[:expected_n].reset_index(drop=True)
+    elif len(df) < expected_n:
+        if len(df) == 0 or len(df) < math.ceil(expected_n / 2):
+            return None, f"expected {expected_n} rows, got {len(df)}"
+
+    persona_raw = df[PERSONA_COLUMN]
+    persona_part = persona_raw.astype(str).str.strip()
+    persona_empty = persona_raw.isna() | (persona_part == "") | (persona_part.str.lower() == "nan")
+    if persona_empty.any():
+        return None, f"{PERSONA_COLUMN} must not be empty -- the AI must role-play as a described persona"
+
+    return persona_part.tolist(), None
 
 
 # ---------------- Phase 2: Survey administration prompt building ----------------
@@ -231,37 +360,44 @@ GEN_SURVEY_ROLE_FRAMING = {
 
 GEN_SURVEY_PERSONA_INSTRUCTION = {
     "vi": (
-        "Dưới đây là hồ sơ của từng người tham gia (worker_id và persona/thông tin cá nhân của họ). "
-        "Với MỖI người, bạn phải THỰC SỰ ĐÓNG VAI đúng người đó -- không tạo persona mới, không đổi "
-        "tuổi/giới tính/đặc điểm của họ. Trả lời TẤT CẢ câu hỏi khảo sát đúng như người đó, dưới ảnh "
-        "hưởng của điều kiện thực nghiệm được mô tả bên dưới. Các câu hỏi đo cùng một khái niệm phải "
-        "có câu trả lời tương quan hợp lý cho cùng một người (không ngẫu nhiên độc lập từng câu), "
-        "nhưng vẫn nên có dao động tự nhiên nhỏ (khoảng 1 bậc thang đo) giữa các câu cùng khái niệm, "
-        "PHẢI giữ trong khoảng thang đo hợp lệ {lo}-{hi}. Những người khác nhau (worker khác nhau) "
-        "phải phản ứng khác nhau thực sự với cùng điều kiện, phù hợp với cá tính riêng của họ -- "
-        "không phải ai cũng phản ứng giống nhau.\n\nHồ sơ từng người:\n{roster}"
+        "Ở mỗi lượt sinh, bạn sẽ được cho hồ sơ của một số người tham gia (worker_id kèm persona/thông "
+        "tin cá nhân của họ) -- chỉ những người đó, không phải cả nhóm. Với MỖI người được cho trong "
+        "lượt đó, bạn phải THỰC SỰ ĐÓNG VAI đúng người đó -- không tạo persona mới, không đổi tuổi/giới "
+        "tính/đặc điểm của họ. Trả lời TẤT CẢ câu hỏi khảo sát đúng như người đó, dưới ảnh hưởng của "
+        "điều kiện thực nghiệm được mô tả bên dưới. Các câu hỏi đo cùng một khái niệm phải có câu trả "
+        "lời tương quan hợp lý cho cùng một người (không ngẫu nhiên độc lập từng câu), nhưng vẫn nên có "
+        "dao động tự nhiên nhỏ (khoảng 1 bậc thang đo) giữa các câu cùng khái niệm, PHẢI giữ trong "
+        "khoảng thang đo hợp lệ {lo}-{hi}. Những người khác nhau (worker khác nhau) phải phản ứng khác "
+        "nhau thực sự với cùng điều kiện, phù hợp với cá tính riêng của họ -- không phải ai cũng phản "
+        "ứng giống nhau."
     ),
     "en": (
-        "Below is each participant's profile (worker_id and their persona/personal attributes). For "
-        "EACH person, you must ACTUALLY ROLE-PLAY as that exact person -- do not invent a new persona, "
-        "do not change their age/gender/traits. Answer ALL survey questions as that person would, under "
-        "the influence of the experimental condition described below. Items measuring the same concept "
-        "must correlate realistically for the same person (not independently randomized), but should "
-        "still show a little natural variation (about a 1-point spread) between items on the same "
-        "concept, and MUST stay within the valid scale range {lo}-{hi}. Different people (different "
+        "In each generation call, you will be given the profile of SOME participants (worker_id plus "
+        "their persona/personal attributes) -- only those people, not the whole group. For EACH person "
+        "given in that call, you must ACTUALLY ROLE-PLAY as that exact person -- do not invent a new "
+        "persona, do not change their age/gender/traits. Answer ALL survey questions as that person "
+        "would, under the influence of the experimental condition described below. Items measuring the "
+        "same concept must correlate realistically for the same person (not independently randomized), "
+        "but should still show a little natural variation (about a 1-point spread) between items on the "
+        "same concept, and MUST stay within the valid scale range {lo}-{hi}. Different people (different "
         "workers) must react genuinely differently to the same condition, consistent with their own "
-        "personality -- not everyone reacting identically.\n\nEach person's profile:\n{roster}"
+        "personality -- not everyone reacting identically."
     ),
 }
 
 GEN_SURVEY_CONDITION_INSTRUCTION = {
     "vi": (
-        "Điều kiện thực nghiệm (tất cả người tham gia dưới đây vừa trải qua tình huống này ngay trước "
-        "khi trả lời khảo sát): {condition}"
+        "Bối cảnh chung (áp dụng cho TẤT CẢ người tham gia trong toàn bộ thí nghiệm, không đổi giữa "
+        "các nhóm): {context}\n\n"
+        "Thao túng thực nghiệm cho nhóm này (tất cả người tham gia dưới đây vừa trải qua tình huống "
+        "RIÊNG này ngay trước khi trả lời khảo sát, khác với các nhóm điều kiện khác): {manipulation}"
     ),
     "en": (
-        "Experimental condition (every participant below just experienced this situation immediately "
-        "before answering the survey): {condition}"
+        "Shared context (applies to EVERY participant across the whole experiment, unchanged between "
+        "groups): {context}\n\n"
+        "Experimental manipulation for this group (every participant below just experienced this "
+        "SPECIFIC situation immediately before answering the survey, different from other condition "
+        "groups): {manipulation}"
     ),
 }
 
@@ -300,20 +436,21 @@ def _format_worker_roster(workers: list[dict], lang: str) -> str:
     return "\n".join(lines)
 
 
-def _build_survey_messages(
-    workers: list[dict], condition_text: str, codebook: list[dict], likert_scale: int, lang: str,
+def _build_survey_system_message(
+    context_text: str, manipulation_text: str, codebook: list[dict], likert_scale: int, lang: str,
 ) -> tuple[str, str]:
     lo, hi = LIKERT_SCALES[likert_scale]
     _likert_cols, qual_cols = _split_codebook_columns(codebook)
     codebook_label = GEN_CODEBOOK_LABEL.get(lang, GEN_CODEBOOK_LABEL["en"])
     qual_note = GEN_OUTPUT_FORMAT_QUAL_NOTE.get(lang, GEN_OUTPUT_FORMAT_QUAL_NOTE["en"]) if qual_cols else ""
     header = ",".join(["worker_id"] + [item["column"] for item in codebook])
-    roster = _format_worker_roster(workers, lang)
 
     parts = [
         GEN_SURVEY_ROLE_FRAMING.get(lang, GEN_SURVEY_ROLE_FRAMING["en"]),
-        GEN_SURVEY_PERSONA_INSTRUCTION.get(lang, GEN_SURVEY_PERSONA_INSTRUCTION["en"]).format(lo=lo, hi=hi, roster=roster),
-        GEN_SURVEY_CONDITION_INSTRUCTION.get(lang, GEN_SURVEY_CONDITION_INSTRUCTION["en"]).format(condition=(condition_text or "").strip()),
+        GEN_SURVEY_PERSONA_INSTRUCTION.get(lang, GEN_SURVEY_PERSONA_INSTRUCTION["en"]).format(lo=lo, hi=hi),
+        GEN_SURVEY_CONDITION_INSTRUCTION.get(lang, GEN_SURVEY_CONDITION_INSTRUCTION["en"]).format(
+            context=(context_text or "").strip(), manipulation=(manipulation_text or "").strip(),
+        ),
         f"{codebook_label}:\n{_format_codebook(codebook, lang)}",
     ]
     if qual_cols:
@@ -321,13 +458,18 @@ def _build_survey_messages(
     parts.append(GEN_SURVEY_OUTPUT_FORMAT.get(lang, GEN_SURVEY_OUTPUT_FORMAT["en"]).format(header=header, lo=lo, hi=hi, qual_note=qual_note))
     system_msg = "\n\n".join(parts)
     user_msg = {
-        "vi": f"Hãy sinh câu trả lời khảo sát cho đúng {len(workers)} người tham gia đã nêu ở trên, dưới điều kiện đã mô tả.",
-        "en": f"Generate survey answers for exactly the {len(workers)} participants named above, under the stated condition.",
-    }.get(lang, f"Generate survey answers for exactly the {len(workers)} participants named above, under the stated condition.")
+        "vi": "Hãy sinh câu trả lời khảo sát cho đúng những người tham gia sẽ được nêu ở mỗi lượt gọi, dưới điều kiện đã mô tả.",
+        "en": "Generate survey answers for exactly the participants named in each generation call, under the stated condition.",
+    }.get(lang, "Generate survey answers for exactly the participants named in each generation call, under the stated condition.")
     return system_msg, user_msg
 
 
-def _survey_batch_instruction(columns: list[str], lo: int, hi: int, worker_ids: list[str], lang: str, qual_columns: list[str] | None = None) -> str:
+def _survey_batch_instruction(columns: list[str], lo: int, hi: int, workers: list[dict], lang: str, qual_columns: list[str] | None = None) -> str:
+    # Includes the roster of ONLY this batch's own workers (not the whole
+    # group) -- built fresh per call so the model never sees personas it
+    # isn't being asked to answer for right now, unlike a whole-group roster
+    # baked once into a reused system prompt (see the module docstring).
+    worker_ids = [w["worker_id"] for w in workers]
     n = len(worker_ids)
     header = ",".join(["worker_id"] + list(columns))
     qual_columns = qual_columns or []
@@ -336,7 +478,11 @@ def _survey_batch_instruction(columns: list[str], lo: int, hi: int, worker_ids: 
         "en": f" (except the qualitative columns {', '.join(qual_columns)} -- write free text, double-quoted, for those)",
     }.get(lang, f" (except the qualitative columns {', '.join(qual_columns)} -- write free text, double-quoted, for those)") if qual_columns else ""
     ids_list = ", ".join(worker_ids)
-    return {
+    roster = _format_worker_roster(workers, lang)
+    roster_label = {"vi": "Hồ sơ từng người trong lượt này:", "en": "Each person's profile in this call:"}.get(
+        lang, "Each person's profile in this call:",
+    )
+    trigger = {
         "vi": (
             f"Sinh chính xác {n} dòng ngay bây giờ, đúng cho các worker_id sau (mỗi id đúng một lần, "
             f"không thêm/bớt): {ids_list}. Chỉ xuất CSV, dòng đầu là header: {header}, theo sau đúng "
@@ -354,6 +500,7 @@ def _survey_batch_instruction(columns: list[str], lo: int, hi: int, worker_ids: 
         f"CSV, header row: {header}, followed by exactly {n} data rows -- each row starting with the "
         f"given `worker_id`, then whole numbers from {lo} to {hi} for the questions{qual_reminder}."
     ))
+    return f"{roster_label}\n{roster}\n\n{trigger}"
 
 
 def _survey_corrective_note(reason: str, columns: list[str], worker_ids: list[str], lang: str) -> str:
@@ -477,11 +624,20 @@ def suggest_worker_prompt():
     system_msg, user_msg = _build_worker_generation_messages(population_prompt, demographics, demo_attributes, n_workers, lang)
     batch_size = min(requested_batch_size, n_workers)
     total_batches = math.ceil(n_workers / batch_size)
-    first_batch_instruction = _worker_batch_instruction(1, batch_size, lang, _demo_attr_columns(demo_attributes))
+
+    # A fresh seed per generation session -- real randomness across
+    # different runs, but deterministic WITHIN this run so every
+    # /ai_worker/batch call (across batches, across retries) recomputes the
+    # exact same target-matching demographic assignment with no server-side
+    # session state (see _assign_demographics).
+    seed = int(np.random.default_rng().integers(0, 2**31 - 1))
+    assigned = _assign_demographics(n_workers, demographics, demo_attributes, seed)
+    first_batch_instruction = _worker_persona_batch_instruction(assigned[:batch_size], demo_attributes, 1, lang)
     return jsonify(
         system_prompt=system_msg, user_prompt=user_msg,
         batch_size=batch_size, total_batches=total_batches,
         first_batch_instruction=first_batch_instruction,
+        seed=seed,
     )
 
 
@@ -510,18 +666,21 @@ def generate_worker_batch():
     try:
         start_row = int(payload.get("start_row"))
         end_row = int(payload.get("end_row"))
+        n_workers = int(payload.get("n_workers"))
+        seed = int(payload.get("seed"))
     except (TypeError, ValueError):
         return jsonify(error=t("err_ai_gen_invalid_n_rows", lang, min=MIN_WORKERS, max=MAX_WORKERS)), 400
 
     expected_n = end_row - start_row + 1
-    if expected_n <= 0 or expected_n > MAX_BATCH_SIZE:
+    valid_range = expected_n > 0 and expected_n <= MAX_BATCH_SIZE and MIN_WORKERS <= n_workers <= MAX_WORKERS and end_row <= n_workers
+    if not valid_range:
         return jsonify(error=t("err_ai_gen_invalid_n_rows", lang, min=MIN_WORKERS, max=MAX_WORKERS)), 400
 
-    age_min, age_max = _resolve_age_bounds({"age_min": payload.get("demo_age_min"), "age_max": payload.get("demo_age_max")})
-    demo_attr_columns = _demo_attr_columns(demo_attributes)
-    categorical_attr_columns = {a["column"] for a in demo_attributes if a["type"] == "categorical"}
+    demographics = payload.get("demographics") or {}
+    assigned = _assign_demographics(n_workers, demographics, demo_attributes, seed)
+    assigned_slice = assigned[start_row - 1:end_row]
 
-    batch_user_msg = user_msg + "\n\n" + _worker_batch_instruction(start_row, end_row, lang, demo_attr_columns)
+    batch_user_msg = user_msg + "\n\n" + _worker_persona_batch_instruction(assigned_slice, demo_attributes, start_row, lang)
     current_system_msg = system_msg
     last_reason = None
 
@@ -530,16 +689,12 @@ def generate_worker_batch():
         if err_response is not None:
             return err_response
 
-        df, reason = _parse_batch_csv(text, [], 1, 1, expected_n, age_min, age_max, demo_attributes, [])
-        if df is not None:
-            string_cols = {"resp_gender", PERSONA_COLUMN} | categorical_attr_columns
-            safe_rows = [
-                {k: (str(v) if k in string_cols else int(v)) for k, v in row.items()}
-                for row in df.to_dict(orient="records")
-            ]
+        personas, reason = _parse_persona_only_batch_csv(text, expected_n)
+        if personas is not None:
+            safe_rows = [{PERSONA_COLUMN: persona, **assigned_slice[i]} for i, persona in enumerate(personas)]
             return jsonify(rows=safe_rows, used_system_prompt=current_system_msg, used_user_prompt=batch_user_msg)
         last_reason = reason
-        current_system_msg = system_msg + "\n\n" + _corrective_note(reason, [], expected_n, lang, demo_attr_columns)
+        current_system_msg = system_msg + "\n\n" + _worker_persona_corrective_note(reason, assigned_slice, lang)
 
     return jsonify(error=t("err_ai_gen_bad_batch", lang, detail=last_reason)), 422
 
@@ -708,7 +863,13 @@ def import_worker_pool():
     required = {"worker_id", PERSONA_COLUMN, "resp_age", "resp_gender"}
     if not required.issubset(set(df.columns)):
         return jsonify(error=t("err_worker_pool_import_bad_file", lang)), 400
+    if not (MIN_WORKERS <= len(df) <= MAX_WORKERS):
+        return jsonify(error=t("err_ai_gen_invalid_n_rows", lang, min=MIN_WORKERS, max=MAX_WORKERS)), 400
+    if df["worker_id"].astype(str).str.strip().duplicated().any():
+        return jsonify(error=t("err_worker_pool_import_bad_file", lang)), 400
     if df["resp_gender"].astype(str).str.strip().str.lower().isin(GENDER_VALUES).all() is False:
+        return jsonify(error=t("err_worker_pool_import_bad_file", lang)), 400
+    if pd.to_numeric(df["resp_age"], errors="coerce").isna().any():
         return jsonify(error=t("err_worker_pool_import_bad_file", lang)), 400
 
     extra_cols = [c for c in df.columns if c not in required]
@@ -816,12 +977,17 @@ def suggest_survey_prompt():
     raw_groups = payload.get("groups") or []
     if not isinstance(raw_groups, list) or not raw_groups:
         return jsonify(error=t("err_worker_select_invalid_groups", lang)), 400
+    context_text = (payload.get("context_text") or "").strip()
 
     try:
         requested_batch_size = int(payload.get("batch_size", AI_BATCH_SIZE))
     except (TypeError, ValueError):
         requested_batch_size = AI_BATCH_SIZE
     requested_batch_size = max(MIN_BATCH_SIZE, min(MAX_BATCH_SIZE, requested_batch_size))
+
+    columns = [item["column"] for item in codebook]
+    _likert_cols, qual_cols = _split_codebook_columns(codebook)
+    lo, hi = LIKERT_SCALES[likert_scale]
 
     out_groups = []
     for g in raw_groups:
@@ -831,14 +997,20 @@ def suggest_survey_prompt():
         workers = [workers_by_id[wid] for wid in worker_ids if wid in workers_by_id]
         if len(workers) != len(worker_ids):
             return jsonify(error=t("err_worker_pool_not_found", lang)), 404
-        condition_text = (g.get("condition_text") or "").strip()
-        system_msg, user_msg = _build_survey_messages(workers, condition_text, codebook, likert_scale, lang)
+        manipulation_text = (g.get("manipulation_text") or "").strip()
+        system_msg, user_msg = _build_survey_system_message(context_text, manipulation_text, codebook, likert_scale, lang)
         batch_size = min(requested_batch_size, len(worker_ids))
         total_batches = math.ceil(len(worker_ids) / batch_size)
+        # Preview-only, mirroring Phase 1's first_batch_instruction: shows
+        # what the FIRST batch's actual roster + trigger will look like,
+        # without baking the whole group's roster into the reusable,
+        # user-editable system prompt above.
+        first_batch_preview = _survey_batch_instruction(columns, lo, hi, workers[:batch_size], lang, qual_cols)
         out_groups.append({
             "group_index": g.get("group_index"),
             "system_prompt": system_msg, "user_prompt": user_msg,
             "batch_size": batch_size, "total_batches": total_batches,
+            "first_batch_preview": first_batch_preview,
         })
 
     return jsonify(groups=out_groups)
@@ -855,6 +1027,7 @@ def generate_survey_batch():
     user_msg = payload.get("user_prompt") or ""
     columns = payload.get("columns") or []
     worker_ids = payload.get("worker_ids") or []
+    pool_id = payload.get("pool_id") or ""
     try:
         temperature = float(payload.get("temperature", DEFAULT_TEMPERATURE))
     except (TypeError, ValueError):
@@ -875,10 +1048,22 @@ def generate_survey_batch():
     except (TypeError, ValueError):
         return jsonify(error=t("err_ai_gen_invalid_likert", lang)), 400
 
+    # The roster for this call's own worker_ids is rebuilt from the pool
+    # here, server-side, rather than trusting a client-cached roster --
+    # this is what keeps each call's prompt scoped to just its own workers
+    # instead of the whole condition group (see the module docstring).
+    pool = _load_worker_pool(pool_id)
+    if pool is None:
+        return jsonify(error=t("err_worker_pool_not_found", lang)), 404
+    workers_by_id = {w["worker_id"]: w for w in pool["workers"]}
+    workers = [workers_by_id[wid] for wid in worker_ids if wid in workers_by_id]
+    if len(workers) != len(worker_ids):
+        return jsonify(error=t("err_worker_pool_not_found", lang)), 404
+
     raw_qual_columns = payload.get("qualitative_columns") or []
     qual_columns = [c for c in raw_qual_columns if c in columns] if isinstance(raw_qual_columns, list) else []
 
-    batch_user_msg = user_msg + "\n\n" + _survey_batch_instruction(columns, likert_min, likert_max, worker_ids, lang, qual_columns)
+    batch_user_msg = user_msg + "\n\n" + _survey_batch_instruction(columns, likert_min, likert_max, workers, lang, qual_columns)
     current_system_msg = system_msg
     last_reason = None
 
@@ -922,6 +1107,7 @@ def finalize_experiment():
     condition_groups = payload.get("condition_groups") or []
     excluded_worker_ids = payload.get("excluded_worker_ids") or []
     rows = payload.get("rows") or []
+    context_text = (payload.get("context_text") or "").strip()
     if not isinstance(condition_groups, list) or not condition_groups:
         return jsonify(error=t("err_worker_select_invalid_groups", lang)), 400
 
@@ -960,7 +1146,11 @@ def finalize_experiment():
     demo_attributes = list(pool.get("demo_attributes") or [])
     group_labels = {}
     for g in condition_groups:
-        label = (g.get("condition_text") or f"Group {g.get('group_index')}").strip()
+        # The shared context is constant across every group, so it carries no
+        # between-group information -- only the manipulation distinguishes
+        # groups for this categorical column (and for MGA/group comparison
+        # downstream).
+        label = (g.get("manipulation_text") or f"Group {g.get('group_index')}").strip()
         label = label[:60] + ("…" if len(label) > 60 else "")
         for wid in g.get("worker_ids") or []:
             group_labels[wid] = label
@@ -999,8 +1189,9 @@ def finalize_experiment():
         "batches": payload.get("batches") or [],
         "construct_theories": {},
         "pool_id": pool_id,
+        "context_text": context_text,
         "condition_groups": [
-            {"group_index": g.get("group_index"), "condition_text": g.get("condition_text"), "worker_ids": g.get("worker_ids")}
+            {"group_index": g.get("group_index"), "manipulation_text": g.get("manipulation_text"), "worker_ids": g.get("worker_ids")}
             for g in condition_groups
         ],
         "excluded_worker_ids": excluded_worker_ids,
