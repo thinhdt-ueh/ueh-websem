@@ -124,6 +124,7 @@
     <a href="#sensitivity">11. Sample Size Sensitivity</a>
     <a class="sub" href="#sensitivity-pvalue">Significance (p-value) trajectory</a>
     <a class="sub" href="#sensitivity-resample">Repeated resampling at a fixed size</a>
+    <a class="sub" href="#sensitivity-export-row">Exporting one row's data</a>
     <a href="#power">12. Monte Carlo Power Analysis</a>
     <a href="#mlcompare">13. Machine Learning Comparison</a>
     <a href="#cbsem">14. CB-SEM fit indices</a>
@@ -136,6 +137,11 @@
     <a class="sub" href="#ailab-skip">Skipping straight to model design</a>
     <a class="sub" href="#ailab-draw-paths">Letting AI draw the structural model</a>
     <a class="sub" href="#ailab-save-all">Saving everything together</a>
+    <a href="#mga">18. Multi-group analysis (PLS-MGA)</a>
+    <a href="#ailab-experiment">19. AI Lab Experiment</a>
+    <a class="sub" href="#ailab-experiment-pool">Defining the population &amp; Worker Pool</a>
+    <a class="sub" href="#ailab-experiment-design">Shared context &amp; per-group manipulation</a>
+    <a class="sub" href="#ailab-experiment-score">Generating answers &amp; scoring qualitative questions</a>
   </aside>
 
   <main class="doc">
@@ -157,9 +163,13 @@
 
     <h2 id="workflow">2. Three-step workflow</h2>
     <div class="step-grid">
-      <div class="step-card"><span class="n">1</span><h4>Upload data</h4><p>CSV or Excel, one column per indicator, one row per respondent (max 5,000 rows). Or click <em>“Use sample data”</em> to load the built-in Technology Acceptance Model (TAM) dataset used throughout this guide. No real data yet? The <strong>“🤖 AI Lab”</strong> tab next to it can generate a synthetic dataset instead, or just help you design the model — see §17.</p></div>
+      <div class="step-card"><span class="n">1</span><h4>Upload data</h4><p>CSV or Excel, one column per indicator, one row per respondent (max 5,000 rows). Or click <em>“Use sample data”</em> to load the built-in Technology Acceptance Model (TAM) dataset used throughout this guide. No real data yet? The <strong>“🤖 AI Lab”</strong> tab next to it can generate a synthetic dataset instead (§17), or <strong>“🧪 AI Lab Experiment”</strong> if you need a between-subjects experiment with reusable AI personas (§19).</p></div>
       <div class="step-card"><span class="n">2</span><h4>Build the model</h4><p>Double-click the canvas (or “+ Construct”) to add a construct, assign indicators, then switch to path mode to draw structural arrows between constructs.</p></div>
       <div class="step-card"><span class="n">3</span><h4>Run &amp; read results</h4><p>Choose PLS-SEM or CB-SEM, optionally enable bootstrapping, run the analysis, and read the tables described in this guide — then export to Excel/Word.</p></div>
+    </div>
+    <div class="callout tip">
+      <strong class="label">No login needed — your session saves itself</strong>
+      There's no account/login system: your entire progress (data, model, results, any unfinished AI Lab/AI Lab Experiment steps) is saved automatically in the browser and restored exactly where you left off when you reopen the page. The <strong>"🗑 Clear session"</strong> button at the bottom of the page wipes it to start over.
     </div>
 
     <h2 id="model">3. Building a model</h2>
@@ -490,6 +500,9 @@ Attitude (ATT)                <span class="arrow">──▶</span> Behavioral In
       This is an empirical exploration tool ("how much is enough, based on this actual dataset"), not a substitute for a proper a-priori power analysis run <em>before</em> data collection to determine the minimum required sample size — see §12, Monte Carlo Power Analysis, for that.
     </div>
 
+    <h3 id="sensitivity-export-row">Exporting one row's original data for verification</h3>
+    <p>In both modes, the "Detailed data table" has a <strong>"⬇ CSV"</strong> button on every row. Since each row corresponds to one specific random draw (one sample size in the step-shrinking mode, or one iteration in the repeated-resampling mode), this button reproduces the <em>exact</em> original set of observations selected for that draw — replaying the same fixed-seed random number generator used at analysis time, without re-running the model — and exports it as a CSV with every original column (not just the indicators used in the model). Use it to independently verify one specific result, rather than having to trust the number shown in the table.</p>
+
     <h2 id="power">12. Monte Carlo Power Analysis</h2>
     <p>Sample Size Sensitivity (§11) works backwards from data you already have. <strong>Power Analysis</strong> works forwards, before data collection: given a <em>hypothesized</em> population model (expected path coefficients and average indicator loadings) and a candidate sample size, what's the probability of correctly detecting each effect as statistically significant? No PLS-SEM software has a closed-form formula for this — PLS has no maximum-likelihood standard error to plug into one — so AI-SEM answers it the only rigorous way available: Monte Carlo simulation.</p>
     <p>For each candidate sample size n, repeated many times (n_mc replicates):</p>
@@ -625,6 +638,27 @@ Attitude (ATT)                <span class="arrow">──▶</span> Behavioral In
 
     <h3 id="ailab-save-all">Saving everything together</h3>
     <p>Click <strong>"💾 Save all proposals"</strong> in Step 2 to export the model JSON — constructs, paths, and (when a codebook exists) every indicator's question wording plus the AI's structural rationale if "AI draw model" was used this session — together with the synthetic Excel data export in the same click, if the current dataset was AI-generated.</p>
+
+    <h2 id="mga">18. Multi-group analysis (PLS-MGA)</h2>
+    <p>Every earlier analysis assumed path coefficients are the same across the whole sample. <strong>Multi-Group Analysis (MGA)</strong> tests the opposite: split the sample into two groups by an existing categorical column in the data (gender, an age group, company type...), and check whether a given path coefficient differs significantly between those groups — the standard tool for testing a <strong>categorical</strong> moderator, as opposed to the continuous moderator in §6.</p>
+    <p>Click <strong>"🔀 Multi-group analysis (PLS-MGA)"</strong> on the results page, pick the grouping column (it doesn't need to be a model indicator — data with more than 2 distinct values needs collapsing into exactly 2 groups right in the dialog), then read the results across <strong>four methods</strong> side by side for cross-checking: Parametric, Welch-Satterthwaite (doesn't assume equal group variances), Permutation (non-parametric), and Henseler's PLS-MGA (directly compares the two bootstrap distributions). The four methods usually agree; when they disagree in borderline cases (p near 0.05), interpret cautiously rather than just picking whichever method looks "nicest".</p>
+    <div class="callout warn">
+      <strong class="label">Each group needs enough observations</strong>
+      A group that's too small (under roughly 30 observations) is rejected with a clear message, since bootstrapping on too small a group can't produce a reliable estimate. For a moderation model, PLS-MGA only supports an Interaction construct using the Two-Stage method (§6), not Product-Indicator.
+    </div>
+
+    <h2 id="ailab-experiment">19. AI Lab Experiment</h2>
+    <p>AI Lab (§17) generates data in a single pass, used once and discarded. The <strong>"🧪 AI Lab Experiment"</strong> tab, also in Step 1, splits this into two phases to properly simulate a <strong>between-subjects experiment</strong>: build a <strong>Worker Pool</strong> — a group of N "AI Workers" with fixed personas and demographic profiles, created once and reusable many times — then run multiple different survey experiments against that same pool, each time randomly selecting M ≤ N workers and splitting them into different condition groups.</p>
+
+    <h3 id="ailab-experiment-pool">Defining the population &amp; generating the Worker Pool</h3>
+    <p>Step 1 describes the target population, configures demographics (age, gender tendency, occupation, location, up to 6 custom attributes) and picks N (30–500). Unlike AI Lab: <strong>demographics are not left for the AI to choose</strong> — age, gender, and every custom attribute are assigned by a fixed-seed random number generator before the AI is called ("balanced" means exactly 50/50, not the AI "trying" to land near it); the AI's only job is writing a persona sentence matching those already-fixed values. In Step 2, <strong>"⬇ Export Worker Pool (Excel)"</strong> / <strong>"⬆ Import an existing Worker Pool (Excel)"</strong> let you save and reuse the exact same group of "participants" in a different session.</p>
+
+    <h3 id="ailab-experiment-design">Designing the experiment: shared context &amp; per-group manipulation</h3>
+    <p>Step 3 picks M ≤ N then defines condition groups following a proper between-subjects design: one <strong>"Shared context"</strong> field entered once for the background situation ALL participants experience identically, while each group in the table only enters its <strong>"Manipulation"</strong> — the actual independent variable that differs between groups. Click <strong>"🎲 Randomly select Workers"</strong> to genuinely shuffle (no fixed seed — a different result each time) and split exactly M workers into the groups; the rest are excluded and listed separately for transparency. The survey codebook is declared like AI Lab, with export/import definition buttons using the same JSON format as §17.</p>
+
+    <h3 id="ailab-experiment-score">Generating answers &amp; scoring qualitative questions</h3>
+    <p>The AI answers the survey in character as each selected worker (never inventing a new persona), under the shared context plus that group's own manipulation; each AI call only receives the profiles of the workers in that specific batch, not the whole group. The finalized data gains a <strong>"condition_group"</strong> column — usable directly as the grouping variable for PLS-MGA (§18) to test whether the manipulation produced a statistically significant difference.</p>
+    <p>The <strong>"🤖 Score open-ended questions"</strong> button in the Step 2 toolbar (shown when the current data — from AI Lab or AI Lab Experiment — has a qualitative column) lets you pick one, write a scoring rubric, and have the AI read every answer and score it onto a Likert scale, producing a new indicator merged straight into the dataset — ready to use in the model immediately. Scoring can be repeated on the same column (a different rubric, another pass), each run just needing its own non-colliding column name. The <strong>"⬇ Export data (CSV)"</strong> / <strong>"⬇ Export full (Excel)"</strong> buttons right next to it always read the latest data, automatically including any indicator just scored.</p>
   </main>
 </div>
 

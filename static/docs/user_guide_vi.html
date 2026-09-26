@@ -124,6 +124,7 @@
     <a href="#sensitivity">11. Phân tích độ nhạy theo cỡ mẫu</a>
     <a class="sub" href="#sensitivity-pvalue">Quỹ đạo p-value</a>
     <a class="sub" href="#sensitivity-resample">Lấy mẫu lặp ở cỡ mẫu cố định</a>
+    <a class="sub" href="#sensitivity-export-row">Xuất dữ liệu gốc từng dòng</a>
     <a href="#power">12. Power Analysis (mô phỏng Monte Carlo)</a>
     <a href="#mlcompare">13. So sánh Machine Learning</a>
     <a href="#cbsem">14. Các chỉ số fit của CB-SEM</a>
@@ -136,6 +137,11 @@
     <a class="sub" href="#ailab-skip">Bỏ qua, sang thiết kế mô hình</a>
     <a class="sub" href="#ailab-draw-paths">AI vẽ mô hình cấu trúc</a>
     <a class="sub" href="#ailab-save-all">Lưu toàn bộ đề xuất</a>
+    <a href="#mga">18. So sánh đa nhóm (PLS-MGA)</a>
+    <a href="#ailab-experiment">19. AI Lab Experiment</a>
+    <a class="sub" href="#ailab-experiment-pool">Định nghĩa quần thể &amp; Worker Pool</a>
+    <a class="sub" href="#ailab-experiment-design">Bối cảnh chung &amp; thao túng theo nhóm</a>
+    <a class="sub" href="#ailab-experiment-score">Sinh câu trả lời &amp; chấm điểm câu hỏi mở</a>
   </aside>
 
   <main class="doc">
@@ -157,9 +163,13 @@
 
     <h2 id="workflow">2. Quy trình 3 bước</h2>
     <div class="step-grid">
-      <div class="step-card"><span class="n">1</span><h4>Tải dữ liệu</h4><p>CSV hoặc Excel, mỗi cột là một biến quan sát, mỗi dòng là một người trả lời (tối đa 5.000 dòng). Hoặc bấm <em>“Dùng dữ liệu mẫu”</em> để tải bộ dữ liệu Technology Acceptance Model (TAM) dùng xuyên suốt hướng dẫn này. Chưa có dữ liệu thật? Tab <strong>"🤖 AI Lab"</strong> ngay bên cạnh có thể sinh dữ liệu tổng hợp, hoặc chỉ giúp thiết kế mô hình — xem mục 17.</p></div>
+      <div class="step-card"><span class="n">1</span><h4>Tải dữ liệu</h4><p>CSV hoặc Excel, mỗi cột là một biến quan sát, mỗi dòng là một người trả lời (tối đa 5.000 dòng). Hoặc bấm <em>“Dùng dữ liệu mẫu”</em> để tải bộ dữ liệu Technology Acceptance Model (TAM) dùng xuyên suốt hướng dẫn này. Chưa có dữ liệu thật? Tab <strong>"🤖 AI Lab"</strong> ngay bên cạnh có thể sinh dữ liệu tổng hợp (mục 17), hoặc <strong>"🧪 AI Lab Experiment"</strong> nếu cần một thực nghiệm giữa-nhóm với các persona AI dùng lại được (mục 19).</p></div>
       <div class="step-card"><span class="n">2</span><h4>Xây dựng mô hình</h4><p>Nhấp đúp vào canvas (hoặc bấm “+ Construct”) để thêm construct, gán biến quan sát, rồi chuyển sang chế độ vẽ path để nối các construct bằng đường dẫn cấu trúc.</p></div>
       <div class="step-card"><span class="n">3</span><h4>Chạy &amp; đọc kết quả</h4><p>Chọn PLS-SEM hoặc CB-SEM, bật bootstrapping nếu cần, chạy phân tích, rồi đọc các bảng theo hướng dẫn này — sau đó xuất ra Excel/Word.</p></div>
+    </div>
+    <div class="callout tip">
+      <strong class="label">Không cần đăng nhập — phiên làm việc tự lưu</strong>
+      Không có tài khoản/đăng nhập: toàn bộ tiến trình (dữ liệu, mô hình, kết quả, các bước AI Lab/AI Lab Experiment chưa xong) tự động lưu vào trình duyệt, khôi phục lại đúng chỗ khi mở lại trang. Nút <strong>"🗑 Xóa session"</strong> ở cuối trang xoá sạch để làm lại từ đầu.
     </div>
 
     <h2 id="model">3. Xây dựng mô hình</h2>
@@ -490,6 +500,9 @@ Thái độ (ATT)                 <span class="arrow">──▶</span> Ý địn
       Đây là công cụ khám phá thực nghiệm ("bao nhiêu là đủ, dựa trên chính dữ liệu này"), không thay thế cho một phân tích power a-priori thực hiện <em>trước</em> khi thu thập dữ liệu để xác định cỡ mẫu tối thiểu cần thiết — xem mục 12, Power Analysis (mô phỏng Monte Carlo).
     </div>
 
+    <h3 id="sensitivity-export-row">Xuất dữ liệu gốc của từng dòng để kiểm chứng</h3>
+    <p>Ở cả hai chế độ, bảng "Dữ liệu chi tiết" có thêm một nút <strong>"⬇ CSV"</strong> cho từng dòng. Vì mỗi dòng trong bảng ứng với một lượt lấy mẫu ngẫu nhiên cụ thể (một cỡ mẫu ở chế độ từng bước, hoặc một lần lặp ở chế độ lấy mẫu lặp), nút này tái tạo lại <em>chính xác</em> tập quan sát gốc đã được chọn cho lượt đó — dùng cùng bộ sinh số ngẫu nhiên có seed cố định như lúc chạy phân tích, không chạy lại mô hình — rồi xuất ra file CSV với đầy đủ các cột gốc (không chỉ những cột indicator dùng trong mô hình). Dùng để kiểm chứng độc lập một kết quả cụ thể nào đó, thay vì phải tin vào con số hiển thị trên bảng.</p>
+
     <h2 id="power">12. Power Analysis (mô phỏng Monte Carlo)</h2>
     <p>Phân tích độ nhạy theo cỡ mẫu (mục 11) đi ngược từ dữ liệu đã có sẵn. <strong>Power Analysis</strong> đi xuôi, trước khi thu thập dữ liệu: với một mô hình quần thể (population model) <em>giả định</em> — hệ số path và loading trung bình kỳ vọng — và một cỡ mẫu ứng viên, xác suất phát hiện đúng từng hiệu ứng ở mức ý nghĩa thống kê là bao nhiêu? Không phần mềm PLS-SEM nào có công thức đóng cho việc này — PLS không có sai số chuẩn kiểu maximum-likelihood để đưa vào công thức — nên AI-SEM trả lời bằng cách nghiêm ngặt duy nhất hiện có: mô phỏng Monte Carlo.</p>
     <p>Với mỗi cỡ mẫu ứng viên n, lặp lại nhiều lần (n_mc lần mô phỏng):</p>
@@ -625,6 +638,27 @@ Thái độ (ATT)                 <span class="arrow">──▶</span> Ý địn
 
     <h3 id="ailab-save-all">Lưu toàn bộ đề xuất</h3>
     <p>Bấm <strong>"💾 Lưu toàn bộ đề xuất"</strong> ở Bước 2 để xuất file JSON mô hình — construct, path, và (khi có codebook) nội dung câu hỏi của từng biến quan sát cùng lý giải cấu trúc của AI nếu đã dùng "AI vẽ mô hình" trong lần làm việc này — cùng lúc với file Excel dữ liệu tổng hợp trong cùng một lần bấm, nếu dữ liệu hiện tại là do AI sinh ra.</p>
+
+    <h2 id="mga">18. So sánh đa nhóm (PLS-MGA)</h2>
+    <p>Mọi phân tích trước giả định hệ số đường dẫn giống nhau cho toàn bộ mẫu. <strong>Multi-Group Analysis (MGA)</strong> kiểm định điều ngược lại: chia mẫu thành hai nhóm theo một cột phân loại có sẵn trong dữ liệu (giới tính, nhóm tuổi, loại hình công ty...), một hệ số đường dẫn cụ thể có khác nhau đáng kể giữa hai nhóm hay không — công cụ chuẩn để kiểm định một biến kiểm duyệt <strong>phân loại</strong>, khác với biến kiểm duyệt liên tục ở mục 6.</p>
+    <p>Bấm <strong>"🔀 So sánh đa nhóm (PLS-MGA)"</strong> ở trang kết quả, chọn cột phân nhóm (không cần là indicator trong mô hình — dữ liệu có nhiều hơn 2 giá trị phân biệt cần gộp về đúng 2 nhóm ngay trong hộp thoại), rồi xem kết quả theo <strong>bốn phương pháp</strong> cạnh nhau để đối chiếu chéo: Tham số (Parametric), Welch-Satterthwaite (không giả định phương sai hai nhóm bằng nhau), Hoán vị (Permutation, phi tham số), và PLS-MGA của Henseler (so sánh trực tiếp hai phân phối bootstrap). Bốn phương pháp thường đồng thuận; khi bất đồng ở các trường hợp ranh giới (p gần 0.05), nên diễn giải thận trọng thay vì chỉ chọn phương pháp cho kết quả "đẹp" nhất.</p>
+    <div class="callout warn">
+      <strong class="label">Mỗi nhóm cần đủ quan sát</strong>
+      Nhóm quá nhỏ (dưới khoảng 30 quan sát) bị từ chối kèm thông báo rõ ràng, vì bootstrap trên một nhóm quá nhỏ không cho ra ước lượng đáng tin cậy. Với mô hình có biến điều tiết, PLS-MGA chỉ hỗ trợ construct Interaction dùng phương pháp Two-Stage (mục 6), không hỗ trợ Product-Indicator.
+    </div>
+
+    <h2 id="ailab-experiment">19. AI Lab Experiment</h2>
+    <p>AI Lab (mục 17) sinh dữ liệu trong một lượt duy nhất, dùng một lần rồi bỏ. Tab <strong>"🧪 AI Lab Experiment"</strong>, cũng ở Bước 1, tách việc này thành hai giai đoạn để mô phỏng đúng một <strong>thực nghiệm giữa-nhóm (between-subjects)</strong>: dựng một <strong>Worker Pool</strong> — nhóm N "AI Worker" có persona và hồ sơ nhân khẩu học cố định, tạo một lần dùng lại nhiều lần — rồi chạy nhiều thực nghiệm khảo sát khác nhau trên cùng Worker Pool đó, mỗi lần chọn ngẫu nhiên M ≤ N worker và chia vào các nhóm điều kiện khác nhau.</p>
+
+    <h3 id="ailab-experiment-pool">Định nghĩa quần thể &amp; sinh Worker Pool</h3>
+    <p>Bước 1 mô tả quần thể mục tiêu, cấu hình nhân khẩu học (tuổi, xu hướng giới tính, nghề nghiệp, khu vực, tối đa 6 thuộc tính tuỳ chỉnh) và chọn N (30–500). Khác với AI Lab: <strong>nhân khẩu học không do AI tự chọn</strong> — tuổi, giới tính, và mọi thuộc tính tuỳ chỉnh được gán bằng số ngẫu nhiên có seed cố định trước khi gọi AI ("cân bằng" nghĩa là đúng 50/50, không phải AI "cố gắng" ra khoảng đó); AI chỉ còn viết một câu persona khớp với các con số đã ấn định sẵn. Ở Bước 2, <strong>"⬇ Xuất Worker Pool (Excel)"</strong> / <strong>"⬆ Import Worker Pool có sẵn (Excel)"</strong> cho phép lưu lại và tái sử dụng đúng một nhóm "người tham gia" ở phiên làm việc khác.</p>
+
+    <h3 id="ailab-experiment-design">Thiết kế thực nghiệm: bối cảnh chung &amp; thao túng theo nhóm</h3>
+    <p>Bước 3 chọn M ≤ N rồi định nghĩa nhóm điều kiện theo đúng logic thực nghiệm giữa-nhóm: một ô <strong>"Bối cảnh chung"</strong> nhập một lần cho tình huống nền TẤT CẢ người tham gia đều trải qua giống nhau, còn mỗi nhóm trong bảng chỉ nhập phần <strong>"Thao túng"</strong> — biến độc lập thực sự khác nhau giữa các nhóm. Bấm <strong>"🎲 Chọn ngẫu nhiên Workers"</strong> để xáo trộn thật (không seed cố định, mỗi lần một kết quả khác) và chia đúng M worker vào các nhóm; worker còn lại bị loại và liệt kê riêng để minh bạch. Bảng câu hỏi khảo sát khai báo như AI Lab, có thêm nút xuất/nhập định nghĩa (JSON) dùng chung định dạng với mục 17.</p>
+
+    <h3 id="ailab-experiment-score">Sinh câu trả lời &amp; chấm điểm câu hỏi mở</h3>
+    <p>AI trả lời khảo sát đúng vai từng worker đã chọn (không bịa persona mới), dưới ảnh hưởng của bối cảnh chung + thao túng riêng nhóm; mỗi lô gọi AI chỉ nhận hồ sơ của đúng những worker trong lô đó, không phải cả nhóm. Dữ liệu hoàn tất có thêm cột <strong>"condition_group"</strong> — dùng trực tiếp làm biến phân nhóm cho PLS-MGA (mục 18) để kiểm định thao túng có tạo khác biệt có ý nghĩa thống kê hay không.</p>
+    <p>Nút <strong>"🤖 Chấm điểm câu hỏi mở"</strong> ở thanh công cụ Bước 2 (hiện ra khi dữ liệu — do AI Lab hoặc AI Lab Experiment sinh ra — có cột định tính) cho phép chọn một cột định tính, viết tiêu chí chấm điểm (rubric), rồi để AI đọc từng câu trả lời và chấm thành điểm Likert, tạo một biến quan sát mới gộp thẳng vào dữ liệu — dùng ngay trong mô hình. Có thể chấm lại nhiều lần trên cùng một cột (đổi rubric, thử cách chấm khác), mỗi lần chỉ cần đặt tên biến mới không trùng. Hai nút <strong>"⬇ Xuất CSV dữ liệu"</strong> / <strong>"⬇ Xuất Excel đầy đủ"</strong> ngay cạnh đó luôn đọc dữ liệu mới nhất, tự động gồm mọi biến vừa chấm điểm.</p>
   </main>
 </div>
 

@@ -174,11 +174,29 @@ function restoreSession() {
     restoreFormFields(document.getElementById("aiExperimentSourcePane"), saved.expFields);
     if (typeof updateExpGroupsSizeTotal === "function") updateExpGroupsSizeTotal();
 
+    // Navigation FIRST, before the model canvas or any chart ever renders --
+    // PathDiagram sizes its raster off the canvas's actual rendered width
+    // (see diagram.js's _syncCanvasResolution), which reads as 0 while
+    // .step-panel is still display:none (same ordering requirement
+    // loadSample() itself already follows, for the same reason).
+    if (typeof aiGenMaxSubstepReached !== "undefined") aiGenMaxSubstepReached = saved.aiGenMaxSubstepReached || 1;
+    if (typeof expMaxSubstepReached !== "undefined") expMaxSubstepReached = saved.expMaxSubstepReached || 1;
+    const tabBtn = document.querySelector(`#dataSourceTabs .ai-provider-tab[data-source="${saved.activeTab}"]`);
+    if (tabBtn) tabBtn.click();
+    if (typeof aiGenGoToSubstep === "function") aiGenGoToSubstep(saved.aiGenSubstep || 1);
+    if (typeof expGoToSubstep === "function") expGoToSubstep(saved.expSubstep || 1);
+    goToStep(saved.step || 1);
+
     // Model builder + results (editor must exist before renderResults/
     // renderCbsemResults, since both read editor.constructs/editor.paths).
     if (saved.editor && saved.editor.constructs) {
       if (!editor) initEditor();
       editor.loadFrom(saved.editor.constructs, saved.editor.paths || []);
+      // editor.loadFrom() only updates the diagram's own data+canvas --
+      // the surrounding UI (Model Summary sidebar, the "AI draw model"
+      // button's enabled state) is normally kept in sync by
+      // buildModelFromJson() calling this too; loadFrom() alone doesn't.
+      renderModelSummary();
       goToStep2Enable();
     }
     if (saved.lastAnalysisResult && saved.resultsMode !== "cbsem") {
@@ -187,15 +205,6 @@ function restoreSession() {
       renderCbsemResults(saved.lastCbsemResult);
     }
     if (state.fileId) refreshQualScorePanel();
-
-    // Navigation: land exactly where the user left off.
-    if (typeof aiGenMaxSubstepReached !== "undefined") aiGenMaxSubstepReached = saved.aiGenMaxSubstepReached || 1;
-    if (typeof expMaxSubstepReached !== "undefined") expMaxSubstepReached = saved.expMaxSubstepReached || 1;
-    const tabBtn = document.querySelector(`#dataSourceTabs .ai-provider-tab[data-source="${saved.activeTab}"]`);
-    if (tabBtn) tabBtn.click();
-    if (typeof aiGenGoToSubstep === "function") aiGenGoToSubstep(saved.aiGenSubstep || 1);
-    if (typeof expGoToSubstep === "function") expGoToSubstep(saved.expSubstep || 1);
-    goToStep(saved.step || 1);
   } catch {
     // A shape mismatch mid-restore must not leave the page half-wired --
     // clear the (apparently incompatible) saved session and let the rest
