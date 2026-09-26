@@ -9,4 +9,5 @@ uploads/*
 # regenerated from source, so it doesn't belong in version control.
 build/
 dist/
+dist_macos/
 *.spec
