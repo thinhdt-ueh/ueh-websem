@@ -106,6 +106,19 @@ body {
 .btn.danger:hover { border-color: var(--danger); color: var(--danger); }
 .btn.full { width: 100%; margin-top: 14px; }
 .btn.active-toggle { background: var(--primary); color: #fff; border-color: var(--primary); }
+.btn-small {
+  border: 1px solid var(--border);
+  background: var(--card);
+  color: var(--text);
+  padding: 3px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.btn-small:hover { border-color: var(--primary); color: var(--primary); }
+.btn-small:disabled { opacity: 0.6; cursor: default; }
 
 main { max-width: 1600px; margin: 0 auto; padding: 24px; }
 
@@ -586,6 +599,13 @@ textarea.ai-gen-prompt-preview { color: var(--text); resize: vertical; max-heigh
 .slope-card-header { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 8px; }
 .slope-card-header h4 { margin: 0; font-size: 14px; color: var(--text); }
 .slope-swap-btn { flex-shrink: 0; border: 1px solid var(--border); background: var(--card); border-radius: 6px; padding: 4px 9px; font-size: 12px; cursor: pointer; color: var(--muted); }
+
+/* 3-way interaction: one card spans the full grid width, holding 3 panels
+ * (one per level of the outer moderator) side by side -- each panel is
+ * itself a normal simple-slopes mini-chart. */
+.slope-card-3way { grid-column: 1 / -1; }
+.slope-3way-panels { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px; }
+.slope-3way-panel-title { margin: 0 0 6px; font-size: 12.5px; font-weight: 600; color: var(--muted); text-align: center; }
 
 /* AI-generated report: rendered Markdown from ai_report.js's hand-rolled
  * renderMarkdown(). Prose typography distinct from the app's data-table-

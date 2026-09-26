@@ -17,6 +17,14 @@ document.addEventListener("langchange", () => {
   if (window.__mgaResult) renderAll(window.__mgaResult);
 });
 
+// {construct_id: display name} -- the /api/mga response identifies paths by
+// the model's internal construct ids (e.g. "ccglh4nv"), not their
+// human-readable name (e.g. "CST"), since that's all the backend model
+// object carries. The job stashed into sessionStorage already has the full
+// model payload (it's what /api/mga itself was sent), so build the lookup
+// from that instead of a second round-trip.
+let idToName = {};
+
 function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 }
@@ -43,6 +51,8 @@ async function main() {
     showError(t("mga_no_job"));
     return;
   }
+
+  idToName = Object.fromEntries((job.model?.constructs || []).map((c) => [c.id, c.name || c.id]));
 
   try {
     const res = await fetch("/api/mga", {
@@ -86,7 +96,7 @@ function renderAll(data) {
       : `<span class="hint">${escapeHtml(t("mga_not_significant"))}</span>`;
     return `
       <tr>
-        <td>${escapeHtml(row.source)} → ${escapeHtml(row.target)}</td>
+        <td>${escapeHtml(idToName[row.source] || row.source)} → ${escapeHtml(idToName[row.target] || row.target)}</td>
         <td>${fmt(row.coef_a)}</td>
         <td>${fmt(row.coef_b)}</td>
         <td>${fmt(row.diff)}</td>

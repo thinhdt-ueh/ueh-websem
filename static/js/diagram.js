@@ -330,6 +330,14 @@ class PathDiagram {
       source.interaction_of = [...(source.interaction_of || []), moderatorId];
       source.calc_method = "two_stage";
       source.product_term_generation = source.product_term_generation || "standardized";
+      // Upgrading 2-way -> 3-way otherwise leaves the construct's name
+      // (set once, at 2-way creation time below, as "A × B") stale and
+      // silently missing the third source -- every downstream label (path
+      // table, Simple Slopes, exports, AI report) reads this .name field
+      // directly, so a name that doesn't list all 3 sources reads as if
+      // the third variable were dropped even though interaction_of (and
+      // the actual computation) is correct.
+      source.name = `${source.name} × ${moderator.name}`;
       this.addPath(moderatorId, edge.target);
     } else {
       // Offset perpendicular to the source->target line, not placed exactly

@@ -79,8 +79,9 @@ _CATALOG: dict[str, dict[str, str]] = {
         "err_cbsem_insufficient_observations": (
             "Không đủ quan sát hợp lệ để ước lượng mô hình (còn {n} dòng)."
         ),
-        "err_mga_no_interactions": (
-            "PLS-MGA hiện chưa hỗ trợ mô hình có biến tương tác (interaction/moderation)."
+        "err_mga_only_two_stage": (
+            "PLS-MGA chỉ hỗ trợ biến tương tác/điều tiết dùng phương pháp Two-Stage -- "
+            "không hỗ trợ Product Indicator hoặc Orthogonalization."
         ),
         "err_mga_group_too_small": "Mỗi nhóm cần tối thiểu {min} quan sát hợp lệ để so sánh đa nhóm.",
         "err_mga_missing_column": "Vui lòng chọn một biến để phân nhóm.",
@@ -109,6 +110,7 @@ _CATALOG: dict[str, dict[str, str]] = {
         "err_sensitivity_not_enough_rows": "Dữ liệu chỉ có {n} quan sát, không đủ để giảm dần (cần tối thiểu {min}).",
         "err_sensitivity_bootstrap_budget_exceeded": "Cấu hình bootstrap theo từng bước quá lớn ({total} lượt fit, tối đa {max}) — hãy tăng bước nhảy (N) hoặc giảm số lần bootstrap.",
         "err_sensitivity_invalid_new_n": "Cỡ mẫu mới phải là số nguyên dương, tối thiểu {min} và nhỏ hơn số quan sát hiện tại ({n}).",
+        "err_sensitivity_invalid_row": "Không thể tái tạo dòng dữ liệu này (row_index không hợp lệ cho lượt phân tích độ nhạy đó).",
         "err_plspredict_no_interactions": "PLSpredict chưa hỗ trợ mô hình có biến điều tiết (interaction/moderation).",
         "err_plspredict_insufficient_data": "Dữ liệu chỉ có {n} quan sát, không đủ để chia k-fold cross-validation.",
         "err_plspredict_no_targets": "Mô hình không có construct nội sinh reflective nào để dự báo.",
@@ -421,8 +423,9 @@ _CATALOG: dict[str, dict[str, str]] = {
         "err_cbsem_insufficient_observations": (
             "Not enough valid observations to estimate the model ({n} rows remain)."
         ),
-        "err_mga_no_interactions": (
-            "PLS-MGA does not currently support models with interaction/moderation constructs."
+        "err_mga_only_two_stage": (
+            "PLS-MGA only supports interaction/moderation constructs using the Two-Stage "
+            "method -- Product Indicator and Orthogonalization aren't supported."
         ),
         "err_mga_group_too_small": "Each group needs at least {min} valid observations to compare.",
         "err_mga_missing_column": "Please choose a column to split respondents into groups.",
@@ -451,6 +454,7 @@ _CATALOG: dict[str, dict[str, str]] = {
         "err_sensitivity_not_enough_rows": "The data only has {n} observations, not enough to shrink further (need at least {min}).",
         "err_sensitivity_bootstrap_budget_exceeded": "This per-step bootstrap configuration is too large ({total} fits, max {max}) -- increase the step size (N) or reduce the bootstrap count.",
         "err_sensitivity_invalid_new_n": "The new sample size must be a positive integer, at least {min} and smaller than the current {n} observations.",
+        "err_sensitivity_invalid_row": "Could not reproduce this row's data (invalid row_index for that sensitivity run).",
         "err_plspredict_no_interactions": "PLSpredict doesn't yet support models with an interaction/moderation construct.",
         "err_plspredict_insufficient_data": "The data only has {n} observations, not enough for k-fold cross-validation.",
         "err_plspredict_no_targets": "The model has no reflective endogenous constructs to predict.",

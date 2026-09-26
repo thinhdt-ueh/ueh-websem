@@ -334,10 +334,10 @@ const I18N = {
     sens_modal_step_label: "N — số quan sát giảm thêm mỗi bước",
     sens_modal_run: "Chạy phân tích",
     sens_modal_invalid_step: "N phải là số nguyên dương.",
-    sens_modal_cbsem_pvalue_note: "CB-SEM tự động có p-value cho từng path ở mỗi bước (từ ước lượng Maximum Likelihood) — không cần chạy thêm gì.",
-    sens_modal_bootstrap_label: "Cũng tính p-value / ý nghĩa thống kê (chạy Bootstrap ở mỗi bước — chậm hơn)",
-    sens_modal_n_boot_label: "Số lần bootstrap mỗi bước",
-    sens_modal_bootstrap_hint: "PLS-SEM không có công thức ý nghĩa thống kê dạng đóng — mỗi bước cỡ mẫu sẽ chạy thêm một lượt Bootstrap riêng để tính p-value, nên bật tuỳ chọn này sẽ chạy lâu hơn đáng kể so với mặc định.",
+    sens_modal_cbsem_pvalue_note: "CB-SEM tự động có p-value cho từng path ở mỗi bước/lần lặp (từ ước lượng Maximum Likelihood) — không cần chạy thêm gì.",
+    sens_modal_bootstrap_label: "Cũng tính p-value / ý nghĩa thống kê (chạy Bootstrap ở mỗi bước/lần lặp — chậm hơn)",
+    sens_modal_n_boot_label: "Số lần bootstrap mỗi bước/lần lặp",
+    sens_modal_bootstrap_hint: "PLS-SEM không có công thức ý nghĩa thống kê dạng đóng — mỗi bước/lần lặp sẽ chạy thêm một lượt Bootstrap riêng để tính p-value, nên bật tuỳ chọn này sẽ chạy lâu hơn đáng kể so với mặc định.",
     sens_modal_invalid_n_boot: "Số lần bootstrap phải là số nguyên ≥ 100.",
     sens_mode_label: "Kiểu phân tích",
     sens_mode_shrink_label: "Giảm dần cỡ mẫu (từng bước)",
@@ -364,6 +364,10 @@ const I18N = {
     sens_table_title: "Bảng số liệu chi tiết",
     sens_th_n: "n (quan sát)",
     sens_th_converged: "Hội tụ",
+    sens_th_export_row: "Dữ liệu gốc",
+    sens_export_row_btn: "⬇ CSV",
+    sens_export_row_hint: "Xuất đúng các dòng dữ liệu gốc (toàn bộ cột) đã được lấy mẫu ngẫu nhiên và dùng để chạy lượt phân tích này, để kiểm chứng lại kết quả.",
+    sens_export_row_failed: "Không thể xuất dữ liệu gốc cho dòng này.",
     sens_yes: "Có",
     sens_no: "Không",
     sens_axis_n: "n",
@@ -377,6 +381,9 @@ const I18N = {
     sens_resample_path_chart_title: "Phân phối hệ số đường dẫn qua {n} lần lấy mẫu lại (cỡ mẫu = {newN})",
     sens_resample_chart_hint: "Mỗi hộp là phân phối của một biến/đường dẫn qua tất cả các lần lặp: đường giữa = median, hộp = khoảng IQR (Q1-Q3), râu = giá trị trong 1.5×IQR, điểm rời = ngoại lai. Di chuột vào từng hộp để xem số liệu chi tiết.",
     sens_resample_chart_hint_line: "Mỗi đường là một biến/đường dẫn qua các lần lặp (trục hoành = lần lặp). Di chuột vào biểu đồ để xem giá trị chính xác tại từng lần lặp. Điểm viền đỏ = mô hình không hội tụ ở lần lặp đó.",
+    sens_resample_pvalue_chart_title: "Phân phối p-value qua {n} lần lấy mẫu lại (cỡ mẫu = {newN})",
+    sens_resample_pvalue_chart_hint: "Đường nét đứt đỏ = ngưỡng 0.05. Mỗi hộp là phân phối p-value của một đường dẫn qua tất cả các lần lặp (mỗi lần lặp chạy một Bootstrap riêng để tính p-value cho lần đó).",
+    sens_resample_pvalue_chart_hint_line: "Đường nét đứt đỏ = ngưỡng 0.05. Mỗi đường là p-value của một đường dẫn qua các lần lặp (mỗi lần lặp chạy một Bootstrap riêng để tính p-value cho lần đó).",
     sens_chart_type_box: "📦 Biểu đồ hộp",
     sens_chart_type_line: "📈 Biểu đồ đường",
     sens_guide_section_title: "Hướng dẫn đọc & Ý nghĩa các chỉ số",
@@ -588,7 +595,7 @@ const I18N = {
     mga_guide_limits_summary: "Giới hạn",
     mga_guide_limits_body:
       "<ul>" +
-      "<li>Hiện chưa hỗ trợ mô hình có biến tương tác/điều tiết (interaction/moderation) — chỉ so sánh được path coefficient của mô hình cấu trúc thông thường.</li>" +
+      "<li>Mô hình có biến tương tác/điều tiết (interaction/moderation) chỉ được hỗ trợ nếu dùng phương pháp Two-Stage — không hỗ trợ Product Indicator hoặc Orthogonalization.</li>" +
       "<li>Cần tối thiểu 30 quan sát hợp lệ ở MỖI nhóm để kết quả bootstrap/permutation đủ ổn định.</li>" +
       "<li>Kết quả chỉ so sánh được ĐÚNG 2 nhóm mỗi lần chạy — với biến phân nhóm có nhiều hơn 2 giá trị, hãy gộp các giá trị còn lại vào 1 trong 2 nhóm, hoặc chạy lại nhiều lần cho từng cặp nhóm muốn so sánh.</li>" +
       "</ul>",
@@ -1190,10 +1197,10 @@ const I18N = {
     sens_modal_step_label: "N — observations dropped per additional step",
     sens_modal_run: "Run analysis",
     sens_modal_invalid_step: "N must be a positive integer.",
-    sens_modal_cbsem_pvalue_note: "CB-SEM already gives a p-value for every path at each step (from its Maximum Likelihood fit) — nothing extra needed.",
-    sens_modal_bootstrap_label: "Also compute p-values / significance (runs Bootstrap at every step — slower)",
-    sens_modal_n_boot_label: "Bootstrap resamples per step",
-    sens_modal_bootstrap_hint: "PLS-SEM has no closed-form significance test — enabling this runs an extra Bootstrap at every sample-size step to get a p-value, so it takes noticeably longer than the default.",
+    sens_modal_cbsem_pvalue_note: "CB-SEM already gives a p-value for every path at each step/iteration (from its Maximum Likelihood fit) — nothing extra needed.",
+    sens_modal_bootstrap_label: "Also compute p-values / significance (runs Bootstrap at every step/iteration — slower)",
+    sens_modal_n_boot_label: "Bootstrap resamples per step/iteration",
+    sens_modal_bootstrap_hint: "PLS-SEM has no closed-form significance test — enabling this runs an extra Bootstrap at every step/iteration to get a p-value, so it takes noticeably longer than the default.",
     sens_modal_invalid_n_boot: "The bootstrap count must be an integer >= 100.",
     sens_mode_label: "Analysis mode",
     sens_mode_shrink_label: "Shrink sample size (step by step)",
@@ -1220,6 +1227,10 @@ const I18N = {
     sens_table_title: "Detailed data table",
     sens_th_n: "n (observations)",
     sens_th_converged: "Converged",
+    sens_th_export_row: "Source data",
+    sens_export_row_btn: "⬇ CSV",
+    sens_export_row_hint: "Export the exact original rows (all columns) that were randomly sampled and used to run this particular row, to double-check the result.",
+    sens_export_row_failed: "Could not export the source data for this row.",
     sens_yes: "Yes",
     sens_no: "No",
     sens_axis_n: "n",
@@ -1233,6 +1244,9 @@ const I18N = {
     sens_resample_path_chart_title: "Path coefficient distribution across {n} resamples (n = {newN})",
     sens_resample_chart_hint: "Each box is one construct/path's distribution across every iteration: the middle line is the median, the box spans the IQR (Q1-Q3), whiskers reach the most extreme value within 1.5x IQR, and separate dots are outliers. Hover a box for the exact numbers.",
     sens_resample_chart_hint_line: "Each line is one construct/path across iterations (x-axis = iteration). Hover the chart to see the exact value at each iteration. Red-ringed points = the model did not converge at that iteration.",
+    sens_resample_pvalue_chart_title: "p-value distribution across {n} resamples (n = {newN})",
+    sens_resample_pvalue_chart_hint: "The dashed red line marks the 0.05 threshold. Each box is one path's p-value distribution across every iteration (each iteration runs its own Bootstrap to compute that iteration's p-value).",
+    sens_resample_pvalue_chart_hint_line: "The dashed red line marks the 0.05 threshold. Each line is one path's p-value across iterations (each iteration runs its own Bootstrap to compute that iteration's p-value).",
     sens_chart_type_box: "📦 Box plot",
     sens_chart_type_line: "📈 Line chart",
     sens_guide_section_title: "Reading Guide & What the Numbers Mean",
@@ -1444,7 +1458,7 @@ const I18N = {
     mga_guide_limits_summary: "Limitations",
     mga_guide_limits_body:
       "<ul>" +
-      "<li>Models with interaction/moderation constructs aren't supported yet -- only ordinary structural-model path coefficients can be compared.</li>" +
+      "<li>Interaction/moderation constructs are only supported when using the Two-Stage method -- Product Indicator and Orthogonalization aren't supported.</li>" +
       "<li>Each group needs at least 30 valid observations for the bootstrap/permutation results to be stable enough.</li>" +
       "<li>Results only compare EXACTLY 2 groups per run -- for a grouping variable with more than 2 values, fold the remaining values into one of the two groups, or rerun separately for each pair of groups you want to compare.</li>" +
       "</ul>",

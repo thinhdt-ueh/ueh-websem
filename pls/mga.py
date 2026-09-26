@@ -18,12 +18,15 @@ empirical results":
     (paired by resample index) instead of first reducing each group's
     bootstrap results to a single standard error.
 
-Deliberately restricted to models WITHOUT interaction/moderation
-constructs -- MGA and moderation are each already substantial on their
-own, and combining them (a group-specific product term / two-stage refit
-per resample, per group) is out of scope here. routes/mga_api.py rejects
-such models up front with a clear message rather than silently producing
-something only partially correct.
+Models with interaction/moderation constructs ARE supported, but only when
+every interaction uses `calc_method: "two_stage"` -- the only method this
+app's own shipped samples and its three-way-interaction feature use.
+"product_indicator"/"orthogonalization" interactions are rejected with a
+clear message rather than silently producing something only partially
+correct (their product terms are generated once from a group's full
+sample in the existing bootstrap code too -- extending that same
+simplification per-resample-per-group for MGA specifically hasn't been
+validated here).
 
 Mirrors pls/bootstrap.py's approach (NumPy end-to-end, "individual sign
 change" correction against a fixed reference sample's outer weights) but
@@ -43,6 +46,7 @@ from i18n import DEFAULT_LANG, t
 
 from .algorithm import PLSResult, _build_topology, _fit, _ols_beta, _standardize_cols, run_pls_algorithm
 from .model import Model
+from .moderation import _generate_indicator_based_interactions, run_pls_with_moderation
 
 MIN_BOOT_SAMPLES = 100
 MAX_BOOT_SAMPLES = 5000
@@ -174,6 +178,164 @@ def _permutation_diffs(
     return {pair: np.asarray(vals, dtype=float) for pair, vals in diff_values.items()}
 
 
+def _moderation_topology(model: Model, df_for_structure: pd.DataFrame):
+    """Builds the stage-1 model/topology once (structure only -- which
+    columns get generated, the stage-1 Model, its indicator order -- none of
+    which depends on which ROWS are in `df_for_structure`, only on `model`
+    itself), so callers can reuse it across many resamples/permutations
+    without re-parsing a Model from JSON every iteration. Mirrors exactly
+    what bootstrap.run_bootstrap_with_moderation does once before its loop.
+    """
+    _augmented, generated = _generate_indicator_based_interactions(model, df_for_structure)
+    stage1_model = Model.from_json(model.stage1_model_json(generated))
+    base_indicators = stage1_model.all_indicators()
+    topo = _build_topology(stage1_model, base_indicators)
+    base_pos = {cid: i for i, cid in enumerate(topo.construct_ids)}
+    two_stage_ids = model.two_stage_interaction_ids()
+    interaction_sources = {
+        icid: tuple(base_pos[sid] for sid in model.constructs[icid].interaction_of)
+        for icid in two_stage_ids
+    }
+    endogenous = [cid for cid in model.constructs if model.predecessors(cid)]
+    return stage1_model, base_indicators, topo, base_pos, two_stage_ids, interaction_sources, endogenous
+
+
+def _group_bootstrap_paths_moderation(
+    model: Model, original: PLSResult, n_boot: int, seed: int | None, max_iterations: int = 300,
+) -> dict[tuple[str, str], np.ndarray]:
+    """Same idea as `_group_bootstrap_paths`, extended for a "two_stage"
+    moderation model -- mirrors bootstrap.run_bootstrap_with_moderation's
+    resampling loop exactly, trimmed to collect ONLY path coefficients."""
+    stage1_model, base_indicators, topo, base_pos, two_stage_ids, interaction_sources, endogenous = (
+        _moderation_topology(model, original.data)
+    )
+    augmented, _generated = _generate_indicator_based_interactions(model, original.data)
+    raw = augmented[base_indicators].values
+    n_obs = raw.shape[0]
+    k_base = len(topo.construct_ids)
+    orig_w = original.outer_weights[base_indicators].values
+
+    path_pairs = _path_pairs(model)
+    path_values: dict[tuple[str, str], list[float]] = {pair: [] for pair in path_pairs}
+
+    rng = np.random.default_rng(seed)
+    for _ in range(n_boot):
+        idx = rng.integers(0, n_obs, size=n_obs)
+        X = _standardize_cols(raw[idx])
+        try:
+            w, Y, _n_iter, converged = _fit(X, topo, max_iterations, 1e-7)
+        except np.linalg.LinAlgError:
+            continue
+        if not converged:
+            continue
+
+        block_sign = np.empty(k_base)
+        for ci in range(k_base):
+            bi = topo.block_idx[ci]
+            dot = float(np.dot(orig_w[bi], w[bi]))
+            block_sign[ci] = 1.0 if dot >= 0 else -1.0
+
+        def sign_of(cid: str) -> float:
+            if cid in interaction_sources:
+                result = 1.0
+                for p in interaction_sources[cid]:
+                    result *= block_sign[p]
+                return result
+            return block_sign[base_pos[cid]]
+
+        full_score: dict[str, np.ndarray] = {cid: Y[:, base_pos[cid]] for cid in topo.construct_ids}
+        for icid in two_stage_ids:
+            positions = interaction_sources[icid]
+            prod = Y[:, positions[0]].copy()
+            for p in positions[1:]:
+                prod = prod * Y[:, p]
+            full_score[icid] = _standardize_cols(prod[:, None])[:, 0]
+
+        for tgt in endogenous:
+            preds = model.predecessors(tgt)
+            A = np.column_stack([full_score[p] for p in preds])
+            beta = _ols_beta(A, full_score[tgt])[:-1]
+            s_tgt = sign_of(tgt)
+            for pi, src in enumerate(preds):
+                path_values[(src, tgt)].append(sign_of(src) * s_tgt * float(beta[pi]))
+
+    return {pair: np.asarray(vals, dtype=float) for pair, vals in path_values.items()}
+
+
+def _permutation_diffs_moderation(
+    model: Model, data_a: pd.DataFrame, data_b: pd.DataFrame, orig_w_ref: np.ndarray,
+    path_pairs: list[tuple[str, str]], n_perm: int, seed: int | None, max_iterations: int = 300,
+) -> dict[tuple[str, str], np.ndarray]:
+    """Same idea as `_permutation_diffs`, extended for a "two_stage"
+    moderation model. `orig_w_ref` must already be indexed against the
+    stage-1 base indicator order (see `_moderation_topology`)."""
+    indicators = model.all_indicators()
+    pooled_raw = pd.concat([data_a[indicators], data_b[indicators]], axis=0).reset_index(drop=True)
+    n1, n2 = len(data_a), len(data_b)
+    n_total = n1 + n2
+
+    stage1_model, base_indicators, topo, base_pos, two_stage_ids, interaction_sources, endogenous = (
+        _moderation_topology(model, pooled_raw)
+    )
+    k_base = len(topo.construct_ids)
+
+    diff_values: dict[tuple[str, str], list[float]] = {pair: [] for pair in path_pairs}
+    rng = np.random.default_rng(seed)
+
+    def fit_group(sub_df: pd.DataFrame) -> dict[tuple[str, str], float] | None:
+        augmented, _generated = _generate_indicator_based_interactions(model, sub_df)
+        X = _standardize_cols(augmented[base_indicators].values)
+        try:
+            w, Y, _n_iter, converged = _fit(X, topo, max_iterations, 1e-7)
+        except np.linalg.LinAlgError:
+            return None
+        if not converged:
+            return None
+
+        block_sign = np.empty(k_base)
+        for ci in range(k_base):
+            bi = topo.block_idx[ci]
+            dot = float(np.dot(orig_w_ref[bi], w[bi]))
+            block_sign[ci] = 1.0 if dot >= 0 else -1.0
+
+        def sign_of(cid: str) -> float:
+            if cid in interaction_sources:
+                result = 1.0
+                for p in interaction_sources[cid]:
+                    result *= block_sign[p]
+                return result
+            return block_sign[base_pos[cid]]
+
+        full_score: dict[str, np.ndarray] = {cid: Y[:, base_pos[cid]] for cid in topo.construct_ids}
+        for icid in two_stage_ids:
+            positions = interaction_sources[icid]
+            prod = Y[:, positions[0]].copy()
+            for p in positions[1:]:
+                prod = prod * Y[:, p]
+            full_score[icid] = _standardize_cols(prod[:, None])[:, 0]
+
+        out: dict[tuple[str, str], float] = {}
+        for tgt in endogenous:
+            preds = model.predecessors(tgt)
+            A = np.column_stack([full_score[p] for p in preds])
+            beta = _ols_beta(A, full_score[tgt])[:-1]
+            s_tgt = sign_of(tgt)
+            for pi, src in enumerate(preds):
+                out[(src, tgt)] = sign_of(src) * s_tgt * float(beta[pi])
+        return out
+
+    for _ in range(n_perm):
+        perm = rng.permutation(n_total)
+        coef_a = fit_group(pooled_raw.iloc[perm[:n1]].reset_index(drop=True))
+        coef_b = fit_group(pooled_raw.iloc[perm[n1:]].reset_index(drop=True))
+        if coef_a is None or coef_b is None:
+            continue
+        for pair in path_pairs:
+            diff_values[pair].append(coef_a[pair] - coef_b[pair])
+
+    return {pair: np.asarray(vals, dtype=float) for pair, vals in diff_values.items()}
+
+
 @dataclass
 class MgaGroupInfo:
     label: str
@@ -221,8 +383,11 @@ def run_mga(
     seed: int | None = None,
     lang: str = DEFAULT_LANG,
 ) -> MgaResult:
-    if model.has_interactions():
-        raise ValueError(t("err_mga_no_interactions", lang))
+    has_interactions = model.has_interactions()
+    if has_interactions:
+        non_two_stage = [cid for cid in model.interaction_ids() if model.constructs[cid].calc_method != "two_stage"]
+        if non_two_stage:
+            raise ValueError(t("err_mga_only_two_stage", lang))
 
     n_boot = max(MIN_BOOT_SAMPLES, min(MAX_BOOT_SAMPLES, int(n_boot)))
     n_perm = max(MIN_PERMUTATIONS, min(MAX_PERMUTATIONS, int(n_perm)))
@@ -230,18 +395,28 @@ def run_mga(
     if len(df_a) < MIN_GROUP_OBS or len(df_b) < MIN_GROUP_OBS:
         raise ValueError(t("err_mga_group_too_small", lang, min=MIN_GROUP_OBS))
 
-    orig_a = run_pls_algorithm(model, df_a, lang=lang)
-    orig_b = run_pls_algorithm(model, df_b, lang=lang)
+    fit_fn = run_pls_with_moderation if has_interactions else run_pls_algorithm
+    orig_a = fit_fn(model, df_a, lang=lang)
+    orig_b = fit_fn(model, df_b, lang=lang)
 
     pairs = _path_pairs(model)
-    indicators = model.all_indicators()
 
-    boot_a = _group_bootstrap_paths(model, orig_a, n_boot, seed)
-    boot_b = _group_bootstrap_paths(model, orig_b, n_boot, None if seed is None else seed + 1)
-    perm_diffs = _permutation_diffs(
-        model, orig_a.data, orig_b.data, orig_a.outer_weights[indicators].values,
-        pairs, n_perm, None if seed is None else seed + 2,
-    )
+    if has_interactions:
+        _stage1_model, base_indicators, *_rest = _moderation_topology(model, orig_a.data)
+        boot_a = _group_bootstrap_paths_moderation(model, orig_a, n_boot, seed)
+        boot_b = _group_bootstrap_paths_moderation(model, orig_b, n_boot, None if seed is None else seed + 1)
+        perm_diffs = _permutation_diffs_moderation(
+            model, orig_a.data, orig_b.data, orig_a.outer_weights[base_indicators].values,
+            pairs, n_perm, None if seed is None else seed + 2,
+        )
+    else:
+        indicators = model.all_indicators()
+        boot_a = _group_bootstrap_paths(model, orig_a, n_boot, seed)
+        boot_b = _group_bootstrap_paths(model, orig_b, n_boot, None if seed is None else seed + 1)
+        perm_diffs = _permutation_diffs(
+            model, orig_a.data, orig_b.data, orig_a.outer_weights[indicators].values,
+            pairs, n_perm, None if seed is None else seed + 2,
+        )
 
     n1, n2 = len(orig_a.data), len(orig_b.data)
     path_results: list[MgaPathResult] = []

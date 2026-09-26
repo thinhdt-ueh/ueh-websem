@@ -6,6 +6,7 @@ own upload+analyze convention.
 from __future__ import annotations
 
 import io
+import json
 
 
 def _upload(client, df, lang="en"):
@@ -81,12 +82,30 @@ def test_mga_rejects_missing_column(client, tam_df, tam_model_json):
     assert resp.status_code == 400
 
 
-def test_mga_rejects_interaction_model(client, moderation_df, moderation_model_json):
+def test_mga_supports_two_stage_moderation_model(client, moderation_df, moderation_model_json):
     df = moderation_df.copy()
     df["Gender"] = ["male" if i % 2 == 0 else "female" for i in range(len(df))]
     file_id = _upload(client, df)
     resp = client.post("/api/mga", json={
         "file_id": file_id, "model": moderation_model_json, "lang": "en",
+        "column": "Gender", "group_a_values": ["male"], "group_b_values": ["female"],
+        "n_boot": 150, "n_perm": 150, "seed": 4,
+    })
+    assert resp.status_code == 200, resp.get_json()
+    data = resp.get_json()
+    assert any(p["source"] == "peou_x_exp" for p in data["paths"])
+
+
+def test_mga_rejects_non_two_stage_interaction(client, moderation_df, moderation_model_json):
+    model_json = json.loads(json.dumps(moderation_model_json))
+    for c in model_json["constructs"]:
+        if c["id"] == "peou_x_exp":
+            c["calc_method"] = "product_indicator"
+    df = moderation_df.copy()
+    df["Gender"] = ["male" if i % 2 == 0 else "female" for i in range(len(df))]
+    file_id = _upload(client, df)
+    resp = client.post("/api/mga", json={
+        "file_id": file_id, "model": model_json, "lang": "en",
         "column": "Gender", "group_a_values": ["male"], "group_b_values": ["female"],
     })
     assert resp.status_code == 400

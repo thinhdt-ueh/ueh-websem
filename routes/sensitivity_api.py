@@ -14,11 +14,12 @@ to run at all (indicator count + 5, same floor `run_pls_algorithm` enforces).
 
 from __future__ import annotations
 
+import io
 import os
 
 import numpy as np
 import pandas as pd
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify, request, send_file
 
 from cbsem.estimator import CBSEMError, run_cbsem
 from cbsem.moderation import run_cbsem_with_moderation
@@ -159,13 +160,16 @@ def sensitivity():
                 model, method, sub_df, lang, n_boot, seed=1000 + i,
             )
         except (ValueError, CBSEMError):
-            points.append({"n": n_current, "converged": False, "paths": {}, "p_values": {}, "r_squared": {}})
+            points.append({
+                "step_index": i, "n": n_current, "converged": False, "paths": {}, "p_values": {}, "r_squared": {},
+            })
             i += 1
             continue
         except Exception as exc:  # noqa: BLE001
             return jsonify(error=t("err_pls_run_error", lang, exc=exc)), 500
         points.append({
-            "n": n_current, "converged": converged, "paths": paths, "p_values": p_values, "r_squared": r_squared,
+            "step_index": i, "n": n_current, "converged": converged,
+            "paths": paths, "p_values": p_values, "r_squared": r_squared,
         })
         i += 1
 
@@ -206,6 +210,17 @@ def sensitivity_resample():
     model_payload = payload.get("model") or {}
     method = payload.get("method") if payload.get("method") in ("pls", "cbsem") else "pls"
 
+    # Same opt-in as sensitivity() above: p-values are free for CB-SEM, but
+    # need an extra bootstrap *inside* every iteration for PLS-SEM.
+    bootstrap_payload = payload.get("bootstrap") or {}
+    n_boot = None
+    if method == "pls" and bootstrap_payload.get("enabled"):
+        try:
+            n_boot = int(bootstrap_payload.get("n_boot", MIN_BOOTSTRAP_SAMPLES))
+        except (TypeError, ValueError):
+            n_boot = MIN_BOOTSTRAP_SAMPLES
+        n_boot = max(MIN_BOOTSTRAP_SAMPLES, min(MAX_BOOTSTRAP_SAMPLES, n_boot))
+
     if not file_id:
         return jsonify(error=t("err_analyze_missing_file_id", lang)), 400
     matches = [p for p in os.listdir(_upload_dir()) if p.startswith(file_id)]
@@ -241,19 +256,28 @@ def sensitivity_resample():
         n_iterations = MIN_MC_REPLICATES
     n_iterations = max(MIN_MC_REPLICATES, min(MAX_MC_REPLICATES, n_iterations))
 
+    if n_boot:
+        total_fits = n_iterations * n_boot
+        if total_fits > MAX_BOOTSTRAP_TOTAL_FITS:
+            return jsonify(error=t(
+                "err_sensitivity_bootstrap_budget_exceeded", lang, total=total_fits, max=MAX_BOOTSTRAP_TOTAL_FITS,
+            )), 400
+
     rng = np.random.default_rng(42)
     points = []
     for i in range(1, n_iterations + 1):
         idx = rng.choice(n_total, size=new_n, replace=False)
         sub_df = df.iloc[idx]
         try:
-            converged, paths, _p_values, r_squared = _run_once(model, method, sub_df, lang, n_boot=None, seed=3000 + i)
+            converged, paths, p_values, r_squared = _run_once(model, method, sub_df, lang, n_boot, seed=3000 + i)
         except (ValueError, CBSEMError):
-            points.append({"iteration": i, "converged": False, "paths": {}, "r_squared": {}})
+            points.append({"iteration": i, "converged": False, "paths": {}, "p_values": {}, "r_squared": {}})
             continue
         except Exception as exc:  # noqa: BLE001
             return jsonify(error=t("err_pls_run_error", lang, exc=exc)), 500
-        points.append({"iteration": i, "converged": converged, "paths": paths, "r_squared": r_squared})
+        points.append({
+            "iteration": i, "converged": converged, "paths": paths, "p_values": p_values, "r_squared": r_squared,
+        })
 
     return jsonify(
         method=method,
@@ -261,6 +285,8 @@ def sensitivity_resample():
         new_n=new_n,
         n_iterations=n_iterations,
         min_n=min_n,
+        has_p_values=(method == "cbsem" or n_boot is not None),
+        n_boot=n_boot,
         constructs=[
             {"id": c.id, "name": c.name} for c in model.constructs.values() if c.id in model.endogenous_ids()
         ],
@@ -270,4 +296,102 @@ def sensitivity_resample():
             for p in model.paths
         ],
         points=points,
+    )
+
+
+@sensitivity_api.post("/sensitivity_export_row")
+def sensitivity_export_row():
+    """Reproduces the exact random subsample behind ONE row of a sensitivity
+    run's Detailed Data Table and returns it as a downloadable CSV, so a
+    reader can check the row's numbers against the literal data that
+    produced them.
+
+    Both sensitivity() and sensitivity_resample() draw every step/iteration
+    from a single rng = np.random.default_rng(42), whose .choice() calls
+    advance in a fixed, seed-determined order and never get reseeded mid
+    loop. Replaying that same call sequence up to the requested row
+    therefore reproduces the exact original row selection -- cheap (no
+    model fitting), and identical to what the original run actually used.
+    row_index is the row's 1-based position in the *computation* order
+    (loop counter i), not the "n"/"iteration" value shown in the table,
+    since those aren't reliable/unique identifiers for shrink mode.
+    """
+    payload = request.get_json(force=True, silent=True) or {}
+    lang = get_lang(payload)
+    file_id = payload.get("file_id")
+    model_payload = payload.get("model") or {}
+    mode = payload.get("mode") if payload.get("mode") in ("shrink", "resample") else "shrink"
+
+    if not file_id:
+        return jsonify(error=t("err_analyze_missing_file_id", lang)), 400
+    matches = [p for p in os.listdir(_upload_dir()) if p.startswith(file_id)]
+    if not matches:
+        return jsonify(error=t("err_analyze_file_not_found", lang)), 404
+    saved_path = os.path.join(_upload_dir(), matches[0])
+
+    try:
+        model = Model.from_json(model_payload, lang=lang)
+    except ModelError as exc:
+        return jsonify(error=str(exc)), 400
+
+    try:
+        raw_df = _read_dataframe(saved_path)
+        indicators = model.all_indicators()
+        filtered = raw_df[indicators].apply(pd.to_numeric, errors="coerce").dropna()
+    except Exception as exc:  # noqa: BLE001
+        return jsonify(error=t("err_pls_run_error", lang, exc=exc)), 500
+
+    n_total = len(filtered)
+    min_n = max(MIN_OBSERVATIONS_FLOOR, len(indicators) + 5)
+
+    try:
+        row_index = int(payload.get("row_index"))
+    except (TypeError, ValueError):
+        return jsonify(error=t("err_sensitivity_invalid_row", lang)), 400
+    if row_index < 1:
+        return jsonify(error=t("err_sensitivity_invalid_row", lang)), 400
+
+    rng = np.random.default_rng(42)
+    idx = None
+    label = None
+
+    if mode == "shrink":
+        try:
+            step = int(payload.get("step"))
+        except (TypeError, ValueError):
+            return jsonify(error=t("err_sensitivity_invalid_step", lang)), 400
+        if step < 1:
+            return jsonify(error=t("err_sensitivity_invalid_step", lang)), 400
+        n_current = None
+        for i in range(1, row_index + 1):
+            n_current = n_total - step * i
+            if n_current < min_n:
+                return jsonify(error=t("err_sensitivity_invalid_row", lang)), 400
+            idx = rng.choice(n_total, size=n_current, replace=False)
+        label = f"n{n_current}"
+    else:
+        try:
+            new_n = int(payload.get("new_n"))
+        except (TypeError, ValueError):
+            return jsonify(error=t("err_sensitivity_invalid_new_n", lang, n=n_total, min=min_n)), 400
+        if new_n < min_n or new_n >= n_total:
+            return jsonify(error=t("err_sensitivity_invalid_new_n", lang, n=n_total, min=min_n)), 400
+        for i in range(1, row_index + 1):
+            idx = rng.choice(n_total, size=new_n, replace=False)
+        label = f"iter{row_index}"
+
+    if idx is None:
+        return jsonify(error=t("err_sensitivity_invalid_row", lang)), 400
+
+    selected_original_index = filtered.iloc[idx].index
+    export_df = raw_df.loc[selected_original_index]
+
+    buf = io.BytesIO()
+    export_df.to_csv(buf, index=False)
+    buf.seek(0)
+    return send_file(
+        buf,
+        as_attachment=True,
+        download_name=f"sensitivity_{mode}_{label}.csv",
+        mimetype="text/csv",
     )

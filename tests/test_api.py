@@ -182,6 +182,53 @@ def test_sensitivity_resample_endpoint(client, tam_df, tam_model_json):
     for p in converged_points:
         assert set(p["r_squared"].keys()) == construct_ids
         assert set(p["paths"].keys()) == path_ids
+    # p-values are opt-in for PLS-SEM here too (need an extra bootstrap per iteration)
+    assert data["has_p_values"] is False
+    assert all(p["p_values"] == {} for p in data["points"])
+
+
+def test_sensitivity_resample_endpoint_cbsem_gets_p_values_for_free(client, tam_df, tam_model_json):
+    file_id = _upload(client, tam_df)
+    resp = client.post("/api/sensitivity_resample", json={
+        "file_id": file_id, "model": tam_model_json, "lang": "en", "method": "cbsem",
+        "new_n": 100, "n_iterations": 20,
+    })
+    assert resp.status_code == 200, resp.get_json()
+    data = resp.get_json()
+    assert data["has_p_values"] is True
+    assert data["n_boot"] is None
+    converged_points = [p for p in data["points"] if p["converged"]]
+    assert converged_points
+    assert all(p["p_values"] for p in converged_points)
+
+
+def test_sensitivity_resample_endpoint_pls_bootstrap_enabled(client, tam_df, tam_model_json):
+    file_id = _upload(client, tam_df)
+    resp = client.post("/api/sensitivity_resample", json={
+        "file_id": file_id, "model": tam_model_json, "lang": "en", "method": "pls",
+        "new_n": 100, "n_iterations": 15,
+        "bootstrap": {"enabled": True, "n_boot": 100},
+    })
+    assert resp.status_code == 200, resp.get_json()
+    data = resp.get_json()
+    assert data["has_p_values"] is True
+    assert data["n_boot"] == 100
+    converged_points = [p for p in data["points"] if p["converged"]]
+    assert converged_points
+    assert all(p["p_values"] for p in converged_points)
+    for p_value in converged_points[0]["p_values"].values():
+        assert p_value is None or 0.0 <= p_value <= 1.0
+
+
+def test_sensitivity_resample_endpoint_rejects_excessive_bootstrap_budget(client, tam_df, tam_model_json):
+    file_id = _upload(client, tam_df)
+    resp = client.post("/api/sensitivity_resample", json={
+        "file_id": file_id, "model": tam_model_json, "lang": "en", "method": "pls",
+        "new_n": 100, "n_iterations": 500,
+        "bootstrap": {"enabled": True, "n_boot": 5000},
+    })
+    assert resp.status_code == 400
+    assert "error" in resp.get_json()
 
 
 def test_sensitivity_resample_endpoint_cbsem(client, tam_df, tam_model_json):
@@ -238,6 +285,87 @@ def test_sensitivity_resample_clamps_n_iterations_below_minimum(client, tam_df, 
     })
     assert resp.status_code == 200, resp.get_json()
     assert resp.get_json()["n_iterations"] == MIN_MC_REPLICATES
+
+
+# ---------------- sensitivity: per-row original-data export ----------------
+
+def test_sensitivity_export_row_shrink_reproduces_exact_original_rows(client, tam_df, tam_model_json):
+    # A column the model never sees, to prove the export returns the
+    # original CSV's own columns (for verification), not just the
+    # indicators the model happened to fit on.
+    df = tam_df.copy()
+    df.insert(0, "respondent_id", [f"R{i}" for i in range(len(df))])
+    file_id = _upload(client, df)
+
+    sens_resp = client.post("/api/sensitivity", json={
+        "file_id": file_id, "model": tam_model_json, "lang": "en", "method": "pls", "step": 20,
+    })
+    assert sens_resp.status_code == 200, sens_resp.get_json()
+    points = sens_resp.get_json()["points"]
+    row = points[2]
+    assert row["step_index"] == 3
+
+    export_resp = client.post("/api/sensitivity_export_row", json={
+        "file_id": file_id, "model": tam_model_json, "lang": "en",
+        "mode": "shrink", "row_index": row["step_index"], "step": 20,
+    })
+    assert export_resp.status_code == 200, export_resp.get_json()
+    assert export_resp.mimetype == "text/csv"
+    exported = pd.read_csv(io.BytesIO(export_resp.data))
+    assert list(exported.columns) == list(df.columns)
+    assert len(exported) == row["n"]
+    assert set(exported["respondent_id"]).issubset(set(df["respondent_id"]))
+
+    # Deterministic: replaying the same row again returns the identical rows.
+    export_resp2 = client.post("/api/sensitivity_export_row", json={
+        "file_id": file_id, "model": tam_model_json, "lang": "en",
+        "mode": "shrink", "row_index": row["step_index"], "step": 20,
+    })
+    assert export_resp2.data == export_resp.data
+
+
+def test_sensitivity_export_row_resample_reproduces_exact_original_rows(client, tam_df, tam_model_json):
+    df = tam_df.copy()
+    df.insert(0, "respondent_id", [f"R{i}" for i in range(len(df))])
+    file_id = _upload(client, df)
+
+    sens_resp = client.post("/api/sensitivity_resample", json={
+        "file_id": file_id, "model": tam_model_json, "lang": "en", "method": "pls",
+        "new_n": 100, "n_iterations": 5,
+    })
+    assert sens_resp.status_code == 200, sens_resp.get_json()
+    row = sens_resp.get_json()["points"][3]
+    assert row["iteration"] == 4
+
+    export_resp = client.post("/api/sensitivity_export_row", json={
+        "file_id": file_id, "model": tam_model_json, "lang": "en",
+        "mode": "resample", "row_index": row["iteration"], "new_n": 100,
+    })
+    assert export_resp.status_code == 200, export_resp.get_json()
+    exported = pd.read_csv(io.BytesIO(export_resp.data))
+    assert list(exported.columns) == list(df.columns)
+    assert len(exported) == 100
+    assert set(exported["respondent_id"]).issubset(set(df["respondent_id"]))
+
+
+def test_sensitivity_export_row_rejects_invalid_row_index(client, tam_df, tam_model_json):
+    file_id = _upload(client, tam_df)
+    resp = client.post("/api/sensitivity_export_row", json={
+        "file_id": file_id, "model": tam_model_json, "lang": "en",
+        "mode": "shrink", "row_index": 0, "step": 20,
+    })
+    assert resp.status_code == 400
+    assert "error" in resp.get_json()
+
+
+def test_sensitivity_export_row_rejects_row_index_beyond_min_n(client, tam_df, tam_model_json):
+    file_id = _upload(client, tam_df)
+    resp = client.post("/api/sensitivity_export_row", json={
+        "file_id": file_id, "model": tam_model_json, "lang": "en",
+        "mode": "shrink", "row_index": 9999, "step": 20,
+    })
+    assert resp.status_code == 400
+    assert "error" in resp.get_json()
 
 
 def test_ml_compare_endpoint(client, tam_df, tam_model_json):

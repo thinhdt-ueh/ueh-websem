@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import json
+
 import pytest
 
 from pls.mga import MIN_GROUP_OBS, run_mga
@@ -33,10 +35,28 @@ def test_run_mga_basic_shape(tam_model_json, tam_df):
         assert row.significant_mga == (row.p_mga < 0.05 or row.p_mga > 0.95)
 
 
-def test_run_mga_rejects_interaction_model(moderation_model_json, moderation_df):
+def test_run_mga_supports_two_stage_moderation_model(moderation_model_json, moderation_df):
+    # Every interaction in moderation_model_json defaults to calc_method
+    # "two_stage" (Construct's own dataclass default) -- MGA must actually
+    # run on it, including the interaction path itself.
     model = Model.from_json(moderation_model_json)
     df_a, df_b = _split(moderation_df)
-    with pytest.raises(ValueError, match="(?i)interaction|moderation"):
+    result = run_mga(model, df_a, df_b, "A", "B", n_boot=150, n_perm=150, seed=3)
+    assert len(result.paths) == len(model.paths)
+    interaction_row = next(r for r in result.paths if r.source == "peou_x_exp")
+    assert interaction_row.se_a is not None and interaction_row.se_a >= 0
+    assert 0 <= interaction_row.p_mga <= 1
+    assert 0 <= interaction_row.p_permutation <= 1
+
+
+def test_run_mga_rejects_non_two_stage_interaction(moderation_model_json, moderation_df):
+    model_json = json.loads(json.dumps(moderation_model_json))
+    for c in model_json["constructs"]:
+        if c["id"] == "peou_x_exp":
+            c["calc_method"] = "product_indicator"
+    model = Model.from_json(model_json)
+    df_a, df_b = _split(moderation_df)
+    with pytest.raises(ValueError, match="(?i)two.?stage"):
         run_mga(model, df_a, df_b, "A", "B", n_boot=100, n_perm=100)
 
 

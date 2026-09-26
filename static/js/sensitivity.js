@@ -86,7 +86,7 @@ function captureSensitivityChartImages(data, isResample) {
   const charts = isResample
     ? [["r2Chart", t("sens_resample_r2_chart_title")], ["pathChart", t("sens_resample_path_chart_title")]]
     : [["r2Chart", t("sens_r2_chart_title")], ["pathChart", t("sens_path_chart_title")]];
-  if (!isResample && data.has_p_values) charts.push(["pvalueChart", t("sens_pvalue_chart_title")]);
+  if (data.has_p_values) charts.push(["pvalueChart", isResample ? t("sens_resample_pvalue_chart_title") : t("sens_pvalue_chart_title")]);
   return charts
     .map(([id, label]) => {
       const canvas = document.getElementById(id);
@@ -209,6 +209,24 @@ function buildResampleReportContext(data) {
     if (stats) lines.push(`| ${p.source_name} → ${p.target_name} | ${fmt(stats.median)} | ${fmt(stats.q1)} | ${fmt(stats.q3)} | ${fmt(stats.min)} | ${fmt(stats.max)} |`);
   });
 
+  if (data.has_p_values) {
+    lines.push("");
+    lines.push(`## ${L("p-value theo đường dẫn qua các lần lặp (median, IQR, min-max)", "Path p-values across iterations (median, IQR, min-max)")}`);
+    lines.push(L(
+      "Mỗi lần lặp chạy một bootstrap riêng (kích thước đã chọn) để tính p-value cho lần đó -- ngưỡng 0.05.",
+      "Each iteration runs its own bootstrap (at the chosen size) to compute that iteration's p-value -- threshold 0.05.",
+    ));
+    lines.push(`| ${L("Đường dẫn", "Path")} | Median | Q1 | Q3 | Min | Max | ${L("Tỷ lệ significant", "Share significant")} |`);
+    lines.push("|---|---|---|---|---|---|---|");
+    data.paths.forEach((p) => {
+      const vals = converged.map((row) => (row.p_values ? row.p_values[p.id] : null)).filter((v) => v !== null && v !== undefined);
+      const stats = boxStats(vals);
+      if (!stats) return;
+      const shareSig = vals.length ? `${((vals.filter((v) => v < 0.05).length / vals.length) * 100).toFixed(0)}%` : t("lbl_dash");
+      lines.push(`| ${p.source_name} → ${p.target_name} | ${fmt(stats.median)} | ${fmt(stats.q1)} | ${fmt(stats.q3)} | ${fmt(stats.min)} | ${fmt(stats.max)} | ${shareSig} |`);
+    });
+  }
+
   const nonConverged = data.points.length - converged.length;
   if (nonConverged > 0) {
     lines.push("");
@@ -242,6 +260,7 @@ async function main() {
     showError(t("sens_no_job"));
     return;
   }
+  window.__sensJob = job;
 
   let stopEta = null;
   if (job.estimated_seconds) {
@@ -348,6 +367,55 @@ function renderAll(data) {
   renderTable(points, data.constructs, data.paths, idToName, pathIdToLabel, data.has_p_values);
 }
 
+// Re-fetches the exact original rows behind one Detailed Data Table row
+// (identified by its 1-based computation-order index -- step_index for
+// shrink mode, iteration for resample mode) and downloads them as a CSV,
+// so a reader can check that row's numbers against the literal source data.
+// Uses the same fetch->blob-><a>.click() download pattern as exportReport()
+// in app.js.
+async function exportSensitivityRow(rowIndex, btn) {
+  const job = window.__sensJob;
+  if (!job) return;
+  const originalHtml = btn.innerHTML;
+  btn.disabled = true;
+  btn.textContent = "…";
+  try {
+    const body = {
+      file_id: job.file_id,
+      model: job.model,
+      mode: job.mode === "resample" ? "resample" : "shrink",
+      row_index: rowIndex,
+      lang: getLang(),
+    };
+    if (body.mode === "shrink") body.step = job.step;
+    else body.new_n = job.new_n;
+    const res = await fetch("/api/sensitivity_export_row", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || t("sens_export_row_failed"));
+    }
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    const cd = res.headers.get("Content-Disposition") || "";
+    const match = cd.match(/filename="?([^"]+)"?/);
+    a.download = match ? match[1] : `sensitivity_row_${rowIndex}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  } catch (err) {
+    alert(err.message);
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = originalHtml;
+  }
+}
+window.exportSensitivityRow = exportSensitivityRow;
+
 function renderTable(points, constructs, paths, idToName, pathIdToLabel, hasPValues) {
   let html = `<thead><tr><th>${t("sens_th_n")}</th><th>${t("sens_th_converged")}</th>`;
   constructs.forEach((c) => (html += `<th>R² ${escapeHtml(c.name)}</th>`));
@@ -355,6 +423,7 @@ function renderTable(points, constructs, paths, idToName, pathIdToLabel, hasPVal
     html += `<th>${escapeHtml(pathIdToLabel[p.id])}</th>`;
     if (hasPValues) html += `<th>p (${escapeHtml(pathIdToLabel[p.id])})</th>`;
   });
+  html += `<th>${t("sens_th_export_row")}</th>`;
   html += "</tr></thead><tbody>";
   for (const row of points) {
     html += `<tr><td>${row.n}</td><td>${row.converged ? t("sens_yes") : `<span class="badge warn">${t("sens_no")}</span>`}</td>`;
@@ -371,6 +440,7 @@ function renderTable(points, constructs, paths, idToName, pathIdToLabel, hasPVal
         }
       }
     });
+    html += `<td><button type="button" class="btn-small" title="${escapeHtml(t("sens_export_row_hint"))}" onclick="exportSensitivityRow(${row.step_index}, this)">${t("sens_export_row_btn")}</button></td>`;
     html += "</tr>";
   }
   html += "</tbody>";
@@ -387,7 +457,7 @@ let resampleChartType = "box";
 function renderResampleResults(data) {
   document.getElementById("sensLoading").classList.add("hidden");
   document.getElementById("sensContent").classList.remove("hidden");
-  document.getElementById("sensPvalueSection").classList.add("hidden");
+  document.getElementById("sensPvalueSection").classList.toggle("hidden", !data.has_p_values);
 
   const converged = data.points.filter((p) => p.converged);
   document.getElementById("sensSummary").textContent = t("sens_resample_summary_text", {
@@ -405,7 +475,7 @@ function renderResampleResults(data) {
   data.constructs.forEach((c) => (idToName[c.id] = c.name));
   const pathIdToLabel = {};
   data.paths.forEach((p) => (pathIdToLabel[p.id] = `${p.source_name} → ${p.target_name}`));
-  renderResampleTable(data.points, data.constructs, data.paths, idToName, pathIdToLabel);
+  renderResampleTable(data.points, data.constructs, data.paths, idToName, pathIdToLabel, data.has_p_values);
 }
 
 function ensureChartTypeToggle() {
@@ -438,7 +508,7 @@ function drawResampleCharts(data) {
   const pathIdToLabel = {};
   data.paths.forEach((p) => (pathIdToLabel[p.id] = `${p.source_name} → ${p.target_name}`));
 
-  // The two chart panel-cards are reused as-is from the shrinking-step mode
+  // The chart panel-cards are reused as-is from the shrinking-step mode
   // (same canvases, same DOM) -- only their heading/hint text changes to
   // describe whichever view is currently selected.
   const isLine = resampleChartType === "line";
@@ -449,6 +519,11 @@ function drawResampleCharts(data) {
   const pathCard = document.getElementById("pathChart").closest(".panel-card");
   pathCard.querySelector("h2").textContent = t("sens_resample_path_chart_title", { n: data.n_iterations, newN: data.new_n });
   pathCard.querySelector(".hint").textContent = t(hintKey);
+  if (data.has_p_values) {
+    const pvalueCard = document.getElementById("pvalueChart").closest(".panel-card");
+    pvalueCard.querySelector("h2").textContent = t("sens_resample_pvalue_chart_title", { n: data.n_iterations, newN: data.new_n });
+    pvalueCard.querySelector(".hint").textContent = t(isLine ? "sens_resample_pvalue_chart_hint_line" : "sens_resample_pvalue_chart_hint");
+  }
 
   if (isLine) {
     const r2Series = data.constructs.map((c, i) => ({
@@ -476,6 +551,22 @@ function drawResampleCharts(data) {
     drawLineChart("pathChart", "pathTooltip", "pathLegend", pathSeries, {
       xLabel: t("sens_th_iteration"), yLabel: t("sens_axis_coef"),
     });
+
+    if (data.has_p_values) {
+      const pvalueSeries = data.paths.map((p, i) => ({
+        id: "pval_" + p.id,
+        label: pathIdToLabel[p.id],
+        color: SERIES_COLORS[i] || SERIES_OTHER_COLOR,
+        dash: DASH_PATTERNS[i % DASH_PATTERNS.length],
+        shape: MARKER_SHAPES[i % MARKER_SHAPES.length],
+        hidden: hiddenSeriesIds.has("pval_" + p.id),
+        points: data.points.map((row) => ({ x: row.iteration, y: row.p_values ? row.p_values[p.id] : null, converged: row.converged })),
+      }));
+      drawLineChart("pvalueChart", "pvalueTooltip", "pvalueLegend", pvalueSeries, {
+        yMin: 0, yMax: 1, yFormat: (v) => v.toFixed(3), refLine: 0.05,
+        xLabel: t("sens_th_iteration"), yLabel: t("sens_axis_pvalue"),
+      });
+    }
     return;
   }
 
@@ -495,17 +586,45 @@ function drawResampleCharts(data) {
     values: converged.map((row) => row.paths[p.id]),
   }));
   drawBoxPlot("pathChart", "pathTooltip", "pathLegend", pathSeries, {});
+
+  if (data.has_p_values) {
+    const pvalueSeries = data.paths.map((p, i) => ({
+      id: "pval_" + p.id,
+      label: pathIdToLabel[p.id],
+      color: SERIES_COLORS[i] || SERIES_OTHER_COLOR,
+      values: converged.map((row) => row.p_values[p.id]).filter((v) => v !== null && v !== undefined),
+    }));
+    drawBoxPlot("pvalueChart", "pvalueTooltip", "pvalueLegend", pvalueSeries, {
+      yMin: 0, yMax: 1, yFormat: (v) => v.toFixed(3), refLine: 0.05,
+    });
+  }
 }
 
-function renderResampleTable(points, constructs, paths, idToName, pathIdToLabel) {
+function renderResampleTable(points, constructs, paths, idToName, pathIdToLabel, hasPValues) {
   let html = `<thead><tr><th>${t("sens_th_iteration")}</th><th>${t("sens_th_converged")}</th>`;
   constructs.forEach((c) => (html += `<th>R² ${escapeHtml(c.name)}</th>`));
-  paths.forEach((p) => (html += `<th>${escapeHtml(pathIdToLabel[p.id])}</th>`));
+  paths.forEach((p) => {
+    html += `<th>${escapeHtml(pathIdToLabel[p.id])}</th>`;
+    if (hasPValues) html += `<th>p (${escapeHtml(pathIdToLabel[p.id])})</th>`;
+  });
+  html += `<th>${t("sens_th_export_row")}</th>`;
   html += "</tr></thead><tbody>";
   for (const row of points) {
     html += `<tr><td>${row.iteration}</td><td>${row.converged ? t("sens_yes") : `<span class="badge warn">${t("sens_no")}</span>`}</td>`;
     constructs.forEach((c) => (html += `<td>${fmt(row.r_squared ? row.r_squared[c.id] : null)}</td>`));
-    paths.forEach((p) => (html += `<td>${fmt(row.paths ? row.paths[p.id] : null)}</td>`));
+    paths.forEach((p) => {
+      html += `<td>${fmt(row.paths ? row.paths[p.id] : null)}</td>`;
+      if (hasPValues) {
+        const pv = row.p_values ? row.p_values[p.id] : null;
+        if (pv === null || pv === undefined) {
+          html += `<td>${t("lbl_dash")}</td>`;
+        } else {
+          const badgeClass = pv < 0.05 ? "ok" : "warn";
+          html += `<td>${fmt(pv, 4)} <span class="badge ${badgeClass}">${pv < 0.05 ? t("lbl_significant") : t("lbl_not_significant")}</span></td>`;
+        }
+      }
+    });
+    html += `<td><button type="button" class="btn-small" title="${escapeHtml(t("sens_export_row_hint"))}" onclick="exportSensitivityRow(${row.iteration}, this)">${t("sens_export_row_btn")}</button></td>`;
     html += "</tr>";
   }
   html += "</tbody>";
@@ -767,6 +886,17 @@ function drawBoxPlot(canvasId, tooltipId, legendId, series, opts) {
   ctx.lineTo(PAD_L, PAD_T + plotH);
   ctx.lineTo(PAD_L + plotW, PAD_T + plotH);
   ctx.stroke();
+
+  if (opts.refLine !== undefined) {
+    const refY = yOf(opts.refLine);
+    ctx.strokeStyle = "#d64545";
+    ctx.setLineDash([5, 4]);
+    ctx.beginPath();
+    ctx.moveTo(PAD_L, refY);
+    ctx.lineTo(PAD_L + plotW, refY);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
 
   boxes.forEach((s, i) => {
     const cx = xOf(i);

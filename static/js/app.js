@@ -2750,6 +2750,13 @@ function renderInteractionSourcePicker(construct) {
     }
     errBox.classList.add("hidden");
     construct.interaction_of = sources;
+    // Keep the construct's own name in sync with its current sources --
+    // otherwise adding/swapping a source here (e.g. picking a third one to
+    // go from 2-way to 3-way) leaves a stale "A × B" name that silently
+    // drops a source every downstream label (path table, Simple Slopes,
+    // exports, AI report) reads directly from .name.
+    construct.name = sources.map((sid) => editor.getConstruct(sid)?.name).filter(Boolean).join(" × ") || construct.name;
+    document.getElementById("cName").value = construct.name;
     updateCalcMethodLock(sources.length === 3);
     editor.render();
     renderModelSummary();
@@ -3358,7 +3365,6 @@ function openSensitivityModal(method) {
         <div id="sensShrinkFields">
           <label>${t("sens_modal_step_label")}</label>
           <input type="number" id="sensStep" min="1" step="1" value="${suggestedStep}">
-          ${pvalueSection}
         </div>
 
         <div id="sensResampleFields" class="hidden">
@@ -3368,6 +3374,8 @@ function openSensitivityModal(method) {
           <input type="number" id="sensNIter" min="20" max="500" step="10" value="100">
           <p class="hint">${t("sens_modal_resample_hint")}</p>
         </div>
+
+        ${pvalueSection}
 
         <div id="sensModalError" class="error-box hidden"></div>
         <div class="modal-actions">
@@ -3412,6 +3420,17 @@ function openSensitivityModal(method) {
         new_n: newN, n_iterations: nIter, lang: getLang(),
         estimated_seconds: (nIter * PLS_MS_PER_FIT) / 1000,
       };
+      if (!isCbsem && document.getElementById("sensBootEnabled").checked) {
+        const nBoot = parseInt(document.getElementById("sensNBoot").value, 10);
+        if (!Number.isInteger(nBoot) || nBoot < 100) {
+          errBox.textContent = t("sens_modal_invalid_n_boot");
+          errBox.classList.remove("hidden");
+          return;
+        }
+        job.bootstrap = { enabled: true, n_boot: nBoot };
+        // Mirrors routes/sensitivity_api.py's own total_fits math for this route.
+        job.estimated_seconds = (nIter * nBoot * PLS_MS_PER_FIT) / 1000;
+      }
       sessionStorage.setItem("websem_sensitivity_job", JSON.stringify(job));
       root.innerHTML = "";
       window.open("/sensitivity", "_blank");
@@ -4023,9 +4042,19 @@ function buildSemReportContext(data, method) {
       "Độ dốc của biến dự báo chính lên biến đích tại ba mức của biến điều tiết (trung bình ± 1 độ lệch chuẩn); biểu đồ cho mỗi tương tác đã được đính kèm ở trên.",
       "Slope of the focal predictor on the target at three levels of the moderator (mean ± 1 SD); a chart per interaction is attached above.",
     ));
+    const outerLevelLabel = { low: L("−1 SD", "−1 SD"), mean: L("Trung bình", "Mean"), high: L("+1 SD", "+1 SD") };
     slopeCards.forEach((c) => {
       lines.push("");
-      lines.push(`### ${c.modName} × ${c.focalName} → ${c.targetName}`);
+      const heading = c.outerModName
+        ? `### ${c.outerModName} (${outerLevelLabel[c.outerLevelKey]}) × ${c.modName} × ${c.focalName} → ${c.targetName}`
+        : `### ${c.modName} × ${c.focalName} → ${c.targetName}`;
+      lines.push(heading);
+      if (c.outerModName) {
+        lines.push(L(
+          `Trong nhóm giữ ${c.outerModName} ở mức ${outerLevelLabel[c.outerLevelKey]}, độ dốc của biến chính theo ${c.modName}:`,
+          `Holding ${c.outerModName} at ${outerLevelLabel[c.outerLevelKey]}, the focal predictor's slope across ${c.modName}:`,
+        ));
+      }
       lines.push(`| ${L("Mức biến điều tiết", "Moderator level")} | ${L("Độ dốc đơn giản (β)", "Simple slope (β)")} |`);
       lines.push("|---|---|");
       lines.push(`| ${c.modName} ${L("tại −1 SD", "at −1 SD")} | ${fmt(c.slopeLow)} |`);
@@ -4042,44 +4071,83 @@ function buildSemReportContext(data, method) {
 // (unswapped default) and same b_focal*x + b_mod*z + b_int*x*z model as
 // renderSimpleSlopes/drawSimpleSlopesChart use for the on-screen chart.
 function buildSimpleSlopesCards(data, method, idToName) {
-  const interactions = data.constructs.filter((c) => c.mode === "I" && c.interaction_of && c.interaction_of.length === 2);
+  // 2-way: one card, slope of the focal predictor at -1SD/Mean/+1SD of the
+  // (single) moderator. 3-way: the SAME idea applied per level of the OUTER
+  // moderator -- within a fixed level z of the outer moderator, the model's
+  // Y = bFocal*X + bInnerMod*Z1 + bOuterMod*Z2 + bTriple*X*Z1*Z2 reduces to
+  // an ordinary 2-way interaction between X and Z1 with an EFFECTIVE
+  // interaction coefficient bTriple*z -- so three cards (one per outer
+  // level) reuse the exact same slope math as the 2-way case, just with
+  // that scaled interaction term substituted in.
+  const interactions = data.constructs.filter(
+    (c) => c.mode === "I" && c.interaction_of && (c.interaction_of.length === 2 || c.interaction_of.length === 3)
+  );
   const coefOf = {};
   data.structural.paths.forEach((p) => {
     coefOf[`${p.source}->${p.target}`] = method === "cbsem" ? p.std : p.coefficient;
   });
-  return interactions
-    .map((ic) => {
-      const targetPath = data.structural.paths.find((p) => p.source === ic.id);
-      if (!targetPath) return null;
-      const targetId = targetPath.target;
-      const [a, b] = ic.interaction_of;
-      const focalId = b, modId = a; // matches renderSimpleSlopes' default (unswapped) orientation
+  const out = [];
+  interactions.forEach((ic) => {
+    const targetPath = data.structural.paths.find((p) => p.source === ic.id);
+    if (!targetPath) return;
+    const targetId = targetPath.target;
+
+    if (ic.interaction_of.length === 3) {
+      const [a, b, c] = ic.interaction_of;
+      const focalId = c, innerModId = b, outerModId = a;
       const bFocal = coefOf[`${focalId}->${targetId}`] || 0;
-      const bMod = coefOf[`${modId}->${targetId}`] || 0;
-      const bInt = coefOf[`${ic.id}->${targetId}`] || 0;
-      return {
-        focalName: idToName[focalId], modName: idToName[modId], targetName: idToName[targetId],
-        slopeLow: bFocal - bInt, slopeMean: bFocal, slopeHigh: bFocal + bInt,
-      };
-    })
-    .filter(Boolean);
+      const bTriple = coefOf[`${ic.id}->${targetId}`] || 0;
+      [["low", -1], ["mean", 0], ["high", 1]].forEach(([outerLevelKey, z]) => {
+        const bIntEffective = bTriple * z;
+        out.push({
+          focalName: idToName[focalId], modName: idToName[innerModId], targetName: idToName[targetId],
+          outerModName: idToName[outerModId], outerLevelKey,
+          slopeLow: bFocal - bIntEffective, slopeMean: bFocal, slopeHigh: bFocal + bIntEffective,
+        });
+      });
+      return;
+    }
+
+    const [a, b] = ic.interaction_of;
+    const focalId = b, modId = a; // matches renderSimpleSlopes' default (unswapped) orientation
+    const bFocal = coefOf[`${focalId}->${targetId}`] || 0;
+    const bInt = coefOf[`${ic.id}->${targetId}`] || 0;
+    out.push({
+      focalName: idToName[focalId], modName: idToName[modId], targetName: idToName[targetId],
+      slopeLow: bFocal - bInt, slopeMean: bFocal, slopeHigh: bFocal + bInt,
+    });
+  });
+  return out;
 }
 
 function captureSimpleSlopesImages(data, gridId) {
-  const interactions = data.constructs.filter((c) => c.mode === "I" && c.interaction_of && c.interaction_of.length === 2);
+  const interactions = data.constructs.filter(
+    (c) => c.mode === "I" && c.interaction_of && (c.interaction_of.length === 2 || c.interaction_of.length === 3)
+  );
   const cards = interactions
-    .map((ic) => data.structural.paths.find((p) => p.source === ic.id))
+    .map((ic) => (data.structural.paths.find((p) => p.source === ic.id) ? ic : null))
     .filter(Boolean);
-  const idToName = {};
-  data.constructs.forEach((c) => (idToName[c.id] = c.name));
-  return cards
-    .map((_, i) => {
-      const canvas = document.getElementById(`${gridId}Chart${i}`);
-      if (!canvas || !canvas.width || !canvas.height) return null;
-      const title = document.getElementById(`${gridId}Title${i}`);
-      return { label: title ? title.textContent : t("ai_image_simple_slopes"), dataUrl: canvas.toDataURL("image/png") };
-    })
-    .filter(Boolean);
+  const images = [];
+  cards.forEach((ic, i) => {
+    const mainTitle = document.getElementById(`${gridId}Title${i}`);
+    const mainLabel = mainTitle ? mainTitle.textContent : t("ai_image_simple_slopes");
+    if (ic.interaction_of.length === 3) {
+      for (let pi = 0; pi < 3; pi++) {
+        const canvas = document.getElementById(`${gridId}Chart${i}_${pi}`);
+        if (!canvas || !canvas.width || !canvas.height) continue;
+        const panelTitle = document.getElementById(`${gridId}PanelTitle${i}_${pi}`);
+        images.push({
+          label: panelTitle ? `${mainLabel} — ${panelTitle.textContent}` : mainLabel,
+          dataUrl: canvas.toDataURL("image/png"),
+        });
+      }
+      return;
+    }
+    const canvas = document.getElementById(`${gridId}Chart${i}`);
+    if (!canvas || !canvas.width || !canvas.height) return;
+    images.push({ label: mainLabel, dataUrl: canvas.toDataURL("image/png") });
+  });
+  return images;
 }
 
 function openSemAiReportModal(method) {
@@ -4285,7 +4353,9 @@ function renderSimpleSlopes(data, sectionId, gridId) {
   const idToName = {};
   data.constructs.forEach((c) => (idToName[c.id] = c.name));
 
-  const interactions = data.constructs.filter((c) => c.mode === "I" && c.interaction_of && c.interaction_of.length === 2);
+  const interactions = data.constructs.filter(
+    (c) => c.mode === "I" && c.interaction_of && (c.interaction_of.length === 2 || c.interaction_of.length === 3)
+  );
   const cards = interactions
     .map((ic) => {
       const targetPath = data.structural.paths.find((p) => p.source === ic.id);
@@ -4306,8 +4376,30 @@ function renderSimpleSlopes(data, sectionId, gridId) {
   }
 
   grid.innerHTML = cards
-    .map(
-      (c, i) => `
+    .map((c, i) => {
+      if (c.ic.interaction_of.length === 3) {
+        // 3-way: three side-by-side panels, one per level of the OUTER
+        // moderator -- each panel is its own ordinary 3-line chart (see
+        // draw3Way below for why this is mathematically exact, not just a
+        // visual approximation). No swap button here (V1): the three roles
+        // (focal / inner moderator shown as 3 lines / outer moderator
+        // faceted into 3 panels) use a fixed default assignment.
+        return `
+      <div class="slope-card slope-card-3way" data-idx="${i}">
+        <div class="slope-card-header">
+          <h4 id="${gridId}Title${i}"></h4>
+        </div>
+        <div class="slope-3way-panels">
+          ${[0, 1, 2].map((pi) => `
+            <div class="slope-3way-panel">
+              <p class="slope-3way-panel-title" id="${gridId}PanelTitle${i}_${pi}"></p>
+              <div class="chart-wrap"><canvas id="${gridId}Chart${i}_${pi}"></canvas><div id="${gridId}Tooltip${i}_${pi}" class="chart-tooltip hidden"></div></div>
+              <div class="chart-legend" id="${gridId}Legend${i}_${pi}"></div>
+            </div>`).join("")}
+        </div>
+      </div>`;
+      }
+      return `
       <div class="slope-card" data-idx="${i}">
         <div class="slope-card-header">
           <h4 id="${gridId}Title${i}"></h4>
@@ -4315,14 +4407,69 @@ function renderSimpleSlopes(data, sectionId, gridId) {
         </div>
         <div class="chart-wrap"><canvas id="${gridId}Chart${i}"></canvas><div id="${gridId}Tooltip${i}" class="chart-tooltip hidden"></div></div>
         <div class="chart-legend" id="${gridId}Legend${i}"></div>
-      </div>`
-    )
+      </div>`;
+    })
     .join("");
 
   const swapped = cards.map(() => false);
 
+  function draw3Way(i) {
+    const { ic, targetId } = cards[i];
+    const [a, b, c] = ic.interaction_of;
+    const focalId = c, innerModId = b, outerModId = a;
+    const bFocal = coefOf[`${focalId}->${targetId}`] || 0;
+    const bInnerMod = coefOf[`${innerModId}->${targetId}`] || 0;
+    const bOuterMod = coefOf[`${outerModId}->${targetId}`] || 0;
+    const bTriple = coefOf[`${ic.id}->${targetId}`] || 0;
+
+    document.getElementById(`${gridId}Title${i}`).textContent =
+      `${idToName[outerModId]} × ${idToName[innerModId]} × ${idToName[focalId]} → ${idToName[targetId]}`;
+
+    const xs = [];
+    for (let x = -2; x <= 2.0001; x += 0.25) xs.push(Math.round(x * 100) / 100);
+
+    const outerLevels = [
+      { key: "low", z: -1, label: t("s3_slopes_low", { name: idToName[outerModId] }) },
+      { key: "mean", z: 0, label: t("s3_slopes_mean", { name: idToName[outerModId] }) },
+      { key: "high", z: 1, label: t("s3_slopes_high", { name: idToName[outerModId] }) },
+    ];
+    const innerLevels = [
+      { key: "low", z: -1, label: t("s3_slopes_low", { name: idToName[innerModId] }) },
+      { key: "mean", z: 0, label: t("s3_slopes_mean", { name: idToName[innerModId] }) },
+      { key: "high", z: 1, label: t("s3_slopes_high", { name: idToName[innerModId] }) },
+    ];
+
+    outerLevels.forEach((ol, pi) => {
+      document.getElementById(`${gridId}PanelTitle${i}_${pi}`).textContent = ol.label;
+      // Fixing the outer moderator at level `ol.z` reduces
+      // Y = bFocal*X + bInnerMod*Z1 + bOuterMod*Z2 + bTriple*X*Z1*Z2 to an
+      // ordinary 2-way interaction between X and Z1 with EFFECTIVE
+      // interaction coefficient bTriple*ol.z -- so at the outer moderator's
+      // mean (ol.z = 0) the three lines are exactly parallel (no visible
+      // interaction), which is the correct, substantive reading: the
+      // moderating effect of Z1 only emerges away from Z2's mean.
+      const bIntEffective = bTriple * ol.z;
+      const series = innerLevels.map((lv) => ({
+        id: lv.key,
+        label: lv.label,
+        color: SLOPE_LEVEL_COLORS[lv.key],
+        dash: SLOPE_LEVEL_DASH[lv.key],
+        points: xs.map((x) => ({
+          x, y: bFocal * x + bInnerMod * lv.z + bOuterMod * ol.z + bIntEffective * x * lv.z, converged: true,
+        })),
+      }));
+      drawSimpleSlopesChart(`${gridId}Chart${i}_${pi}`, `${gridId}Tooltip${i}_${pi}`, `${gridId}Legend${i}_${pi}`, series, {
+        xLabel: idToName[focalId], yLabel: idToName[targetId],
+      });
+    });
+  }
+
   function draw(i) {
     const { ic, targetId } = cards[i];
+    if (ic.interaction_of.length === 3) {
+      draw3Way(i);
+      return;
+    }
     const [a, b] = ic.interaction_of;
     const focalId = swapped[i] ? a : b;
     const modId = swapped[i] ? b : a;
