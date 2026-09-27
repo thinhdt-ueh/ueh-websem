@@ -83,8 +83,8 @@ function saveSession() {
     { const { attrs } = collectDemoAttrs(); if (attrs) aiGenState.demoAttributes = attrs; }
     expState.codebook = collectCodebook("expCodebookTableBody");
     { const { attrs } = collectDemoAttrs("expDemoAttrsTableBody"); if (attrs) expState.demoAttributes = attrs; }
-    // The condition-group DEFINITION drafts (substep 3, before "🎲 Chọn
-    // ngẫu nhiên Workers" is clicked) are a separate thing from
+    // The condition-group DEFINITION drafts (substep 3, before "🎲 Randomly
+    // select Workers" is clicked) are a separate thing from
     // expState.selectedGroups (the resulting random M-sized pick) -- both
     // are worth preserving independently.
     expState.groupDrafts = collectExpGroupDrafts();
@@ -414,7 +414,7 @@ function applyUploadResult(data) {
   refreshQualScorePanel();
 }
 
-// Server-authoritative visibility check for the "🤖 Chấm điểm câu hỏi mở"
+// Server-authoritative visibility check for the "🤖 Score open-ended questions"
 // toolbar button (Step 2) -- a plain upload/sample load has no AI-gen
 // metadata at all (404s here), which is exactly the confirmed scope
 // (AI-generated data only), so the button simply stays hidden for those
