@@ -32,12 +32,20 @@ Web app phân tích PLS-SEM & CB-SEM song ngữ (VI/EN), viết bằng Flask + c
 **AI-rater — chấm điểm câu hỏi mở (`routes/ai_qual_score_api.py`):**
 - Dùng chung cho cả AI Lab và AI Lab Experiment: chọn một cột định tính, viết rubric, AI chấm thành điểm Likert, gộp thẳng thành biến quan sát mới vào dữ liệu (ghi đè file CSV tại chỗ, cùng `file_id`). **Có thể chấm lại nhiều lần** trên cùng cột (khác rubric/tên biến) — không bị khoá sau lần đầu. Nút xuất CSV/Excel riêng ngay ở toolbar Bước 2 (Model Builder), luôn đọc dữ liệu mới nhất trên đĩa.
 
+**Biến giả (dummy) cho biến phân loại (`routes/dummy_api.py`):**
+- Nút "🔢 Tạo biến giả (dummy)" ở toolbar Bước 2, dùng cho mọi dữ liệu (upload thật, dữ liệu mẫu, dữ liệu AI). Mã hoá k−1 so với nhóm tham chiếu do người dùng chọn (mặc định nhóm đông nhất); cột có 2–12 giá trị khác nhau. Cột mới `{cột}_{giá trị}` ghi thẳng vào file dữ liệu cùng `file_id` (file .xlsx/.xls được chuyển một lần thành `{file_id}.csv` và xoá file gốc, để việc tìm file theo tiền tố `file_id` vẫn ra đúng 1 file). Giá trị thiếu giữ nguyên là NaN. Tuỳ chọn tự thêm construct đơn chỉ báo cho mỗi biến giả → dùng làm biến kiểm soát/biến độc lập.
+
 **Lưu session tự động (không có đăng nhập):**
 - Toàn bộ tiến trình (dữ liệu, sơ đồ mô hình + vị trí node, kết quả PLS/CB-SEM, tiến trình dở của cả 2 wizard AI) tự lưu vào `localStorage`, khôi phục khi mở lại trang. Nút "🗑 Xóa session" ở footer xoá sạch. Cơ chế: `saveSession()`/`restoreSession()` trong `static/js/app.js` — lưu ý thứ tự bên trong `restoreSession()`: phải chuyển step/tab TRƯỚC khi gọi `editor.loadFrom()` (canvas đo kích thước theo panel đang hiển thị) và phải gọi `renderModelSummary()` sau khi restore editor (không tự động, dễ quên).
 
 **Báo cáo & i18n:**
 - Xuất Excel/Word tự động, báo cáo sinh bằng AI (3 nhà cung cấp: OpenAI/Gemini/Claude, dùng API key riêng của người dùng, không lưu ở server).
-- Song ngữ VI/EN: 2 catalog tách biệt — `i18n.py` (backend) / `static/js/i18n.js` (frontend). Mặc định English.
+- Song ngữ VI/EN: 2 catalog tách biệt — `i18n.py` (backend) / `static/js/i18n.js` (frontend). Mặc định English. Đã rà soát: chọn EN thì không còn chuỗi tiếng Việt nào lộ ra (kể cả lý do bỏ qua Q² trong `pls/blindfolding.py`).
+
+**Tài liệu (`static/docs/`):**
+- `user_guide_vi.html`, `user_guide_en.html` (hướng dẫn nhanh) và `handbook.html` (sách song ngữ, 30 chương + phụ lục).
+- Ảnh chụp màn hình nằm ở `static/docs/images/{vi,en}/<key>.webp` — mỗi ngôn ngữ một bộ, handbook tự đổi ảnh theo nút chọn ngôn ngữ (không còn nhúng base64 trong HTML).
+- **Chụp lại toàn bộ ảnh** bằng `scripts/capture_doc_screenshots.py` (cần dev server đang chạy): Playwright chạy các luồng thật của app, mọi endpoint gọi AI được mock bằng `page.route` với nội dung minh hoạ, nên không cần API key. Tuỳ chọn `--lang`, `--scene`, `--only`. Chạy lại script này mỗi khi giao diện đổi.
 
 ## 3. Ba cách chạy/triển khai + phân phối file cài đặt
 
@@ -62,7 +70,7 @@ Web app phân tích PLS-SEM & CB-SEM song ngữ (VI/EN), viết bằng Flask + c
 
 ## 5. CI & test suite (khác hẳn bản handover cũ — lúc đó chưa có)
 
-- **`tests/`**: 20 file test, 296 test case, chạy bằng `pytest`. Bao phủ mọi route API chính, kể cả các tính năng AI (luôn mock lời gọi provider ở tầng `_call_openai`/`_call_gemini`/`_call_claude`, không bao giờ gọi API thật trong test).
+- **`tests/`**: 21 file test, 304 test case, chạy bằng `pytest`. Bao phủ mọi route API chính, kể cả các tính năng AI (luôn mock lời gọi provider ở tầng `_call_openai`/`_call_gemini`/`_call_claude`, không bao giờ gọi API thật trong test).
 - **`.github/workflows/tests.yml`**: chạy pytest tự động trên mọi push/PR vào `main`.
 - **`.github/workflows/build-macos.yml`**: build file macOS theo yêu cầu (`workflow_dispatch`) hoặc khi push tag `v*`.
 - Trước khi commit bất kỳ thay đổi backend nào, luôn chạy `.venv/Scripts/python.exe -m pytest -q` — quy ước đã áp dụng xuyên suốt các phiên gần đây, không có ngoại lệ.

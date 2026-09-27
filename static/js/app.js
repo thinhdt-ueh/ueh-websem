@@ -424,6 +424,7 @@ async function refreshQualScorePanel() {
   const csvBtn = document.getElementById("step2ExportCsvBtn");
   const excelBtn = document.getElementById("step2ExportExcelBtn");
   state.qualitativeColumns = [];
+  document.getElementById("dummyBtn").classList.toggle("hidden", !state.fileId);
   if (!state.fileId) {
     btn.classList.add("hidden");
     csvBtn.classList.add("hidden");
@@ -3006,8 +3007,8 @@ function openQualScoreModal() {
         <div class="ai-gen-form-row">
           <div>
             <label>${t("s1_ai_config_likert")}</label>
-            <label class="radio-row"><input type="radio" name="qualScoreLikert" value="5" checked> <span data-i18n="s1_ai_config_likert5">5 mức (1-5)</span></label>
-            <label class="radio-row"><input type="radio" name="qualScoreLikert" value="7"> <span data-i18n="s1_ai_config_likert7">7 mức (1-7)</span></label>
+            <label class="radio-row"><input type="radio" name="qualScoreLikert" value="5" checked> <span>${t("s1_ai_config_likert5")}</span></label>
+            <label class="radio-row"><input type="radio" name="qualScoreLikert" value="7"> <span>${t("s1_ai_config_likert7")}</span></label>
           </div>
           <div>
             <label>${t("s2_qual_score_new_column_label")}</label>
@@ -3192,6 +3193,151 @@ function openQualScoreModal() {
       errBox.classList.remove("hidden");
       document.getElementById("qualScoreRun").disabled = false;
       document.getElementById("qualScoreProgressWrap").classList.add("hidden");
+    }
+  };
+}
+
+// ---- Dummy (0/1) coding of a categorical column ----
+// k-1 treatment coding done server-side (/api/dummy/create) and written back
+// into the same file_id, so every analysis route sees the new columns as
+// ordinary numeric indicators -- usable as single-indicator control
+// variables or as a binary/categorical independent variable.
+document.getElementById("dummyBtn").addEventListener("click", () => {
+  if (state.fileId) openDummyModal();
+});
+
+function dummyNamePart(text) {
+  return String(text).replace(/[^\p{L}\p{N}_]+/gu, "_").replace(/^_+|_+$/g, "") || "x";
+}
+
+async function openDummyModal() {
+  const root = document.getElementById("modalRoot");
+  let candidates = [];
+  try {
+    const res = await fetch(`/api/dummy/candidates?file_id=${encodeURIComponent(state.fileId)}&lang=${getLang()}`);
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "error");
+    candidates = data.candidates || [];
+  } catch (err) {
+    showModelMessage(err.message);
+    return;
+  }
+  if (!candidates.length) {
+    showModelMessage(t("s2_dummy_no_candidates"));
+    return;
+  }
+
+  const columnOptionsHtml = candidates.map((c) =>
+    `<option value="${escapeAttr(c.column)}">${escapeHtml(c.column)} (${c.levels.length} ${t("s2_dummy_levels_suffix")})</option>`,
+  ).join("");
+
+  root.innerHTML = `
+    <div class="modal-backdrop">
+      <div class="modal-box modal-wide">
+        <h3>${t("s2_dummy_modal_title")}</h3>
+        <p class="hint">${t("s2_dummy_modal_hint")}</p>
+        <label>${t("s2_dummy_column_label")}</label>
+        <select id="dummyColumn">${columnOptionsHtml}</select>
+        <p class="hint" id="dummyMissingHint"></p>
+        <label>${t("s2_dummy_reference_label")}</label>
+        <div class="table-wrap">
+          <table class="result-table" id="dummyLevelTable">
+            <thead><tr>
+              <th>${t("s2_dummy_th_reference")}</th>
+              <th>${t("s2_dummy_th_level")}</th>
+              <th>${t("s2_dummy_th_count")}</th>
+              <th>${t("s2_dummy_th_new_column")}</th>
+            </tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+        <label class="radio-row" style="margin-top:10px">
+          <input type="checkbox" id="dummyAddConstructs" checked> <span>${t("s2_dummy_add_constructs")}</span>
+        </label>
+        <div id="dummyError" class="error-box hidden"></div>
+        <div class="modal-actions">
+          <button class="btn" id="dummyCancel">${t("modal_cancel")}</button>
+          <button class="btn primary" id="dummyCreate">${t("s2_dummy_create")}</button>
+        </div>
+      </div>
+    </div>`;
+
+  const columnSelect = document.getElementById("dummyColumn");
+  const tbody = document.querySelector("#dummyLevelTable tbody");
+  const selected = () => candidates.find((c) => c.column === columnSelect.value);
+
+  const renderNames = () => {
+    const cand = selected();
+    const ref = (document.querySelector('input[name="dummyRef"]:checked') || {}).value;
+    tbody.querySelectorAll("tr").forEach((tr) => {
+      const lv = tr.dataset.level;
+      tr.querySelector(".dummy-new-name").innerHTML = lv === ref
+        ? `<em>${t("s2_dummy_reference_baseline")}</em>`
+        : `<code>${escapeHtml(`${dummyNamePart(cand.column)}_${dummyNamePart(lv)}`)}</code>`;
+    });
+  };
+
+  const renderLevels = () => {
+    const cand = selected();
+    // Default reference = the most frequent level (a common, stable baseline).
+    const top = cand.levels.reduce((a, b) => (b.count > a.count ? b : a), cand.levels[0]);
+    tbody.innerHTML = cand.levels.map((lv) => `
+      <tr data-level="${escapeAttr(lv.value)}">
+        <td><input type="radio" name="dummyRef" value="${escapeAttr(lv.value)}" ${lv.value === top.value ? "checked" : ""}></td>
+        <td>${escapeHtml(lv.value)}</td>
+        <td>${lv.count}</td>
+        <td class="dummy-new-name"></td>
+      </tr>`).join("");
+    document.getElementById("dummyMissingHint").textContent =
+      cand.n_missing ? t("s2_dummy_missing_hint", { n: cand.n_missing }) : "";
+    renderNames();
+  };
+
+  columnSelect.addEventListener("change", renderLevels);
+  tbody.addEventListener("change", renderNames);
+  renderLevels();
+
+  document.getElementById("dummyCancel").onclick = () => (root.innerHTML = "");
+  document.getElementById("dummyCreate").onclick = async () => {
+    const errBox = document.getElementById("dummyError");
+    errBox.classList.add("hidden");
+    const reference = (document.querySelector('input[name="dummyRef"]:checked') || {}).value;
+    const btn = document.getElementById("dummyCreate");
+    btn.disabled = true;
+    try {
+      const res = await fetch("/api/dummy/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ file_id: state.fileId, column: columnSelect.value, reference, lang: getLang() }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "error");
+
+      state.columns = data.columns;
+      state.numericColumns = data.numeric_columns;
+      state.previewRows = data.preview;
+      state.nRows = data.n_rows;
+      updatePreviewTitle();
+      renderPreviewTable();
+
+      if (document.getElementById("dummyAddConstructs").checked && editor) {
+        const start = editor.constructs.length;
+        data.created.forEach((d, i) => {
+          const id = editor.addConstruct(d.column, "A", 90 + (i % 2) * 150, 60 + ((start + i) % 6) * 85);
+          editor.getConstruct(id).indicators = [d.column];
+        });
+        editor.render();
+        renderModelSummary();
+      }
+      root.innerHTML = "";
+      showModelMessage(t("s2_dummy_success", {
+        columns: data.created.map((d) => d.column).join(", "),
+        reference: data.reference,
+      }));
+    } catch (err) {
+      errBox.textContent = err.message;
+      errBox.classList.remove("hidden");
+      btn.disabled = false;
     }
   };
 }

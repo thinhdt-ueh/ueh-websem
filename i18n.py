@@ -64,6 +64,13 @@ _CATALOG: dict[str, dict[str, str]] = {
         "err_interaction_invalid_product_term": (
             "Biến tương tác '{name}': kiểu sinh product term (product term generation) không hợp lệ."
         ),
+        "err_dummy_bad_column": "Không tìm thấy cột '{name}' trong dữ liệu.",
+        "err_dummy_level_count": "Cột '{name}' phải có từ {min} đến {max} giá trị khác nhau để tạo biến giả.",
+        "err_dummy_bad_reference": "Nhóm tham chiếu (reference) không hợp lệ.",
+        "err_dummy_column_exists": "Cột đã tồn tại trong dữ liệu: {names}.",
+        "lbl_bf_skip_few_obs": "Không đủ quan sát so với omission distance.",
+        "lbl_bf_skip_no_pred": "Construct nội sinh nhưng không có predecessor (không nên xảy ra).",
+        "lbl_bf_skip_formative": "Formative (Mode B) — Q² qua blindfolding chỉ áp dụng cho construct reflective.",
         "lbl_blindfolding_skipped_moderation": (
             "Bỏ qua Q² (blindfolding): mô hình có biến điều tiết (moderation) nên không tương thích "
             "với phương pháp lược bỏ dữ liệu theo hàng dùng để tính Q²."
@@ -414,6 +421,13 @@ _CATALOG: dict[str, dict[str, str]] = {
         ),
         "err_interaction_invalid_calc_method": "Interaction term '{name}': invalid calculation method.",
         "err_interaction_invalid_product_term": "Interaction term '{name}': invalid product term generation setting.",
+        "err_dummy_bad_column": "Column '{name}' not found in the data.",
+        "err_dummy_level_count": "Column '{name}' needs between {min} and {max} distinct values to create dummy variables.",
+        "err_dummy_bad_reference": "Invalid reference category.",
+        "err_dummy_column_exists": "Column already exists in the data: {names}.",
+        "lbl_bf_skip_few_obs": "Not enough observations relative to the omission distance.",
+        "lbl_bf_skip_no_pred": "Endogenous construct has no predecessor (should not happen).",
+        "lbl_bf_skip_formative": "Formative (Mode B) — blindfolding Q² only applies to reflective constructs.",
         "lbl_blindfolding_skipped_moderation": (
             "Q² (blindfolding) skipped: the model contains a moderation (interaction) term, which is "
             "not compatible with the row-wise data-omission procedure Q² relies on."

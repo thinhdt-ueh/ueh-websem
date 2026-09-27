@@ -105,6 +105,7 @@
     <a href="#workflow">2. Quy trình 3 bước</a>
     <a href="#model">3. Xây dựng mô hình</a>
     <a class="sub" href="#reflective-formative">Reflective và formative</a>
+    <a class="sub" href="#dummy">Biến giả (dummy) &amp; biến kiểm soát</a>
     <a href="#mediator">4. Biến trung gian (Mediator)</a>
     <a class="sub" href="#mediator-example">Ví dụ minh hoạ (dữ liệu thật)</a>
     <a class="sub" href="#mediator-read">Đọc bảng Total &amp; Indirect Effects</a>
@@ -163,7 +164,7 @@
 
     <h2 id="workflow">2. Quy trình 3 bước</h2>
     <div class="step-grid">
-      <div class="step-card"><span class="n">1</span><h4>Tải dữ liệu</h4><p>CSV hoặc Excel, mỗi cột là một biến quan sát, mỗi dòng là một người trả lời (tối đa 5.000 dòng). Hoặc bấm <em>“Dùng dữ liệu mẫu”</em> để tải bộ dữ liệu Technology Acceptance Model (TAM) dùng xuyên suốt hướng dẫn này. Chưa có dữ liệu thật? Tab <strong>"🤖 AI Lab"</strong> ngay bên cạnh có thể sinh dữ liệu tổng hợp (mục 17), hoặc <strong>"🧪 AI Lab Experiment"</strong> nếu cần một thực nghiệm giữa-nhóm với các persona AI dùng lại được (mục 19).</p></div>
+      <div class="step-card"><span class="n">1</span><h4>Tải dữ liệu</h4><p>CSV hoặc Excel, mỗi cột là một biến quan sát, mỗi dòng là một người trả lời (tối đa 5.000 dòng). Hoặc bấm <em>“Dùng dữ liệu mẫu”</em> để tải bộ dữ liệu Technology Acceptance Model (TAM) dùng xuyên suốt hướng dẫn này. Chưa có dữ liệu thật? Tab <strong>"🤖 Phòng thí nghiệm với AI"</strong> ngay bên cạnh có thể sinh dữ liệu tổng hợp (mục 17), hoặc <strong>"🧪 AI Lab Experiment"</strong> nếu cần một thực nghiệm giữa-nhóm với các persona AI dùng lại được (mục 19).</p></div>
       <div class="step-card"><span class="n">2</span><h4>Xây dựng mô hình</h4><p>Nhấp đúp vào canvas (hoặc bấm “+ Construct”) để thêm construct, gán biến quan sát, rồi chuyển sang chế độ vẽ path để nối các construct bằng đường dẫn cấu trúc.</p></div>
       <div class="step-card"><span class="n">3</span><h4>Chạy &amp; đọc kết quả</h4><p>Chọn PLS-SEM hoặc CB-SEM, bật bootstrapping nếu cần, chạy phân tích, rồi đọc các bảng theo hướng dẫn này — sau đó xuất ra Excel/Word.</p></div>
     </div>
@@ -186,6 +187,25 @@ Nhận thức hữu ích (PU)       <span class="arrow">──▶</span> Thái �
 Nhận thức hữu ích (PU)       <span class="arrow">──▶</span> Ý định hành vi (INT)
 Thái độ (ATT)                 <span class="arrow">──▶</span> Ý định hành vi (INT)</div>
     <p>Chú ý PEOU <em>không có đường dẫn trực tiếp</em> đến Ý định — ảnh hưởng của nó chỉ đến được Ý định <em>thông qua</em> PU và Thái độ. Điều này khiến mô hình mẫu trở thành ví dụ minh hoạ mediation có sẵn, được dùng cho các con số thật bên dưới.</p>
+
+    <h3 id="dummy">Biến giả (dummy) cho biến phân loại &amp; biến kiểm soát</h3>
+    <p>Biến phân loại (giới tính, trình độ học vấn, nhóm thực nghiệm...) không thể đưa thẳng vào mô hình như một thang đo. Nút <strong>"🔢 Tạo biến giả (dummy)"</strong> ở thanh công cụ Bước 2 liệt kê mọi cột có từ 2 đến 12 giá trị khác nhau (dạng chữ hoặc mã số). Bạn chọn một cột rồi chọn <strong>nhóm tham chiếu</strong> (mặc định là nhóm đông nhất), AI-SEM sẽ mã hoá k−1: biến có k nhóm sinh ra k−1 cột 0/1, đặt tên <code>{cột}_{giá trị}</code>, và ghi thẳng vào dữ liệu.</p>
+    <ul>
+      <li>Nếu giữ ô <em>"Tự động thêm một construct đơn chỉ báo..."</em>, mỗi biến giả thành một construct 1 chỉ báo trên canvas. Chỉ cần nối đường dẫn từ đó tới biến phụ thuộc là dùng được — làm <strong>biến độc lập</strong> hoặc <strong>biến kiểm soát (control variable)</strong>.</li>
+      <li>Hệ số đường dẫn của mỗi biến giả là chênh lệch (chuẩn hoá) giữa nhóm đó và nhóm tham chiếu. Phải đưa <em>tất cả</em> k−1 biến giả của cùng một biến vào mô hình, không chọn lẻ.</li>
+      <li>Giá trị thiếu ở cột gốc được giữ nguyên là thiếu ở các cột biến giả.</li>
+      <li>Nếu mục đích là so sánh toàn bộ mô hình giữa các nhóm (chứ không chỉ kiểm soát), dùng <a href="#mga">PLS-MGA</a>.</li>
+    </ul>
+    <div class="screenshot-row">
+      <figure class="screenshot">
+        <img src="/static/docs/images/vi/40_dummy_modal.webp" alt="Hộp thoại tạo biến giả" loading="lazy">
+        <figcaption>Chọn biến phân loại (Education) và nhóm tham chiếu (HighSchool); cột bên phải cho biết tên các cột biến giả sẽ được tạo.</figcaption>
+      </figure>
+      <figure class="screenshot">
+        <img src="/static/docs/images/vi/41_dummy_canvas.webp" alt="Hai construct biến giả trên canvas" loading="lazy">
+        <figcaption>Education_Bachelor và Education_Master trở thành construct đơn chỉ báo, nối vào Ý định hành vi như biến kiểm soát.</figcaption>
+      </figure>
+    </div>
 
     <h2 id="mediator">4. Biến trung gian (Mediator)</h2>
     <p><strong>Mediator (biến trung gian)</strong> là một construct nội sinh (endogenous) nằm <em>giữa</em> một biến dự báo và một biến kết quả, truyền tải một phần hoặc toàn bộ tác động của biến dự báo. Trong mô hình TAM, cả <strong>Nhận thức hữu ích (PU)</strong> và <strong>Thái độ (ATT)</strong> đều đóng vai trò trung gian giữa PEOU và Ý định hành vi.</p>
@@ -270,21 +290,21 @@ Thái độ (ATT)                 <span class="arrow">──▶</span> Ý địn
     </div>
 
     <figure class="screenshot">
-      <img src="/static/docs/images/moderator-01-add-construct-modal.png" alt="Hộp thoại Thêm Construct mới với Loại đo lường được chọn là Biến tương tác/điều tiết">
-      <figcaption>Bấm “+ Construct” → đặt tên → chọn Loại đo lường là “Biến tương tác / điều tiết (Interaction, A × B)”. Hai ô Construct A/B xuất hiện ngay khi chọn loại này.</figcaption>
+      <img src="/static/docs/images/vi/35_add_construct_modal.webp" alt="Hộp thoại Thêm Construct mới với Loại đo lường được chọn là Biến tương tác/điều tiết">
+      <figcaption>Bấm “+ Construct” → đặt tên → chọn Loại đo lường là “Biến tương tác / điều tiết”. Các ô chọn Construct A/B/C xuất hiện ngay khi chọn loại này.</figcaption>
     </figure>
     <figure class="screenshot">
-      <img src="/static/docs/images/moderator-02-pick-sources.png" alt="Đã chọn Construct A và Construct B cho biến tương tác mới">
-      <figcaption>Chọn hai construct nguồn ở Construct A / Construct B (ở đây: Nhận thức hữu ích × Kinh nghiệm) rồi bấm “Add”. Model Overview bên phải liệt kê biến tương tác đã có sẵn trong mô hình mẫu (PEOU × Kinh nghiệm) để đối chiếu.</figcaption>
+      <img src="/static/docs/images/vi/37_interaction_sources_picked.webp" alt="Đã chọn Construct A và Construct B cho biến tương tác mới">
+      <figcaption>Chọn hai construct nguồn ở Construct A / Construct B (ở đây: Nhận thức hữu ích × Thái độ, trên dữ liệu mẫu TAM) rồi bấm “Thêm”.</figcaption>
     </figure>
     <div class="screenshot-row">
       <figure class="screenshot">
-        <img src="/static/docs/images/moderator-03-canvas-node.png" alt="Node biến tương tác mới xuất hiện trên canvas với viền nét đứt màu hổ phách">
-        <figcaption>Biến tương tác mới xuất hiện trên canvas với viền nét đứt màu hổ phách — chưa có path đi ra.</figcaption>
+        <img src="/static/docs/images/vi/38_canvas_with_interaction_node.webp" alt="Node biến tương tác mới xuất hiện trên canvas với viền nét đứt màu hổ phách">
+        <figcaption>Biến tương tác mới xuất hiện trên canvas với viền nét đứt màu hổ phách, nối nét đứt từ hai construct nguồn — chưa có path đi ra.</figcaption>
       </figure>
       <figure class="screenshot">
-        <img src="/static/docs/images/moderator-04-canvas-path.png" alt="Đã vẽ path từ biến tương tác mới đến Ý định hành vi">
-        <figcaption>Sau khi bấm “↗ Vẽ đường dẫn (Path)”, chọn node biến tương tác rồi chọn construct bị điều tiết: path mới xuất hiện, mô hình sẵn sàng chạy lại.</figcaption>
+        <img src="/static/docs/images/vi/39_canvas_with_moderation_path.webp" alt="Đã vẽ path từ biến tương tác mới đến Ý định hành vi">
+        <figcaption>Sau khi bấm “↗ Vẽ đường dẫn (Path)”, chọn node biến tương tác rồi chọn construct bị điều tiết (Ý định hành vi): path mới xuất hiện, mô hình sẵn sàng chạy lại.</figcaption>
       </figure>
     </div>
 
@@ -591,7 +611,7 @@ Thái độ (ATT)                 <span class="arrow">──▶</span> Ý địn
     <p>Mọi chỉ số fit thực dụng (CFI, TLI, RMSEA, SRMR, GFI, AGFI, NFI) đều vượt ngưỡng fit tốt; chỉ riêng kiểm định χ² là ở mức ranh giới, điều này bình thường và dễ hiểu — χ² gần như luôn bác bỏ với mẫu lớn hoặc không chuẩn ngay cả khi mô hình fit tốt, đó chính là lý do các chỉ số khác tồn tại.</p>
 
     <h2 id="export">15. Xuất báo cáo</h2>
-    <p>Cả bản xuất Excel (.xlsx) và Word (.docx) trên trang kết quả chính đều dựng lại toàn bộ bảng hiển thị trên màn hình — bao gồm Total &amp; Indirect Effects, Hiệu ứng gián tiếp cụ thể, Index of Moderated Mediation, và (khi có) các dòng biến tương tác cùng nhãn f² dành riêng cho moderation — trực tiếp từ lần phân tích bạn vừa chạy (không ước lượng lại, nên xuất file diễn ra ngay lập tức). Trang <strong>So sánh Machine Learning</strong> (mục 13) có nút xuất Excel/Word riêng, dựng lại bảng so sánh và kết quả chi tiết từng thuật toán theo cùng cách. Trong cả hai trường hợp, ngôn ngữ của báo cáo luôn theo ngôn ngữ (VI/EN) đang chọn trên giao diện <em>tại thời điểm xuất file</em>, không phụ thuộc vào ngôn ngữ lúc bạn chạy phân tích ban đầu.</p>
+    <p>Cả bản xuất Excel (.xlsx) và Word (.docx) trên trang kết quả chính đều dựng lại toàn bộ bảng hiển thị trên màn hình — bao gồm Total &amp; Indirect Effects, Hiệu ứng gián tiếp cụ thể, Index of Moderated Mediation, và (khi có) các dòng biến tương tác cùng nhãn f² dành riêng cho moderation — trực tiếp từ lần phân tích bạn vừa chạy (không ước lượng lại, nên xuất file diễn ra ngay lập tức). Trang <strong>So sánh Machine Learning</strong> (mục 13) có nút xuất Excel/Word riêng, dựng lại bảng so sánh và kết quả chi tiết từng thuật toán theo cùng cách. Trong cả hai trường hợp, ngôn ngữ của báo cáo luôn theo ngôn ngữ (VI/EN) đang chọn trên giao diện <em>tại thời điểm xuất file</em>, không phụ thuộc vào ngôn ngữ lúc bạn chạy phân tích ban đầu. Trang Sensitivity và Power Analysis không có nút xuất Excel/Word nhưng có nút <strong>"🤖 Báo cáo AI"</strong> riêng; bảng chi tiết của Sensitivity cho xuất CSV từng dòng (mục 11). Với dữ liệu do AI sinh ra, <strong>"⬇ Xuất Excel đầy đủ"</strong> ở Bước 2 xuất cả dữ liệu, hồ sơ người trả lời, thống kê mô tả, điều kiện thực nghiệm và toàn bộ prompt đã gửi AI.</p>
 
     <h2 id="faq">16. Xử lý sự cố thường gặp</h2>
     <ul>
@@ -599,6 +619,8 @@ Thái độ (ATT)                 <span class="arrow">──▶</span> Ý địn
       <li><strong>"Cần ít nhất 2 construct khác đã tồn tại để tạo biến tương tác."</strong> — Thêm và cấu hình ít nhất hai construct thông thường (không phải biến tương tác) trước khi chuyển loại đo lường của một construct thành "Biến tương tác / điều tiết".</li>
       <li><strong>Q² hiển thị thông báo bỏ qua thay vì một giá trị</strong> — đây là điều bình thường bất cứ khi nào mô hình chứa biến tương tác (xem mục 6); không phải là lỗi.</li>
       <li><strong>CB-SEM từ chối một construct formative</strong> — CB-SEM (Maximum Likelihood) chỉ hỗ trợ đo lường reflective (Mode A); hãy chuyển sang PLS-SEM, hoặc đổi loại đo lường của construct đó nếu phù hợp về mặt học thuật.</li>
+      <li><strong>Số quan sát khi chạy ít hơn số dòng trong file</strong> — dòng nào thiếu giá trị ở bất kỳ indicator nào trong mô hình sẽ bị loại theo dòng (listwise) trước khi ước lượng. Kiểm tra ô trống trong các cột đang dùng, hoặc bỏ indicator có nhiều giá trị thiếu.</li>
+      <li><strong>"Không có biến phân loại phù hợp" khi tạo biến giả</strong> — cần một cột có từ 2 đến 12 giá trị khác nhau. Cột có quá nhiều giá trị (ví dụ tuổi dạng số) nên được gộp nhóm trong file trước khi tải lên.</li>
       <li><strong>File tải lên bị từ chối vì quá nhiều dòng</strong> — công cụ giới hạn tối đa 5.000 dòng mỗi lần tải lên; hãy tổng hợp hoặc lấy mẫu bớt dữ liệu trước.</li>
       <li><strong>"PLSpredict chưa hỗ trợ mô hình có biến điều tiết"</strong> — đúng như thông báo, tính năng này hiện chưa xử lý được construct kiểu Interaction; hãy tạm bỏ biến tương tác ra khỏi mô hình (hoặc kiểm tra trên phiên bản mô hình không có moderator) nếu muốn chạy PLSpredict.</li>
       <li><strong>Nút IPMA không cho chọn construct nào cả</strong> — IPMA cần ít nhất một construct nội sinh (có path đi vào); nếu mô hình của bạn chỉ có construct ngoại sinh, hãy vẽ thêm path cấu trúc trước.</li>
@@ -610,7 +632,7 @@ Thái độ (ATT)                 <span class="arrow">──▶</span> Ý địn
     </ul>
 
     <h2 id="ailab">17. AI Lab</h2>
-    <p>Tab <strong>"🤖 AI Lab"</strong>, ngay bên cạnh "Upload data" ở Bước 1, cung cấp ba khả năng hỗ trợ bằng AI không cần dữ liệu thật để bắt đầu: tìm construct và biến quan sát từ tài liệu học thuật, sinh dữ liệu khảo sát tổng hợp để thử nghiệm mô hình trước khi thu thập dữ liệu thật, và để AI đề xuất hẳn một mô hình cấu trúc từ một tập construct. Cả ba đều gọi một nhà cung cấp AI (OpenAI, Google Gemini, hoặc Anthropic Claude) bằng <strong>API key riêng của bạn</strong>, gửi trực tiếp đến nhà cung cấp đó cho đúng một lượt gọi — không lưu lại ở máy chủ hay ghi log.</p>
+    <p>Tab <strong>"🤖 Phòng thí nghiệm với AI"</strong>, (AI Lab), ngay bên cạnh "📁 Tải lên dữ liệu" ở Bước 1, cung cấp ba khả năng hỗ trợ bằng AI không cần dữ liệu thật để bắt đầu: tìm construct và biến quan sát từ tài liệu học thuật, sinh dữ liệu khảo sát tổng hợp để thử nghiệm mô hình trước khi thu thập dữ liệu thật, và để AI đề xuất hẳn một mô hình cấu trúc từ một tập construct. Cả ba đều gọi một nhà cung cấp AI (OpenAI, Google Gemini, hoặc Anthropic Claude) bằng <strong>API key riêng của bạn</strong>, gửi trực tiếp đến nhà cung cấp đó cho đúng một lượt gọi — không lưu lại ở máy chủ hay ghi log. Nhà cung cấp, API key, model và temperature khai báo một lần ở đầu thẻ, dùng chung cho mọi bước; nút <strong>"⬇/⬆ Xuất/Nhập toàn bộ cấu hình (CSV)"</strong> lưu cả codebook, hồ sơ đối tượng và thiết lập để dùng lại (không bao giờ kèm API key).</p>
 
     <h3 id="ailab-construct-search">Tìm construct &amp; biến quan sát</h3>
     <p>Bấm <strong>"🔍 Tìm construct và biến quan sát bằng AI (tổng hợp học thuật)"</strong>, mô tả chủ đề/bối cảnh nghiên cứu (VD: "Ý định sử dụng ví điện tử của sinh viên, dựa trên mô hình TAM mở rộng"), và chọn số construct muốn đề xuất (1–10, mặc định 5). AI trả về mỗi construct kèm biến quan sát gợi ý, nội dung câu hỏi, và một trích dẫn kiểu APA làm căn cứ học thuật.</p>
@@ -619,22 +641,34 @@ Thái độ (ATT)                 <span class="arrow">──▶</span> Ý địn
       Nội dung trích dẫn do AI tạo ra, giống như mọi tài liệu tham khảo do AI gợi ý — hãy kiểm tra trích dẫn đó thực sự tồn tại và nói đúng như được nêu, trước khi đưa vào bài viết của bạn.
     </div>
     <p>Chọn những dòng bạn muốn và thêm thẳng vào bảng codebook bên dưới, được nhóm theo construct.</p>
+    <figure class="screenshot">
+      <img src="/static/docs/images/vi/45_ai_lab_construct_search.webp" alt="Kết quả tìm construct" loading="lazy">
+      <figcaption>Mỗi construct kèm trích dẫn APA + DOI và các biến quan sát gợi ý; tick chọn rồi bấm “+ Thêm mục đã chọn vào bảng”.</figcaption>
+    </figure>
 
     <h3 id="ailab-codebook">Định nghĩa codebook: định lượng (Likert) vs. định tính</h3>
-    <p>Mỗi dòng trong bảng codebook là một biến quan sát: tên cột, construct (tuỳ chọn — dùng để tạo sẵn construct trên canvas Bước 2), nội dung câu hỏi phỏng vấn, và một <strong>loại câu hỏi</strong> — "Định lượng (Likert)" (mặc định) hoặc "Định tính (văn bản)". Cột định lượng trở thành biến quan sát SEM dạng số, giống hệt cột trong file tải lên. Cột định tính được xử lý như thông tin ngữ cảnh dạng văn bản tự do — bị loại hoàn toàn khỏi dữ liệu phân tích, giống như tuổi/giới tính hiện đã vậy — và câu trả lời văn bản do AI sinh ra sẽ nằm trong sheet "Respondent Profile" khi xuất Excel, không phải sheet dữ liệu SEM. Dùng dòng định tính cho câu hỏi mở ("Bạn muốn cải thiện điều gì ở ứng dụng?") không nên gộp vào thang đo Likert.</p>
+    <p>Mỗi dòng trong bảng codebook là một biến quan sát: tên cột, construct (tuỳ chọn — dùng để tạo sẵn construct trên canvas Bước 2), nội dung câu hỏi phỏng vấn, và một <strong>loại câu hỏi</strong> — "Định lượng (Likert)" (mặc định) hoặc "Định tính (văn bản)". Cột định lượng trở thành biến quan sát SEM dạng số, giống hệt cột trong file tải lên. Cột định tính được xử lý như thông tin ngữ cảnh dạng văn bản tự do — bị loại hoàn toàn khỏi dữ liệu phân tích, giống như tuổi/giới tính hiện đã vậy — và câu trả lời văn bản do AI sinh ra sẽ nằm trong sheet "Respondent Profile" khi xuất Excel, không phải sheet dữ liệu SEM. Dùng dòng định tính cho câu hỏi mở ("Bạn muốn cải thiện điều gì ở ứng dụng?") không nên gộp vào thang đo Likert. Sau khi sinh dữ liệu, có thể dùng AI chấm điểm câu trả lời mở thành một biến quan sát Likert mới (mục 19).</p>
 
     <h3 id="ailab-generate">Sinh dữ liệu khảo sát bằng AI</h3>
-    <p>Bước 2 thu thập hồ sơ đối tượng khảo sát: độ tuổi, giới tính, nghề nghiệp/học vấn, khu vực, mô tả tự do về đối tượng khảo sát, và tối đa 6 thuộc tính demographic bổ sung tuỳ chọn (khoảng số hoặc danh sách phân loại). Bước 3 cấu hình nhà cung cấp, model, temperature, thang đo Likert (5 hoặc 7 mức), và số quan sát cần sinh (30–500 dòng, chia thành các lô tối đa 50 dòng mỗi lần gọi AI). Mỗi câu trả lời được AI sinh ra "nhập vai": model tự đặt một persona cho từng người trả lời giả định trước, sau đó trả lời mọi câu hỏi nhất quán với persona đó, kèm dao động tự nhiên khoảng ±1 điểm ở câu hỏi Likert (luôn giữ trong khoảng thang đo đã khai báo).</p>
+    <p>Bước 2 thu thập hồ sơ đối tượng khảo sát: độ tuổi, giới tính, nghề nghiệp/học vấn, khu vực, mô tả tự do về đối tượng khảo sát, và tối đa 6 thuộc tính demographic bổ sung tuỳ chọn (khoảng số hoặc danh sách phân loại). Bước 3 chọn thang đo Likert (5 hoặc 7 mức), số quan sát cần sinh (30–500 dòng) và số dòng mỗi lần gọi AI (1–50), kèm prompt hệ thống và yêu cầu gửi AI có thể chỉnh sửa, cùng bản xem trước đúng nội dung gửi cho lô đầu tiên. Bấm <strong>"▶ Sinh dữ liệu"</strong> để chạy; thanh tiến trình cập nhật theo từng lô. Mỗi câu trả lời được AI sinh ra "nhập vai": model tự đặt một persona cho từng người trả lời giả định trước, sau đó trả lời mọi câu hỏi nhất quán với persona đó, kèm dao động tự nhiên khoảng ±1 điểm ở câu hỏi Likert (luôn giữ trong khoảng thang đo đã khai báo).</p>
     <div class="callout warn">
       <strong class="label">Dữ liệu tổng hợp, không phải dữ liệu thật</strong>
       Đây tạo ra câu trả lời khảo sát <em>hợp lý</em> để thử nghiệm cấu trúc mô hình và cách diễn đạt câu hỏi trước khi thu thập dữ liệu thật — không thay thế cho việc khảo sát người trả lời thật, và kết quả từ đây không nên được trình bày như một phát hiện thực nghiệm.
     </div>
+    <figure class="screenshot">
+      <img src="/static/docs/images/vi/49_ai_lab_result.webp" alt="Kết quả sinh dữ liệu AI Lab" loading="lazy">
+      <figcaption>Sau khi sinh xong: xem trước dữ liệu, tải CSV/xuất Excel đầy đủ, hồ sơ đối tượng và thống kê mô tả; phần minh bạch prompt theo lô được thu gọn bên dưới.</figcaption>
+    </figure>
 
     <h3 id="ailab-skip">Bỏ qua, sang thiết kế mô hình</h3>
     <p>Chưa cần dữ liệu tổng hợp — chỉ muốn phác thảo construct và path cấu trúc trước? Điền codebook (Bước 1) rồi bấm <strong>"⏭ Bỏ qua, sang bước tạo mô hình"</strong> để chuyển thẳng sang Bước 2, với construct đã được tạo sẵn từ cột construct của codebook — không cần bước hồ sơ đối tượng hay sinh dữ liệu. Nút <strong>"▶ Chạy PLS Algorithm"</strong> vẫn bị vô hiệu hoá (kèm gợi ý) cho đến khi có dữ liệu thật — tải lên hoặc do AI sinh ra.</p>
 
     <h3 id="ailab-draw-paths">AI vẽ mô hình cấu trúc</h3>
     <p>Khi canvas có ít nhất 2 construct, bấm <strong>"🤖 AI vẽ mô hình"</strong> và thêm bối cảnh lý thuyết nếu cần. Khác với hai tính năng AI Lab khác, tính năng này hiển thị prompt có thể chỉnh sửa <em>trước khi</em> gửi cho AI — hãy xem lại và chỉnh nội dung system/user prompt được tạo sẵn, vì việc một construct có nên được coi là moderator hay không thường mang tính chủ quan về ngữ nghĩa mà AI có thể hiểu khác ý bạn. Sau khi gửi, hãy xem lại các path được đề xuất (và moderator được gợi ý, nếu có) trước khi áp dụng vào canvas.</p>
+    <figure class="screenshot">
+      <img src="/static/docs/images/vi/50_ai_draw_model.webp" alt="Xem trước mô hình AI đề xuất" loading="lazy">
+      <figcaption>Bỏ chọn path không muốn, đọc giải thích của AI rồi bấm “Áp dụng”.</figcaption>
+    </figure>
 
     <h3 id="ailab-save-all">Lưu toàn bộ đề xuất</h3>
     <p>Bấm <strong>"💾 Lưu toàn bộ đề xuất"</strong> ở Bước 2 để xuất file JSON mô hình — construct, path, và (khi có codebook) nội dung câu hỏi của từng biến quan sát cùng lý giải cấu trúc của AI nếu đã dùng "AI vẽ mô hình" trong lần làm việc này — cùng lúc với file Excel dữ liệu tổng hợp trong cùng một lần bấm, nếu dữ liệu hiện tại là do AI sinh ra.</p>
@@ -646,19 +680,47 @@ Thái độ (ATT)                 <span class="arrow">──▶</span> Ý địn
       <strong class="label">Mỗi nhóm cần đủ quan sát</strong>
       Nhóm quá nhỏ (dưới khoảng 30 quan sát) bị từ chối kèm thông báo rõ ràng, vì bootstrap trên một nhóm quá nhỏ không cho ra ước lượng đáng tin cậy. Với mô hình có biến điều tiết, PLS-MGA chỉ hỗ trợ construct Interaction dùng phương pháp Two-Stage (mục 6), không hỗ trợ Product-Indicator.
     </div>
+    <p>Với dữ liệu từ AI Lab Experiment, cột <code>condition_group</code> (mục 19) chính là biến phân nhóm. Nếu chỉ muốn <em>kiểm soát</em> khác biệt giữa các nhóm thay vì so sánh cả mô hình, dùng <a href="#dummy">biến giả</a>.</p>
+    <div class="screenshot-row">
+      <figure class="screenshot">
+        <img src="/static/docs/images/vi/42_mga_modal.webp" alt="Hộp thoại PLS-MGA" loading="lazy">
+        <figcaption>Chọn cột phân nhóm (Gender), gán giá trị cho nhóm A và nhóm B, đặt số lần bootstrap và hoán vị.</figcaption>
+      </figure>
+      <figure class="screenshot">
+        <img src="/static/docs/images/vi/43_mga_page.webp" alt="Trang kết quả PLS-MGA" loading="lazy">
+        <figcaption>Hệ số của từng nhóm, chênh lệch và p-value theo bốn phương pháp.</figcaption>
+      </figure>
+    </div>
 
     <h2 id="ailab-experiment">19. AI Lab Experiment</h2>
     <p>AI Lab (mục 17) sinh dữ liệu trong một lượt duy nhất, dùng một lần rồi bỏ. Tab <strong>"🧪 AI Lab Experiment"</strong>, cũng ở Bước 1, tách việc này thành hai giai đoạn để mô phỏng đúng một <strong>thực nghiệm giữa-nhóm (between-subjects)</strong>: dựng một <strong>Worker Pool</strong> — nhóm N "AI Worker" có persona và hồ sơ nhân khẩu học cố định, tạo một lần dùng lại nhiều lần — rồi chạy nhiều thực nghiệm khảo sát khác nhau trên cùng Worker Pool đó, mỗi lần chọn ngẫu nhiên M ≤ N worker và chia vào các nhóm điều kiện khác nhau.</p>
 
     <h3 id="ailab-experiment-pool">Định nghĩa quần thể &amp; sinh Worker Pool</h3>
     <p>Bước 1 mô tả quần thể mục tiêu, cấu hình nhân khẩu học (tuổi, xu hướng giới tính, nghề nghiệp, khu vực, tối đa 6 thuộc tính tuỳ chỉnh) và chọn N (30–500). Khác với AI Lab: <strong>nhân khẩu học không do AI tự chọn</strong> — tuổi, giới tính, và mọi thuộc tính tuỳ chỉnh được gán bằng số ngẫu nhiên có seed cố định trước khi gọi AI ("cân bằng" nghĩa là đúng 50/50, không phải AI "cố gắng" ra khoảng đó); AI chỉ còn viết một câu persona khớp với các con số đã ấn định sẵn. Ở Bước 2, <strong>"⬇ Xuất Worker Pool (Excel)"</strong> / <strong>"⬆ Import Worker Pool có sẵn (Excel)"</strong> cho phép lưu lại và tái sử dụng đúng một nhóm "người tham gia" ở phiên làm việc khác.</p>
+    <figure class="screenshot">
+      <img src="/static/docs/images/vi/54_exp_pool_ready.webp" alt="Worker Pool đã sẵn sàng" loading="lazy">
+      <figcaption>Worker Pool: persona do AI viết; tuổi và giới tính do bộ sinh số ngẫu nhiên gán trước.</figcaption>
+    </figure>
 
     <h3 id="ailab-experiment-design">Thiết kế thực nghiệm: bối cảnh chung &amp; thao túng theo nhóm</h3>
     <p>Bước 3 chọn M ≤ N rồi định nghĩa nhóm điều kiện theo đúng logic thực nghiệm giữa-nhóm: một ô <strong>"Bối cảnh chung"</strong> nhập một lần cho tình huống nền TẤT CẢ người tham gia đều trải qua giống nhau, còn mỗi nhóm trong bảng chỉ nhập phần <strong>"Thao túng"</strong> — biến độc lập thực sự khác nhau giữa các nhóm. Bấm <strong>"🎲 Chọn ngẫu nhiên Workers"</strong> để xáo trộn thật (không seed cố định, mỗi lần một kết quả khác) và chia đúng M worker vào các nhóm; worker còn lại bị loại và liệt kê riêng để minh bạch. Bảng câu hỏi khảo sát khai báo như AI Lab, có thêm nút xuất/nhập định nghĩa (JSON) dùng chung định dạng với mục 17.</p>
+    <figure class="screenshot">
+      <img src="/static/docs/images/vi/55_exp_design.webp" alt="Thiết kế thực nghiệm" loading="lazy">
+      <figcaption>Bối cảnh chung, hai nhóm thao túng, kết quả chia ngẫu nhiên Worker và codebook khảo sát.</figcaption>
+    </figure>
 
     <h3 id="ailab-experiment-score">Sinh câu trả lời &amp; chấm điểm câu hỏi mở</h3>
     <p>AI trả lời khảo sát đúng vai từng worker đã chọn (không bịa persona mới), dưới ảnh hưởng của bối cảnh chung + thao túng riêng nhóm; mỗi lô gọi AI chỉ nhận hồ sơ của đúng những worker trong lô đó, không phải cả nhóm. Dữ liệu hoàn tất có thêm cột <strong>"condition_group"</strong> — dùng trực tiếp làm biến phân nhóm cho PLS-MGA (mục 18) để kiểm định thao túng có tạo khác biệt có ý nghĩa thống kê hay không.</p>
+    <p>Trước khi chạy, <strong>"🔍 Xem trước Prompt"</strong> hiển thị (và cho chỉnh sửa) toàn bộ prompt sẽ gửi cho từng nhóm; trong lúc chạy, mục <em>Minh bạch prompt</em> (thu gọn mặc định) cập nhật theo từng lô.</p>
+    <figure class="screenshot">
+      <img src="/static/docs/images/vi/57_exp_result.webp" alt="Dữ liệu thực nghiệm hoàn tất" loading="lazy">
+      <figcaption>Dữ liệu thực nghiệm hoàn tất, có cột condition_group để dùng cho PLS-MGA.</figcaption>
+    </figure>
     <p>Nút <strong>"🤖 Chấm điểm câu hỏi mở"</strong> ở thanh công cụ Bước 2 (hiện ra khi dữ liệu — do AI Lab hoặc AI Lab Experiment sinh ra — có cột định tính) cho phép chọn một cột định tính, viết tiêu chí chấm điểm (rubric), rồi để AI đọc từng câu trả lời và chấm thành điểm Likert, tạo một biến quan sát mới gộp thẳng vào dữ liệu — dùng ngay trong mô hình. Có thể chấm lại nhiều lần trên cùng một cột (đổi rubric, thử cách chấm khác), mỗi lần chỉ cần đặt tên biến mới không trùng. Hai nút <strong>"⬇ Xuất CSV dữ liệu"</strong> / <strong>"⬇ Xuất Excel đầy đủ"</strong> ngay cạnh đó luôn đọc dữ liệu mới nhất, tự động gồm mọi biến vừa chấm điểm.</p>
+    <figure class="screenshot">
+      <img src="/static/docs/images/vi/51_qual_score_modal.webp" alt="Hộp thoại chấm điểm câu hỏi mở" loading="lazy">
+      <figcaption>Chấm điểm câu hỏi mở: chọn cột, viết rubric, chọn thang Likert và đặt tên biến mới.</figcaption>
+    </figure>
   </main>
 </div>
 

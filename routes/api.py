@@ -229,7 +229,7 @@ def analyze():
         }
     else:
         try:
-            bf = run_blindfolding(model, result.data)
+            bf = run_blindfolding(model, result.data, lang=lang)
             blindfolding_summary = {
                 "omission_distance": bf.omission_distance,
                 "q_squared": {cid: _round_or_none(v) for cid, v in bf.q_squared.items()},

@@ -31,6 +31,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from i18n import DEFAULT_LANG, t
 import numpy as np
 import pandas as pd
 
@@ -51,6 +52,7 @@ def run_blindfolding(
     model: Model,
     original_data: pd.DataFrame,
     omission_distance: int = DEFAULT_OMISSION_DISTANCE,
+    lang: str = DEFAULT_LANG,
 ) -> BlindfoldingResult:
     targets = [
         cid
@@ -65,14 +67,14 @@ def run_blindfolding(
 
     if D >= n:
         for cid in targets:
-            skipped[cid] = "Không đủ quan sát so với omission distance."
+            skipped[cid] = t("lbl_bf_skip_few_obs", lang)
         return BlindfoldingResult(D, q_squared, skipped)
 
     for cid in targets:
         block_cols = model.constructs[cid].indicators
         preds = model.predecessors(cid)
         if not preds:
-            skipped[cid] = "Construct nội sinh nhưng không có predecessor (không nên xảy ra)."
+            skipped[cid] = t("lbl_bf_skip_no_pred", lang)
             continue
 
         sse_total = 0.0
@@ -111,6 +113,6 @@ def run_blindfolding(
         cid for cid in model.endogenous_ids() if model.constructs[cid].mode != "A"
     ]
     for cid in non_reflective_endogenous:
-        skipped[cid] = "Formative (Mode B) — Q² qua blindfolding chỉ áp dụng cho construct reflective."
+        skipped[cid] = t("lbl_bf_skip_formative", lang)
 
     return BlindfoldingResult(D, q_squared, skipped)

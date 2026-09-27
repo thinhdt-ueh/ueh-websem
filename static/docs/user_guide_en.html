@@ -105,6 +105,7 @@
     <a href="#workflow">2. Three-step workflow</a>
     <a href="#model">3. Building a model</a>
     <a class="sub" href="#reflective-formative">Reflective vs. formative</a>
+    <a class="sub" href="#dummy">Dummy &amp; control variables</a>
     <a href="#mediator">4. Mediator constructs</a>
     <a class="sub" href="#mediator-example">Worked example (real data)</a>
     <a class="sub" href="#mediator-read">Reading Total &amp; Indirect Effects</a>
@@ -186,6 +187,25 @@ Perceived Usefulness (PU)    <span class="arrow">──▶</span> Attitude (ATT)
 Perceived Usefulness (PU)    <span class="arrow">──▶</span> Behavioral Intention (INT)
 Attitude (ATT)                <span class="arrow">──▶</span> Behavioral Intention (INT)</div>
     <p>Notice PEOU has <em>no direct arrow</em> to Intention — its influence only reaches Intention <em>through</em> PU and Attitude. That makes this sample model a ready-made illustration of mediation, which we use for real numbers below.</p>
+
+    <h3 id="dummy">Dummy variables for categorical data &amp; control variables</h3>
+    <p>A categorical variable (gender, education level, experimental group...) can't enter the model directly as a scale. The <strong>"🔢 Create dummy variables"</strong> button in the Step 2 toolbar lists every column with 2 to 12 distinct values (text or numeric codes). Pick one and choose the <strong>reference category</strong> (the largest group by default), and AI-SEM applies k−1 coding: a variable with k categories yields k−1 columns of 0/1, named <code>{column}_{value}</code>, written straight into the data.</p>
+    <ul>
+      <li>With <em>"Automatically add a single-indicator construct..."</em> left on, each dummy becomes a one-indicator construct on the canvas. Just draw a path from it to the dependent variable to use it as an <strong>independent variable</strong> or a <strong>control variable</strong>.</li>
+      <li>Each dummy's path coefficient is the (standardized) difference between that category and the reference. Include <em>all</em> k−1 dummies of the same variable in the model, not a subset.</li>
+      <li>Missing values in the source column stay missing in the dummy columns.</li>
+      <li>To compare the whole model across groups (rather than just control for group), use <a href="#mga">PLS-MGA</a>.</li>
+    </ul>
+    <div class="screenshot-row">
+      <figure class="screenshot">
+        <img src="/static/docs/images/en/40_dummy_modal.webp" alt="Create dummy variables dialog" loading="lazy">
+        <figcaption>Pick the categorical variable (Education) and the reference category (HighSchool); the right-hand column shows the dummy columns that will be created.</figcaption>
+      </figure>
+      <figure class="screenshot">
+        <img src="/static/docs/images/en/41_dummy_canvas.webp" alt="Two dummy constructs on the canvas" loading="lazy">
+        <figcaption>Education_Bachelor and Education_Master become single-indicator constructs, wired into Behavioral Intention as control variables.</figcaption>
+      </figure>
+    </div>
 
     <h2 id="mediator">4. Mediator constructs</h2>
     <p>A <strong>mediator</strong> is an endogenous (dependent) construct that sits <em>between</em> a predictor and an outcome, transmitting part or all of the predictor's effect. In the TAM model, <strong>Perceived Usefulness</strong> and <strong>Attitude</strong> both act as mediators between PEOU and Behavioral Intention.</p>
@@ -270,21 +290,21 @@ Attitude (ATT)                <span class="arrow">──▶</span> Behavioral In
     </div>
 
     <figure class="screenshot">
-      <img src="/static/docs/images/moderator-01-add-construct-modal.png" alt="Add New Construct dialog with Measurement type set to Interaction / moderation term">
-      <figcaption>Click “+ Construct” → enter a name → set Measurement type to “Interaction / moderation term (A × B)”. The Construct A/B pickers appear as soon as this type is selected.</figcaption>
+      <img src="/static/docs/images/en/35_add_construct_modal.webp" alt="Add New Construct dialog with Measurement type set to Interaction / moderation term">
+      <figcaption>Click “+ Construct” → enter a name → set Measurement type to “Interaction / moderation term”. The Construct A/B/C pickers appear as soon as this type is selected.</figcaption>
     </figure>
     <figure class="screenshot">
-      <img src="/static/docs/images/moderator-02-pick-sources.png" alt="Construct A and Construct B chosen for the new interaction term">
-      <figcaption>Pick the two source constructs in Construct A / Construct B (here: Perceived Usefulness × Experience), then click “Add”. The Model Overview panel on the right already lists one interaction term from the sample model (PEOU × Experience) for comparison.</figcaption>
+      <img src="/static/docs/images/en/37_interaction_sources_picked.webp" alt="Construct A and Construct B chosen for the new interaction term">
+      <figcaption>Pick the two source constructs in Construct A / Construct B (here: Perceived Usefulness × Attitude, on the TAM sample), then click “Add”.</figcaption>
     </figure>
     <div class="screenshot-row">
       <figure class="screenshot">
-        <img src="/static/docs/images/moderator-03-canvas-node.png" alt="New interaction node appears on the canvas with a dashed amber border">
-        <figcaption>The new interaction term appears on the canvas with a dashed amber border — no outgoing path yet.</figcaption>
+        <img src="/static/docs/images/en/38_canvas_with_interaction_node.webp" alt="New interaction node appears on the canvas with a dashed amber border">
+        <figcaption>The new interaction term appears on the canvas with a dashed amber border and dashed connectors from both sources — no outgoing path yet.</figcaption>
       </figure>
       <figure class="screenshot">
-        <img src="/static/docs/images/moderator-04-canvas-path.png" alt="A path has been drawn from the new interaction term to Behavioral Intention">
-        <figcaption>After clicking “↗ Draw path”, click the interaction node then the moderated construct: the new path appears and the model is ready to re-run.</figcaption>
+        <img src="/static/docs/images/en/39_canvas_with_moderation_path.webp" alt="A path has been drawn from the new interaction term to Behavioral Intention">
+        <figcaption>After clicking “↗ Draw path”, click the interaction node then the moderated construct (Behavioral Intention): the new path appears and the model is ready to re-run.</figcaption>
       </figure>
     </div>
 
@@ -591,7 +611,7 @@ Attitude (ATT)                <span class="arrow">──▶</span> Behavioral In
     <p>Every practical fit index (CFI, TLI, RMSEA, SRMR, GFI, AGFI, NFI) clears its good-fit cutoff; only the χ² test itself is marginal, which is normal and expected — χ² almost always rejects large or non-normal samples even for a well-fitting model, which is exactly why the other indices exist.</p>
 
     <h2 id="export">15. Exporting reports</h2>
-    <p>Both the Excel (.xlsx) and Word (.docx) exports on the main results page rebuild every table shown on screen — including Total &amp; Indirect Effects, Specific Indirect Effects, Index of Moderated Mediation, and (when present) interaction-term rows and moderation-specific f² labels — directly from the analysis you just ran (no re-estimation, so exporting is instant). The <strong>Machine Learning Comparison</strong> page (§13) has its own separate Excel/Word export, rebuilding its comparison table and per-algorithm detail the same way. In both cases, the report's language always follows whichever language (VI/EN) is selected in the interface <em>at export time</em>, independent of the language used when you originally ran the analysis.</p>
+    <p>Both the Excel (.xlsx) and Word (.docx) exports on the main results page rebuild every table shown on screen — including Total &amp; Indirect Effects, Specific Indirect Effects, Index of Moderated Mediation, and (when present) interaction-term rows and moderation-specific f² labels — directly from the analysis you just ran (no re-estimation, so exporting is instant). The <strong>Machine Learning Comparison</strong> page (§13) has its own separate Excel/Word export, rebuilding its comparison table and per-algorithm detail the same way. In both cases, the report's language always follows whichever language (VI/EN) is selected in the interface <em>at export time</em>, independent of the language used when you originally ran the analysis. The Sensitivity and Power Analysis pages have no Excel/Word export but do have their own <strong>"🤖 AI Report"</strong> button; the Sensitivity detail table exports a CSV per row (§11). For AI-generated data, <strong>"⬇ Export full (Excel)"</strong> in Step 2 exports the data, respondent profiles, descriptive statistics, experimental conditions, and every prompt sent to the AI.</p>
 
     <h2 id="faq">16. Troubleshooting</h2>
     <ul>
@@ -599,6 +619,8 @@ Attitude (ATT)                <span class="arrow">──▶</span> Behavioral In
       <li><strong>“Need at least 2 other constructs to create an interaction term.”</strong> — Add and configure at least two ordinary (non-interaction) constructs before switching a construct's type to “Interaction / moderation term”.</li>
       <li><strong>Q² shows a skip message instead of a value</strong> — this is expected whenever the model contains an interaction term (see §6); it does not indicate an error.</li>
       <li><strong>CB-SEM rejects a formative construct</strong> — CB-SEM (Maximum Likelihood) only supports reflective (Mode A) measurement; switch the construct to PLS-SEM, or change its measurement type if that's substantively appropriate.</li>
+      <li><strong>The analysis uses fewer observations than the file has rows</strong> — any row missing a value on any indicator in the model is dropped (listwise) before estimation. Check for blank cells in the columns you use, or drop an indicator with many missing values.</li>
+      <li><strong>"No suitable categorical variable" when creating dummies</strong> — you need a column with 2 to 12 distinct values. A column with too many values (e.g. numeric age) should be binned in the file before uploading.</li>
       <li><strong>File upload rejected for too many rows</strong> — the tool caps uploads at 5,000 rows; aggregate or sample your dataset down first.</li>
       <li><strong>"PLSpredict doesn't yet support models with an interaction/moderation construct"</strong> — exactly as stated; this feature doesn't yet handle Interaction-type constructs. Temporarily remove the interaction term from the model (or check on a moderator-free version of it) if you want to run PLSpredict.</li>
       <li><strong>The IPMA button has no constructs to choose from</strong> — IPMA needs at least one endogenous construct (something with an incoming path); if your model is all-exogenous, draw a structural path first.</li>
@@ -610,7 +632,7 @@ Attitude (ATT)                <span class="arrow">──▶</span> Behavioral In
     </ul>
 
     <h2 id="ailab">17. AI Lab</h2>
-    <p>The <strong>"🤖 AI Lab"</strong> tab, next to "Upload data" in Step 1, offers three AI-assisted capabilities that don't require a real dataset to start from: searching the literature for constructs and indicators, generating a synthetic survey dataset to pilot a model before real data collection, and letting AI propose a full structural model from a set of constructs. All three call an AI provider (OpenAI, Google Gemini, or Anthropic Claude) using <strong>your own API key</strong>, sent directly to that provider for the one request being made — never stored server-side or logged.</p>
+    <p>The <strong>"🤖 AI Lab"</strong> tab, next to "📁 Upload data" in Step 1, offers three AI-assisted capabilities that don't require a real dataset to start from: searching the literature for constructs and indicators, generating a synthetic survey dataset to pilot a model before real data collection, and letting AI propose a full structural model from a set of constructs. All three call an AI provider (OpenAI, Google Gemini, or Anthropic Claude) using <strong>your own API key</strong>, sent directly to that provider for the one request being made — never stored server-side or logged. The provider, API key, model, and temperature are set once at the top of the tab and shared by every step; <strong>"⬇/⬆ Export/Import full configuration (CSV)"</strong> saves the codebook, respondent profile, and settings for reuse (never including the API key).</p>
 
     <h3 id="ailab-construct-search">Searching for constructs &amp; indicators</h3>
     <p>Click <strong>"🔍 Search constructs &amp; indicators with AI (literature review)"</strong>, describe your research topic/context (e.g. "Students' intention to use mobile wallets, based on an extended TAM"), and choose how many constructs to propose (1–10, default 5). The AI returns each construct with suggested indicators, question wording, and an APA-style citation grounding it in existing literature.</p>
@@ -619,22 +641,34 @@ Attitude (ATT)                <span class="arrow">──▶</span> Behavioral In
       The citation text is AI-generated, exactly like any AI-suggested reference — check it actually exists and says what's claimed before citing it in your own paper.
     </div>
     <p>Select the rows you want and add them straight into the codebook table below, grouped by construct.</p>
+    <figure class="screenshot">
+      <img src="/static/docs/images/en/45_ai_lab_construct_search.webp" alt="Construct search results" loading="lazy">
+      <figcaption>Each construct comes with an APA citation + DOI and suggested indicators; tick the ones you want, then click “+ Add selected to table”.</figcaption>
+    </figure>
 
     <h3 id="ailab-codebook">Defining the codebook: quantitative (Likert) vs. qualitative questions</h3>
-    <p>Every row in the codebook table is one observed variable: a column name, its construct (optional — used to pre-seed Step 2's canvas), the interview question wording, and a <strong>question type</strong> — "Quantitative (Likert)" (the default) or "Qualitative (text)". Likert columns become numeric candidate SEM indicators, exactly like an uploaded file's columns. Qualitative columns are treated as free-text respondent context instead — kept out of the analyzable dataset entirely, the same way age/gender already are — and their AI-generated text answers land in the exported "Respondent Profile" sheet, not the SEM data sheet. Use a qualitative row for an open-ended question ("What would you improve about the app?") that has no business being averaged into a Likert scale.</p>
+    <p>Every row in the codebook table is one observed variable: a column name, its construct (optional — used to pre-seed Step 2's canvas), the interview question wording, and a <strong>question type</strong> — "Quantitative (Likert)" (the default) or "Qualitative (text)". Likert columns become numeric candidate SEM indicators, exactly like an uploaded file's columns. Qualitative columns are treated as free-text respondent context instead — kept out of the analyzable dataset entirely, the same way age/gender already are — and their AI-generated text answers land in the exported "Respondent Profile" sheet, not the SEM data sheet. Use a qualitative row for an open-ended question ("What would you improve about the app?") that has no business being averaged into a Likert scale. Once data is generated, the AI can score those open-ended answers into a new Likert indicator (§19).</p>
 
     <h3 id="ailab-generate">Generating synthetic survey data</h3>
-    <p>Step 2 collects the respondent profile: age range, gender mix, occupation/education, location, a free-text description of the target population, and up to 6 optional custom demographic attributes (numeric range or categorical list). Step 3 sets the provider, model, temperature, Likert scale (5 or 7 points), and how many observations to generate (30–500 rows, chunked into batches of up to 50 per AI call). Every AI answer is generated in character: the model invents a persona per simulated respondent first, then answers every question consistently with that persona, with realistic ~1-point variation on Likert items (clamped to the declared scale).</p>
+    <p>Step 2 collects the respondent profile: age range, gender mix, occupation/education, location, a free-text description of the target population, and up to 6 optional custom demographic attributes (numeric range or categorical list). Step 3 sets the Likert scale (5 or 7 points), how many observations to generate (30–500 rows), and the rows per AI call (1–50), with an editable system prompt and request plus a preview of exactly what the first batch sends. Click <strong>"▶ Generate data"</strong> to run; the progress bar updates batch by batch. Every AI answer is generated in character: the model invents a persona per simulated respondent first, then answers every question consistently with that persona, with realistic ~1-point variation on Likert items (clamped to the declared scale).</p>
     <div class="callout warn">
       <strong class="label">Synthetic, not real, data</strong>
       This generates <em>plausible</em> survey responses for piloting a model's structure and instrument wording before real data collection — it is not a substitute for actually surveying real respondents, and results from it should never be presented as empirical findings.
     </div>
+    <figure class="screenshot">
+      <img src="/static/docs/images/en/49_ai_lab_result.webp" alt="AI Lab generation result" loading="lazy">
+      <figcaption>After generation: data preview, CSV download/full Excel export, respondent profile, and descriptive statistics; per-batch prompt transparency is collapsed below.</figcaption>
+    </figure>
 
     <h3 id="ailab-skip">Skipping straight to model design</h3>
     <p>Don't need synthetic data yet — just want to sketch out constructs and structural paths first? Fill in the codebook (Step 1) then click <strong>"⏭ Skip to model building"</strong> to jump straight to Step 2, with constructs pre-seeded from the codebook's construct column — no demographics or generation step required. <strong>"▶ Run PLS Algorithm"</strong> stays disabled (with a hint) until real data — uploaded or AI-generated — actually exists.</p>
 
     <h3 id="ailab-draw-paths">Letting AI draw the structural model</h3>
     <p>Once at least 2 constructs exist on the canvas, click <strong>"🤖 AI draw model"</strong> and add any extra context about the underlying theory. Unlike the other two AI Lab features, this one shows an editable prompt <em>before</em> anything is sent to the AI — review and adjust the generated system/user prompt text, since whether a given construct should be treated as a moderator is often a matter of semantic judgment the AI can read differently than you intend. After sending, review the proposed paths (and any suggested moderators) before applying them to the canvas.</p>
+    <figure class="screenshot">
+      <img src="/static/docs/images/en/50_ai_draw_model.webp" alt="Reviewing the AI-proposed model" loading="lazy">
+      <figcaption>Untick any unwanted path, read the AI's rationale, then click “Apply”.</figcaption>
+    </figure>
 
     <h3 id="ailab-save-all">Saving everything together</h3>
     <p>Click <strong>"💾 Save all proposals"</strong> in Step 2 to export the model JSON — constructs, paths, and (when a codebook exists) every indicator's question wording plus the AI's structural rationale if "AI draw model" was used this session — together with the synthetic Excel data export in the same click, if the current dataset was AI-generated.</p>
@@ -646,19 +680,47 @@ Attitude (ATT)                <span class="arrow">──▶</span> Behavioral In
       <strong class="label">Each group needs enough observations</strong>
       A group that's too small (under roughly 30 observations) is rejected with a clear message, since bootstrapping on too small a group can't produce a reliable estimate. For a moderation model, PLS-MGA only supports an Interaction construct using the Two-Stage method (§6), not Product-Indicator.
     </div>
+    <p>For AI Lab Experiment data, the <code>condition_group</code> column (§19) is the grouping variable. If you only want to <em>control</em> for group differences rather than compare the whole model, use <a href="#dummy">dummy variables</a>.</p>
+    <div class="screenshot-row">
+      <figure class="screenshot">
+        <img src="/static/docs/images/en/42_mga_modal.webp" alt="PLS-MGA dialog" loading="lazy">
+        <figcaption>Choose the grouping column (Gender), assign values to groups A and B, and set bootstrap and permutation counts.</figcaption>
+      </figure>
+      <figure class="screenshot">
+        <img src="/static/docs/images/en/43_mga_page.webp" alt="PLS-MGA results page" loading="lazy">
+        <figcaption>Per-group coefficients, the difference, and p-values under all four methods.</figcaption>
+      </figure>
+    </div>
 
     <h2 id="ailab-experiment">19. AI Lab Experiment</h2>
     <p>AI Lab (§17) generates data in a single pass, used once and discarded. The <strong>"🧪 AI Lab Experiment"</strong> tab, also in Step 1, splits this into two phases to properly simulate a <strong>between-subjects experiment</strong>: build a <strong>Worker Pool</strong> — a group of N "AI Workers" with fixed personas and demographic profiles, created once and reusable many times — then run multiple different survey experiments against that same pool, each time randomly selecting M ≤ N workers and splitting them into different condition groups.</p>
 
     <h3 id="ailab-experiment-pool">Defining the population &amp; generating the Worker Pool</h3>
     <p>Step 1 describes the target population, configures demographics (age, gender tendency, occupation, location, up to 6 custom attributes) and picks N (30–500). Unlike AI Lab: <strong>demographics are not left for the AI to choose</strong> — age, gender, and every custom attribute are assigned by a fixed-seed random number generator before the AI is called ("balanced" means exactly 50/50, not the AI "trying" to land near it); the AI's only job is writing a persona sentence matching those already-fixed values. In Step 2, <strong>"⬇ Export Worker Pool (Excel)"</strong> / <strong>"⬆ Import an existing Worker Pool (Excel)"</strong> let you save and reuse the exact same group of "participants" in a different session.</p>
+    <figure class="screenshot">
+      <img src="/static/docs/images/en/54_exp_pool_ready.webp" alt="Worker Pool ready" loading="lazy">
+      <figcaption>The Worker Pool: AI-written personas; age and gender assigned beforehand by the random generator.</figcaption>
+    </figure>
 
     <h3 id="ailab-experiment-design">Designing the experiment: shared context &amp; per-group manipulation</h3>
     <p>Step 3 picks M ≤ N then defines condition groups following a proper between-subjects design: one <strong>"Shared context"</strong> field entered once for the background situation ALL participants experience identically, while each group in the table only enters its <strong>"Manipulation"</strong> — the actual independent variable that differs between groups. Click <strong>"🎲 Randomly select Workers"</strong> to genuinely shuffle (no fixed seed — a different result each time) and split exactly M workers into the groups; the rest are excluded and listed separately for transparency. The survey codebook is declared like AI Lab, with export/import definition buttons using the same JSON format as §17.</p>
+    <figure class="screenshot">
+      <img src="/static/docs/images/en/55_exp_design.webp" alt="Experiment design" loading="lazy">
+      <figcaption>Shared context, two manipulation groups, the random Worker assignment, and the survey codebook.</figcaption>
+    </figure>
 
     <h3 id="ailab-experiment-score">Generating answers &amp; scoring qualitative questions</h3>
     <p>The AI answers the survey in character as each selected worker (never inventing a new persona), under the shared context plus that group's own manipulation; each AI call only receives the profiles of the workers in that specific batch, not the whole group. The finalized data gains a <strong>"condition_group"</strong> column — usable directly as the grouping variable for PLS-MGA (§18) to test whether the manipulation produced a statistically significant difference.</p>
+    <p>Before running, <strong>"🔍 Preview prompt"</strong> shows (and lets you edit) the full prompt each group will receive; while it runs, the <em>Prompt transparency</em> section (collapsed by default) updates batch by batch.</p>
+    <figure class="screenshot">
+      <img src="/static/docs/images/en/57_exp_result.webp" alt="Finished experiment data" loading="lazy">
+      <figcaption>The finished experiment data, including the condition_group column for PLS-MGA.</figcaption>
+    </figure>
     <p>The <strong>"🤖 Score open-ended questions"</strong> button in the Step 2 toolbar (shown when the current data — from AI Lab or AI Lab Experiment — has a qualitative column) lets you pick one, write a scoring rubric, and have the AI read every answer and score it onto a Likert scale, producing a new indicator merged straight into the dataset — ready to use in the model immediately. Scoring can be repeated on the same column (a different rubric, another pass), each run just needing its own non-colliding column name. The <strong>"⬇ Export data (CSV)"</strong> / <strong>"⬇ Export full (Excel)"</strong> buttons right next to it always read the latest data, automatically including any indicator just scored.</p>
+    <figure class="screenshot">
+      <img src="/static/docs/images/en/51_qual_score_modal.webp" alt="Open-ended scoring dialog" loading="lazy">
+      <figcaption>Scoring open-ended answers: pick the column, write the rubric, choose the Likert scale, and name the new indicator.</figcaption>
+    </figure>
   </main>
 </div>
 

@@ -6,6 +6,7 @@ from flask import Flask, render_template
 
 from routes.ai_data_gen_api import ai_data_gen_api
 from routes.ai_qual_score_api import ai_qual_score_api
+from routes.dummy_api import dummy_api
 from routes.ai_report_api import ai_report_api
 from routes.ai_worker_api import ai_worker_api
 from routes.api import api
@@ -40,6 +41,7 @@ def create_app() -> Flask:
     app.register_blueprint(ai_data_gen_api)
     app.register_blueprint(ai_worker_api)
     app.register_blueprint(ai_qual_score_api)
+    app.register_blueprint(dummy_api)
 
     @app.get("/")
     def index():
