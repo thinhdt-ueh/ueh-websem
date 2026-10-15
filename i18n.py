@@ -64,6 +64,7 @@ _CATALOG: dict[str, dict[str, str]] = {
         "err_interaction_invalid_product_term": (
             "Biến tương tác '{name}': kiểu sinh product term (product term generation) không hợp lệ."
         ),
+        "err_job_lost": "Tác vụ bị gián đoạn do máy chủ khởi động lại hoặc dừng giữa chừng. Vui lòng chạy lại.",
         "err_job_not_found": "Không tìm thấy tác vụ (có thể máy chủ đã khởi động lại) — vui lòng chạy lại.",
         "err_job_failed": "Tác vụ chạy nền gặp lỗi: {exc}",
         "err_job_bad_response": "Tác vụ chạy nền không trả về kết quả hợp lệ.",
@@ -468,6 +469,7 @@ _CATALOG: dict[str, dict[str, str]] = {
         ),
         "err_interaction_invalid_calc_method": "Interaction term '{name}': invalid calculation method.",
         "err_interaction_invalid_product_term": "Interaction term '{name}': invalid product term generation setting.",
+        "err_job_lost": "The task was interrupted because the server restarted or stopped. Please run it again.",
         "err_job_not_found": "Job not found (the server may have restarted) — please run it again.",
         "err_job_failed": "The background job failed: {exc}",
         "err_job_bad_response": "The background job did not return a valid result.",

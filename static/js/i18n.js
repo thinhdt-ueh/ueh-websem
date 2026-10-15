@@ -776,7 +776,7 @@ const I18N = {
     // --- labels / verdicts ---
     lbl_dash: "—",
     eta_remaining: "Ước lượng còn lại: ~{s} giây",
-    eta_almost_done: "Sắp xong, đang xử lý những bước cuối…",
+    eta_overtime: "Lâu hơn ước tính — đã chạy {elapsed}, máy chủ vẫn đang xử lý…",
     lbl_r2_weak: "Yếu",
     lbl_r2_moderate: "Trung bình",
     lbl_r2_substantial: "Khá mạnh",
@@ -1672,7 +1672,7 @@ const I18N = {
 
     lbl_dash: "—",
     eta_remaining: "Estimated time remaining: ~{s}s",
-    eta_almost_done: "Almost done, finishing up…",
+    eta_overtime: "Taking longer than estimated — running for {elapsed}, the server is still working…",
     lbl_r2_weak: "Weak",
     lbl_r2_moderate: "Moderate",
     lbl_r2_substantial: "Substantial",

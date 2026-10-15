@@ -63,3 +63,21 @@ def test_analyze_tolerates_non_dict_bootstrap(client):
     fid = _sample_file_id(client)
     resp = client.post("/api/analyze", json={"file_id": fid, "model": TAM_MODEL_JSON, "bootstrap": False, "lang": "en"})
     assert resp.status_code == 200
+
+
+def test_orphaned_job_is_reported_as_lost(client, app):
+    """A job file left "running" by a process that died (server restart)
+    must not keep the browser polling forever."""
+    import json
+    import os
+
+    from routes.jobs import HEARTBEAT_STALE_SECONDS, _jobs_dir
+
+    job_id = "f" * 32
+    stale = time.time() - HEARTBEAT_STALE_SECONDS - 5
+    with open(os.path.join(_jobs_dir(app), f"{job_id}.json"), "w", encoding="utf-8") as f:
+        json.dump({"state": "running", "started_at": stale, "heartbeat": stale}, f)
+    body = client.get(f"/api/jobs/{job_id}?lang=en").get_json()
+    assert body["state"] == "done"
+    assert body["status"] == 500
+    assert "restarted" in body["payload"]["error"]

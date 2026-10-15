@@ -15,6 +15,11 @@ background thread inside an equivalent request context, and its response
 does this transparently). Results live on disk, not in memory, so polling
 works no matter which gunicorn worker answers it. Requests without the
 header behave exactly as before, which keeps tests and scripts unchanged.
+
+While a job runs, its thread refreshes a heartbeat in the job file. If the
+process running it dies (server restart, worker recycled, dev-server
+reload), the heartbeat goes stale and polling reports the job as lost
+instead of "running" forever.
 """
 
 from __future__ import annotations
@@ -49,6 +54,9 @@ LONG_RUNNING_PATHS = {
 }
 
 JOB_TTL_SECONDS = 24 * 3600
+HEARTBEAT_SECONDS = 10
+# A running job whose heartbeat is older than this was orphaned by its process.
+HEARTBEAT_STALE_SECONDS = 90
 _JOB_ID_CHARS = set("0123456789abcdef")
 
 
@@ -88,6 +96,17 @@ def _cleanup(jobs_dir: str) -> None:
 def _run_job(app: Flask, job_path: str, endpoint: str, view_args: dict, path: str,
              query_string: bytes, body: bytes, content_type: str | None, lang: str) -> None:
     view = app.view_functions[endpoint]
+    started_at = time.time()
+    done = threading.Event()
+    lock = threading.Lock()
+
+    def heartbeat():
+        while not done.wait(HEARTBEAT_SECONDS):
+            with lock:
+                if not done.is_set():
+                    _write(job_path, {"state": "running", "started_at": started_at, "heartbeat": time.time()})
+
+    threading.Thread(target=heartbeat, daemon=True).start()
     try:
         with app.test_request_context(path, method="POST", data=body, content_type=content_type,
                                       query_string=query_string):
@@ -99,7 +118,9 @@ def _run_job(app: Flask, job_path: str, endpoint: str, view_args: dict, path: st
                 status = 500
     except Exception as exc:  # noqa: BLE001 -- surface any failure to the polling client
         status, payload = 500, {"error": t("err_job_failed", lang, exc=exc)}
-    _write(job_path, {"state": "done", "status": status, "payload": payload, "finished_at": time.time()})
+    with lock:
+        done.set()
+        _write(job_path, {"state": "done", "status": status, "payload": payload, "finished_at": time.time()})
 
 
 def init_async_jobs(app: Flask) -> None:
@@ -114,7 +135,8 @@ def init_async_jobs(app: Flask) -> None:
         _cleanup(jobs_dir)
         job_id = uuid.uuid4().hex
         job_path = os.path.join(jobs_dir, f"{job_id}.json")
-        _write(job_path, {"state": "running", "started_at": time.time()})
+        now = time.time()
+        _write(job_path, {"state": "running", "started_at": now, "heartbeat": now})
         worker = threading.Thread(
             target=_run_job,
             args=(current_app._get_current_object(), job_path, request.url_rule.endpoint,
@@ -137,5 +159,9 @@ def init_async_jobs(app: Flask) -> None:
         except (OSError, ValueError):
             return jsonify(error=t("err_job_not_found", lang)), 404
         if record.get("state") != "done":
-            return jsonify(state="running", elapsed=round(time.time() - record.get("started_at", time.time()), 1))
+            now = time.time()
+            last_beat = record.get("heartbeat") or record.get("started_at") or 0
+            if now - last_beat > HEARTBEAT_STALE_SECONDS:
+                return jsonify(state="done", status=500, payload={"error": t("err_job_lost", lang)})
+            return jsonify(state="running", elapsed=round(now - record.get("started_at", now), 1))
         return jsonify(state="done", status=record["status"], payload=record["payload"])
