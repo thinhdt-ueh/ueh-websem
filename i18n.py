@@ -64,6 +64,9 @@ _CATALOG: dict[str, dict[str, str]] = {
         "err_interaction_invalid_product_term": (
             "Biến tương tác '{name}': kiểu sinh product term (product term generation) không hợp lệ."
         ),
+        "err_job_not_found": "Không tìm thấy tác vụ (có thể máy chủ đã khởi động lại) — vui lòng chạy lại.",
+        "err_job_failed": "Tác vụ chạy nền gặp lỗi: {exc}",
+        "err_job_bad_response": "Tác vụ chạy nền không trả về kết quả hợp lệ.",
         "err_dummy_bad_column": "Không tìm thấy cột '{name}' trong dữ liệu.",
         "err_dummy_level_count": "Cột '{name}' phải có từ {min} đến {max} giá trị khác nhau để tạo biến giả.",
         "err_dummy_bad_reference": "Nhóm tham chiếu (reference) không hợp lệ.",
@@ -421,6 +424,9 @@ _CATALOG: dict[str, dict[str, str]] = {
         ),
         "err_interaction_invalid_calc_method": "Interaction term '{name}': invalid calculation method.",
         "err_interaction_invalid_product_term": "Interaction term '{name}': invalid product term generation setting.",
+        "err_job_not_found": "Job not found (the server may have restarted) — please run it again.",
+        "err_job_failed": "The background job failed: {exc}",
+        "err_job_bad_response": "The background job did not return a valid result.",
         "err_dummy_bad_column": "Column '{name}' not found in the data.",
         "err_dummy_level_count": "Column '{name}' needs between {min} and {max} distinct values to create dummy variables.",
         "err_dummy_bad_reference": "Invalid reference category.",

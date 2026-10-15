@@ -182,6 +182,8 @@ def analyze():
     metrics = compute_all_metrics(result)
 
     bootstrap_payload = payload.get("bootstrap") or {}
+    if not isinstance(bootstrap_payload, dict):
+        bootstrap_payload = {"enabled": bool(bootstrap_payload)}
     bootstrap_summary = None
     bootstrap_path_lookup: dict[tuple, dict] = {}
     bootstrap_specific_indirect_lookup: dict[tuple, dict] = {}
