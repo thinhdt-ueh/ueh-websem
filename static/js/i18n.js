@@ -451,6 +451,8 @@ const I18N = {
     // --- power_analysis.html (opens in a new tab) ---
     power_page_title: "Phân tích lũy thừa thống kê (Power Analysis)",
     power_loading: "Đang mô phỏng Monte Carlo — có thể mất một lúc…",
+    power_progress: "Đã xong {pct}% · đã chạy {elapsed} · còn khoảng {remaining}",
+    power_progress_starting: "Đã xong {pct}% · đã chạy {elapsed} · đang tính thời gian còn lại…",
     power_no_job: "Không tìm thấy yêu cầu phân tích — hãy mở trang này từ nút \"Power Analysis\" ở trang kết quả.",
     power_failed: "Power Analysis thất bại.",
     power_summary_title: "Tổng quan",
@@ -1352,6 +1354,8 @@ const I18N = {
     // --- power_analysis.html (opens in a new tab) ---
     power_page_title: "Statistical Power Analysis",
     power_loading: "Running the Monte Carlo simulation — this may take a while…",
+    power_progress: "{pct}% done · running for {elapsed} · about {remaining} left",
+    power_progress_starting: "{pct}% done · running for {elapsed} · estimating time left…",
     power_no_job: "No analysis request found — open this page from the \"Power Analysis\" button on the results page.",
     power_failed: "Power analysis failed.",
     power_summary_title: "Overview",

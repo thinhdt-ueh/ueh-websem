@@ -16,6 +16,7 @@ from flask import Blueprint, jsonify, request, send_file
 from cbsem.power_analysis import run_power_analysis as run_power_analysis_cbsem
 from i18n import get_lang, t
 from pls.analysis_reports import build_power_word_report
+from routes.jobs import report_progress
 from pls.model import Model, ModelError
 from pls.power_analysis import (
     MAX_SAMPLE_SIZE_POINTS,
@@ -94,11 +95,12 @@ def power_analysis():
         if method == "cbsem":
             points = run_power_analysis_cbsem(
                 model, path_values, loading_values, sample_sizes, n_mc=n_mc, seed=42, lang=lang,
+                progress=report_progress,
             )
         else:
             points = run_power_analysis_pls(
                 model, path_values, loading_values, sample_sizes,
-                n_mc=n_mc, n_boot_inner=n_boot_inner, seed=42, lang=lang,
+                n_mc=n_mc, n_boot_inner=n_boot_inner, seed=42, lang=lang, progress=report_progress,
             )
     except ValueError as exc:
         return jsonify(error=str(exc)), 400

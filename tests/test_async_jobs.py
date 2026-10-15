@@ -81,3 +81,50 @@ def test_orphaned_job_is_reported_as_lost(client, app):
     assert body["state"] == "done"
     assert body["status"] == 500
     assert "restarted" in body["payload"]["error"]
+
+
+def _power_job(**extra):
+    return {
+        "model": TAM_MODEL_JSON, "method": "cbsem", "n_from": 100, "n_to": 300, "n_step": 50, "n_mc": 100,
+        "path_values": {f"{p['source']}->{p['target']}": 0.3 for p in TAM_MODEL_JSON["paths"]},
+        "loading_values": {c["id"]: 0.75 for c in TAM_MODEL_JSON["constructs"]},
+        "lang": "en", **extra,
+    }
+
+
+def test_power_job_reports_progress_and_can_be_cancelled(client):
+    job_id = client.post("/api/power_analysis", json=_power_job(), headers={"X-Async-Job": "1"}).get_json()["job_id"]
+    deadline = time.time() + 60
+    progress = None
+    while time.time() < deadline:
+        body = client.get(f"/api/jobs/{job_id}").get_json()
+        assert body["state"] == "running", "job finished before progress could be observed"
+        if body.get("progress") and body["progress"]["done"] > 0:
+            progress = body["progress"]
+            break
+        time.sleep(0.3)
+    assert progress and 0 < progress["done"] < progress["total"]
+
+    assert client.post(f"/api/jobs/{job_id}/cancel").status_code == 200
+    job = _poll(client, job_id, timeout=60)
+    assert job["status"] == 499
+    assert job["payload"]["cancelled"] is True
+
+
+def test_cancel_rejects_bad_job_id(client):
+    assert client.post("/api/jobs/not-a-job/cancel").status_code == 404
+
+
+def test_progress_callback_counts_to_total(tam_model_json):
+    from cbsem.power_analysis import run_power_analysis
+    from pls.model import Model
+
+    model = Model.from_json(tam_model_json)
+    calls = []
+    run_power_analysis(
+        model, {(p.source, p.target): 0.3 for p in model.paths}, {c: 0.75 for c in model.constructs},
+        [100, 150], n_mc=20, seed=1, progress=lambda done, total: calls.append((done, total)),
+    )
+    dones = [d for d, _ in calls]
+    assert dones == sorted(dones)
+    assert calls[0][0] == 0 and calls[-1][0] == calls[-1][1] == 20 * (100 + 150)

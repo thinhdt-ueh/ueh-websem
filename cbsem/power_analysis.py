@@ -25,6 +25,8 @@ construct — see `validate_population_model`.
 
 from __future__ import annotations
 
+from collections.abc import Callable
+
 import numpy as np
 import pandas as pd
 
@@ -56,6 +58,7 @@ def run_power_analysis(
     n_mc: int,
     seed: int | None = None,
     lang: str = DEFAULT_LANG,
+    progress: Callable[[int, int], None] | None = None,
 ) -> list[PowerPoint]:
     validate_population_model(model, path_values, loading_values, lang, allow_formative=False)
 
@@ -65,11 +68,20 @@ def run_power_analysis(
         raise ValueError(t("err_power_budget_exceeded", lang, total=total_replicates, max=MAX_TOTAL_REPLICATES))
 
     rng = np.random.default_rng(seed)
+    # Progress is counted in replicates weighted by their n (a fit's cost
+    # grows with n, so this keeps the page's remaining-time extrapolation
+    # honest); sample sizes below min_n are skipped instantly.
+    total_work = n_mc * sum(sample_sizes)
+    done_work = 0
+    report = progress or (lambda done, total: None)
+    report(0, total_work)
     min_n = len(model.all_indicators()) + 5  # same floor run_cbsem enforces
     points: list[PowerPoint] = []
 
     for n in sample_sizes:
         if n < min_n:
+            done_work += n_mc * n
+            report(done_work, total_work)
             for p in model.paths:
                 points.append(PowerPoint(n=n, source=p.source, target=p.target, power=0.0,
                                           n_converged=0, n_replicates=0, mean_estimate=None))
@@ -80,6 +92,8 @@ def run_power_analysis(
         n_converged = 0
 
         for _ in range(n_mc):
+            report(done_work, total_work)
+            done_work += n
             df = generate_synthetic_data(model, path_values, loading_values, n, rng)
             try:
                 result = run_cbsem(model, df, lang=lang)
@@ -95,6 +109,7 @@ def run_power_analysis(
                 if pd.notna(row["p"]) and row["p"] < SIGNIFICANCE_ALPHA:
                     detected[key] += 1
 
+        report(done_work, total_work)
         for p in model.paths:
             key = (p.source, p.target)
             vals = estimates[key]

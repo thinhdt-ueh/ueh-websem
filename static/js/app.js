@@ -4268,6 +4268,8 @@ function openPowerAnalysisModal(method) {
     return points;
   }
 
+  const nIndicators = modelPayload.constructs.reduce((sum, c) => sum + (c.indicators || []).length, 0);
+  const powerCostScale = Math.max(1, Math.sqrt(nIndicators / 13));
   function updateEstimate() {
     const points = computePoints();
     const nMc = parseInt(document.getElementById("powerNMc").value, 10) || defaultNMc;
@@ -4281,14 +4283,18 @@ function openPowerAnalysisModal(method) {
     // extra fits per replicate (see MAX_TOTAL_FITS's comment in
     // pls/power_analysis.py, ~7.7ms/fit); CB-SEM has no bootstrap step, so
     // each replicate is just one ~44ms ML fit (cbsem/power_analysis.py).
+    // Both were measured on the 13-indicator sample model; bigger models fit
+    // slower (a 32-indicator model measured ~10-13ms/PLS fit), hence the
+    // sqrt(indicators / 13) scaling. The results page switches to real
+    // server-reported progress once the run starts.
     let estSec;
     if (isCbsem) {
       const SEC_PER_REPLICATE_CBSEM = 0.044;
-      estSec = Math.round(points.length * nMc * SEC_PER_REPLICATE_CBSEM);
+      estSec = Math.round(points.length * nMc * SEC_PER_REPLICATE_CBSEM * powerCostScale);
     } else {
       const nBoot = parseInt(document.getElementById("powerNBoot").value, 10) || 100;
       const SEC_PER_FIT = 0.0077;
-      estSec = Math.round(points.length * nMc * (1 + nBoot) * SEC_PER_FIT);
+      estSec = Math.round(points.length * nMc * (1 + nBoot) * SEC_PER_FIT * powerCostScale);
     }
     text.textContent = t("power_modal_estimate", { sec: estSec, points: points.length, mc: nMc });
   }
@@ -4332,9 +4338,9 @@ function openPowerAnalysisModal(method) {
     };
     // Same formula as updateEstimate() above -- reused here so the countdown
     // on the results tab matches the estimate the modal already showed.
-    job.estimated_seconds = isCbsem
+    job.estimated_seconds = (isCbsem
       ? points.length * nMc * 0.044
-      : points.length * nMc * (1 + nBoot) * 0.0077;
+      : points.length * nMc * (1 + nBoot) * 0.0077) * powerCostScale;
     if (!isCbsem) job.n_boot_inner = nBoot;
     sessionStorage.setItem("websem_power_job", JSON.stringify(job));
     root.innerHTML = "";

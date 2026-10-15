@@ -142,6 +142,27 @@ async function main() {
     stopEta = startEtaCountdown(etaEl, job.estimated_seconds);
   }
 
+  // Real progress from the server (routes/jobs.py report_progress) replaces
+  // the up-front estimate as soon as the first poll reports it.
+  const onProgress = (ev) => {
+    const { path, elapsed, progress } = ev.detail || {};
+    if (path !== "/api/power_analysis" || !progress || !progress.total) return;
+    if (stopEta) {
+      stopEta();
+      stopEta = null;
+      document.getElementById("powerLoadingEta").classList.add("hidden");
+    }
+    const frac = Math.min(1, progress.done / progress.total);
+    document.getElementById("powerProgress").classList.remove("hidden");
+    document.getElementById("powerProgressBar").value = Math.round(frac * 100);
+    const remaining = frac > 0.02 ? (elapsed * (1 - frac)) / frac : null;
+    document.getElementById("powerProgressText").textContent = t(
+      remaining === null ? "power_progress_starting" : "power_progress",
+      { pct: Math.round(frac * 100), elapsed: formatDuration(elapsed), remaining: formatDuration(remaining) },
+    );
+  };
+  window.addEventListener("asyncjobprogress", onProgress);
+
   try {
     const res = await fetch("/api/power_analysis", {
       method: "POST",
@@ -156,7 +177,16 @@ async function main() {
     showError(err.message);
   } finally {
     if (stopEta) stopEta();
+    window.removeEventListener("asyncjobprogress", onProgress);
   }
+}
+
+function formatDuration(seconds) {
+  const sec = Math.max(0, Math.round(seconds || 0));
+  const h = Math.floor(sec / 3600);
+  const m = Math.floor((sec % 3600) / 60);
+  const s = String(sec % 60).padStart(2, "0");
+  return h ? `${h}:${String(m).padStart(2, "0")}:${s}` : `${m}:${s}`;
 }
 
 function showError(msg) {

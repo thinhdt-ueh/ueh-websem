@@ -22,6 +22,10 @@
   <div id="powerLoading" class="panel-card standalone-status">
     <p data-i18n="power_loading">Đang mô phỏng Monte Carlo — có thể mất một lúc…</p>
     <p id="powerLoadingEta" class="eta-line hidden"></p>
+    <div id="powerProgress" class="ai-gen-progress-wrap hidden">
+      <progress id="powerProgressBar" max="100" value="0"></progress>
+      <div id="powerProgressText" class="ai-gen-progress-text"></div>
+    </div>
   </div>
   <div id="powerError" class="panel-card standalone-status hidden"></div>
 

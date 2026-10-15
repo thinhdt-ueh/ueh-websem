@@ -20,6 +20,13 @@ While a job runs, its thread refreshes a heartbeat in the job file. If the
 process running it dies (server restart, worker recycled, dev-server
 reload), the heartbeat goes stale and polling reports the job as lost
 instead of "running" forever.
+
+Long loops can also call `report_progress(done, total)`: the latest value
+rides along with the heartbeat so the page can show real progress, and the
+same call raises `JobCancelled` once the browser has asked
+``POST /api/jobs/<job_id>/cancel`` (sent when the results tab is closed),
+so abandoned simulations stop instead of competing for CPU with new runs.
+Outside a background job both are no-ops.
 """
 
 from __future__ import annotations
@@ -54,10 +61,30 @@ LONG_RUNNING_PATHS = {
 }
 
 JOB_TTL_SECONDS = 24 * 3600
-HEARTBEAT_SECONDS = 10
+HEARTBEAT_SECONDS = 2
 # A running job whose heartbeat is older than this was orphaned by its process.
 HEARTBEAT_STALE_SECONDS = 90
 _JOB_ID_CHARS = set("0123456789abcdef")
+_current = threading.local()
+
+
+class JobCancelled(BaseException):
+    """Raised from report_progress() once the job's client has cancelled it.
+    A BaseException (like KeyboardInterrupt) so the analysis code's broad
+    `except Exception` handlers for degenerate replicates don't swallow it."""
+
+
+def report_progress(done: int, total: int) -> None:
+    job = getattr(_current, "job", None)
+    if job is None:
+        return
+    job["progress"] = {"done": int(done), "total": int(total)}
+    if os.path.exists(job["cancel_path"]):
+        raise JobCancelled()
+
+
+def _valid_job_id(job_id: str) -> bool:
+    return len(job_id) == 32 and set(job_id) <= _JOB_ID_CHARS
 
 
 def _jobs_dir(app: Flask) -> str:
@@ -99,12 +126,15 @@ def _run_job(app: Flask, job_path: str, endpoint: str, view_args: dict, path: st
     started_at = time.time()
     done = threading.Event()
     lock = threading.Lock()
+    job = {"cancel_path": job_path[: -len(".json")] + ".cancel", "progress": None}
+    _current.job = job
 
     def heartbeat():
         while not done.wait(HEARTBEAT_SECONDS):
             with lock:
                 if not done.is_set():
-                    _write(job_path, {"state": "running", "started_at": started_at, "heartbeat": time.time()})
+                    _write(job_path, {"state": "running", "started_at": started_at, "heartbeat": time.time(),
+                                      "progress": job["progress"]})
 
     threading.Thread(target=heartbeat, daemon=True).start()
     try:
@@ -116,8 +146,12 @@ def _run_job(app: Flask, job_path: str, endpoint: str, view_args: dict, path: st
             if payload is None:
                 payload = {"error": t("err_job_bad_response", lang)}
                 status = 500
+    except JobCancelled:
+        status, payload = 499, {"error": t("err_job_cancelled", lang), "cancelled": True}
     except Exception as exc:  # noqa: BLE001 -- surface any failure to the polling client
         status, payload = 500, {"error": t("err_job_failed", lang, exc=exc)}
+    finally:
+        _current.job = None
     with lock:
         done.set()
         _write(job_path, {"state": "done", "status": status, "payload": payload, "finished_at": time.time()})
@@ -150,7 +184,7 @@ def init_async_jobs(app: Flask) -> None:
     @app.get("/api/jobs/<job_id>")
     def job_status(job_id: str):
         lang = get_lang({"lang": request.args.get("lang")})
-        if len(job_id) != 32 or not set(job_id) <= _JOB_ID_CHARS:
+        if not _valid_job_id(job_id):
             return jsonify(error=t("err_job_not_found", lang)), 404
         path = os.path.join(_jobs_dir(current_app), f"{job_id}.json")
         try:
@@ -163,5 +197,16 @@ def init_async_jobs(app: Flask) -> None:
             last_beat = record.get("heartbeat") or record.get("started_at") or 0
             if now - last_beat > HEARTBEAT_STALE_SECONDS:
                 return jsonify(state="done", status=500, payload={"error": t("err_job_lost", lang)})
-            return jsonify(state="running", elapsed=round(now - record.get("started_at", now), 1))
+            return jsonify(state="running", elapsed=round(now - record.get("started_at", now), 1),
+                           progress=record.get("progress"))
         return jsonify(state="done", status=record["status"], payload=record["payload"])
+
+    @app.post("/api/jobs/<job_id>/cancel")
+    def job_cancel(job_id: str):
+        if not _valid_job_id(job_id):
+            return jsonify(error=t("err_job_not_found", get_lang(None))), 404
+        jobs_dir = _jobs_dir(current_app)
+        if os.path.exists(os.path.join(jobs_dir, f"{job_id}.json")):
+            with open(os.path.join(jobs_dir, f"{job_id}.cancel"), "w", encoding="utf-8"):
+                pass
+        return jsonify(ok=True)

@@ -10,6 +10,12 @@
 // existing `fetch(...).then(res => res.json())` call site works unchanged.
 // Keep LONG_RUNNING_PATHS in sync with routes/jobs.py.
 //
+// While a job runs, each poll dispatches a window "asyncjobprogress" event
+// ({path, jobId, elapsed, progress: {done, total} | null}) so a page can
+// show real progress. Jobs still in flight when the page is closed or
+// navigated away from (or whose fetch is aborted) are cancelled on the
+// server, so abandoned simulations don't keep competing for CPU.
+//
 // Separately, any /api/ response that is an error but not JSON (proxy error
 // pages, "413 Request Entity Too Large", ...) is converted into a JSON
 // {error} with a readable message instead of surfacing a parse error.
@@ -34,6 +40,14 @@
   ]);
   const MAX_POLL_FAILURES = 20;
   const originalFetch = window.fetch.bind(window);
+  const inFlightJobs = new Set();
+
+  function cancelJob(jobId) {
+    const url = `/api/jobs/${jobId}/cancel`;
+    if (navigator.sendBeacon && navigator.sendBeacon(url)) return;
+    originalFetch(url, { method: "POST", keepalive: true }).catch(() => {});
+  }
+  window.addEventListener("pagehide", () => inFlightJobs.forEach(cancelJob));
 
   function translate(key, vars, fallback) {
     if (typeof window.t === "function") {
@@ -86,28 +100,42 @@
     const first = await originalFetch(input, { ...init, headers });
     if (first.status !== 202) return ensureJson(first);
     const { job_id: jobId } = await first.json();
-
-    let delay = 800;
-    let failures = 0;
-    for (;;) {
-      await sleep(delay, signal);
-      delay = Math.min(3000, delay + 400);
-      let res;
-      try {
-        res = await originalFetch(`/api/jobs/${jobId}`, { signal, cache: "no-store" });
-      } catch (err) {
-        if (err && err.name === "AbortError") throw err;
-        if (++failures > MAX_POLL_FAILURES) throw err;
-        continue;
+    const path = pathOf(input);
+    inFlightJobs.add(jobId);
+    try {
+      let delay = 800;
+      let failures = 0;
+      for (;;) {
+        await sleep(delay, signal);
+        delay = Math.min(3000, delay + 400);
+        let res;
+        try {
+          res = await originalFetch(`/api/jobs/${jobId}`, { signal, cache: "no-store" });
+        } catch (err) {
+          if (err && err.name === "AbortError") throw err;
+          if (++failures > MAX_POLL_FAILURES) throw err;
+          continue;
+        }
+        if (res.status === 404) return ensureJson(res);
+        if (!res.ok || !(res.headers.get("content-type") || "").includes("application/json")) {
+          if (++failures > MAX_POLL_FAILURES) return ensureJson(res);
+          continue;
+        }
+        failures = 0;
+        const job = await res.json();
+        if (job.state === "done") {
+          inFlightJobs.delete(jobId);
+          return jsonResponse(job.status, job.payload);
+        }
+        window.dispatchEvent(new CustomEvent("asyncjobprogress", {
+          detail: { path, jobId, elapsed: job.elapsed, progress: job.progress || null },
+        }));
       }
-      if (res.status === 404) return ensureJson(res);
-      if (!res.ok || !(res.headers.get("content-type") || "").includes("application/json")) {
-        if (++failures > MAX_POLL_FAILURES) return ensureJson(res);
-        continue;
-      }
-      failures = 0;
-      const job = await res.json();
-      if (job.state === "done") return jsonResponse(job.status, job.payload);
+    } catch (err) {
+      if (err && err.name === "AbortError") cancelJob(jobId);
+      throw err;
+    } finally {
+      inFlightJobs.delete(jobId);
     }
   }
 
