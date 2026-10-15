@@ -394,6 +394,50 @@ _CATALOG: dict[str, dict[str, str]] = {
         "rpt_cbsem_section_htmt": "3.4. Giá trị phân biệt — HTMT",
         "rpt_cbsem_section_structural": "4. Mô hình cấu trúc (Structural Model)",
         "rpt_cbsem_section_r2": "R²",
+        # --- Power / Sensitivity Word reports ---
+        "rpt_an_path": "Đường dẫn",
+        "rpt_an_overview": "1. Tổng quan",
+        "rpt_an_charts": "Biểu đồ",
+        "rpt_an_detail": "Bảng chi tiết",
+        "rpt_an_mean": "Trung bình",
+        "rpt_title_power": "Báo cáo phân tích Power (Monte Carlo)",
+        "rpt_power_overview_text": (
+            "Phân tích mô phỏng Monte Carlo cho {paths} đường dẫn cấu trúc tại {sizes} cỡ mẫu "
+            "(từ n = {n_from} đến n = {n_to}), mỗi cỡ mẫu {n_mc} lần lặp."
+        ),
+        "rpt_power_method_text": (
+            "Power của một đường dẫn là tỷ lệ các lần mô phỏng (trong số lần hội tụ) mà hệ số đường dẫn "
+            "có ý nghĩa thống kê ở mức α = 0,05, khi dữ liệu được sinh từ mô hình với các tham số đã ước lượng."
+        ),
+        "rpt_power_min_n_title": "2. Cỡ mẫu tối thiểu đạt power ≥ 0,80",
+        "rpt_power_not_reached": "Chưa đạt",
+        "rpt_power_min_n": "n tối thiểu (power ≥ 0,80)",
+        "rpt_power_at_max_n": "Power tại n = {n}",
+        "rpt_power_mean_estimate": "Hệ số ước lượng TB",
+        "rpt_power_converged": "Hội tụ / lặp",
+        "rpt_power_threshold_note": (
+            "Ngưỡng 0,80 là mức power được khuyến nghị phổ biến (Cohen, 1988). \"Chưa đạt\" nghĩa là không cỡ mẫu "
+            "nào trong dải đã chọn đạt ngưỡng này — hãy thử dải cỡ mẫu lớn hơn."
+        ),
+        "rpt_title_sensitivity": "Báo cáo phân tích độ nhạy cỡ mẫu",
+        "rpt_title_sensitivity_resample": "Báo cáo phân tích độ nhạy cỡ mẫu (lấy mẫu lại)",
+        "rpt_sens_shrink_overview": (
+            "Mô hình được ước lượng lại trên các tập con giảm dần của dữ liệu gốc (n = {n_total}), bước giảm {step} "
+            "quan sát: {steps} bước, từ n = {n_max} xuống n = {n_min}. Số bước hội tụ: {conv}/{total}."
+        ),
+        "rpt_sens_resample_overview": (
+            "Rút ngẫu nhiên {iters} mẫu, mỗi mẫu n = {new_n} quan sát từ dữ liệu gốc (n = {n_total}), và ước lượng lại "
+            "mô hình trên từng mẫu. Số lần hội tụ: {conv}/{total}."
+        ),
+        "rpt_sens_pvalue_note": "p-value được tính bằng bootstrap ({n_boot} mẫu) tại mỗi lần ước lượng.",
+        "rpt_sens_pvalue_note_cbsem": "p-value lấy từ sai số chuẩn ML của CB-SEM tại mỗi lần ước lượng.",
+        "rpt_sens_r2_by_n": "2. R² theo cỡ mẫu",
+        "rpt_sens_path_by_n": "3. Hệ số đường dẫn theo cỡ mẫu",
+        "rpt_sens_r2_dist": "2. Phân phối R² qua các lần lấy mẫu",
+        "rpt_sens_path_dist": "3. Phân phối hệ số đường dẫn qua các lần lấy mẫu",
+        "rpt_sens_pvalue_dist": "4. Phân phối p-value",
+        "rpt_sens_share_significant": "Tỷ lệ p < 0,05",
+        "rpt_sens_nonconverged": "Lưu ý: {n}/{total} lần ước lượng không hội tụ và không được tính trong thống kê.",
     },
     "en": {
         "err_model_min_constructs": "The model needs at least 2 latent constructs.",
@@ -749,5 +793,49 @@ _CATALOG: dict[str, dict[str, str]] = {
         "rpt_cbsem_section_htmt": "3.4. Discriminant Validity — HTMT",
         "rpt_cbsem_section_structural": "4. Structural Model",
         "rpt_cbsem_section_r2": "R²",
+        # --- Power / Sensitivity Word reports ---
+        "rpt_an_path": "Path",
+        "rpt_an_overview": "1. Overview",
+        "rpt_an_charts": "Charts",
+        "rpt_an_detail": "Detailed Table",
+        "rpt_an_mean": "Mean",
+        "rpt_title_power": "Power Analysis Report (Monte Carlo)",
+        "rpt_power_overview_text": (
+            "Monte Carlo simulation for {paths} structural paths at {sizes} sample sizes "
+            "(n = {n_from} to n = {n_to}), with {n_mc} replications per sample size."
+        ),
+        "rpt_power_method_text": (
+            "The power of a path is the share of (converged) simulation runs in which the path coefficient is "
+            "statistically significant at α = 0.05, when data are generated from the model with its estimated parameters."
+        ),
+        "rpt_power_min_n_title": "2. Minimum Sample Size for Power ≥ 0.80",
+        "rpt_power_not_reached": "Not reached",
+        "rpt_power_min_n": "Minimum n (power ≥ 0.80)",
+        "rpt_power_at_max_n": "Power at n = {n}",
+        "rpt_power_mean_estimate": "Mean estimate",
+        "rpt_power_converged": "Converged / runs",
+        "rpt_power_threshold_note": (
+            "0.80 is the commonly recommended power level (Cohen, 1988). \"Not reached\" means no sample size in the "
+            "selected range reached it — try a larger range."
+        ),
+        "rpt_title_sensitivity": "Sample Size Sensitivity Report",
+        "rpt_title_sensitivity_resample": "Sample Size Sensitivity Report (Resampling)",
+        "rpt_sens_shrink_overview": (
+            "The model was re-estimated on shrinking subsets of the original data (n = {n_total}), removing {step} "
+            "observations per step: {steps} steps, from n = {n_max} down to n = {n_min}. Converged steps: {conv}/{total}."
+        ),
+        "rpt_sens_resample_overview": (
+            "{iters} random samples of n = {new_n} observations were drawn from the original data (n = {n_total}) and "
+            "the model was re-estimated on each. Converged runs: {conv}/{total}."
+        ),
+        "rpt_sens_pvalue_note": "p-values come from bootstrapping ({n_boot} samples) at each estimation.",
+        "rpt_sens_pvalue_note_cbsem": "p-values come from CB-SEM maximum-likelihood standard errors at each estimation.",
+        "rpt_sens_r2_by_n": "2. R² by Sample Size",
+        "rpt_sens_path_by_n": "3. Path Coefficients by Sample Size",
+        "rpt_sens_r2_dist": "2. Distribution of R² Across Samples",
+        "rpt_sens_path_dist": "3. Distribution of Path Coefficients Across Samples",
+        "rpt_sens_pvalue_dist": "4. Distribution of p-values",
+        "rpt_sens_share_significant": "Share p < 0.05",
+        "rpt_sens_nonconverged": "Note: {n}/{total} estimations did not converge and are excluded from the statistics.",
     },
 }

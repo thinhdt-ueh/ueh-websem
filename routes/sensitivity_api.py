@@ -24,6 +24,7 @@ from flask import Blueprint, jsonify, request, send_file
 from cbsem.estimator import CBSEMError, run_cbsem
 from cbsem.moderation import run_cbsem_with_moderation
 from i18n import get_lang, t
+from pls.analysis_reports import build_sensitivity_word_report
 from pls.algorithm import run_pls_algorithm
 from pls.bootstrap import MAX_BOOTSTRAP_SAMPLES, MIN_BOOTSTRAP_SAMPLES, run_bootstrap, run_bootstrap_with_moderation
 from pls.model import Model, ModelError
@@ -394,4 +395,26 @@ def sensitivity_export_row():
         as_attachment=True,
         download_name=f"sensitivity_{mode}_{label}.csv",
         mimetype="text/csv",
+    )
+
+
+@sensitivity_api.post("/sensitivity/export/word")
+def sensitivity_export_word():
+    """Builds a Word report from a result the page already holds (plus PNG
+    snapshots of its charts) -- nothing is re-estimated."""
+    data = request.get_json(force=True, silent=True) or {}
+    lang = get_lang(data)
+    result = data.get("result")
+    if not isinstance(result, dict) or not result.get("points"):
+        return jsonify(error=t("err_export_missing_data", lang)), 400
+    mode = "resample" if data.get("mode") == "resample" else "shrink"
+    try:
+        buf = build_sensitivity_word_report(result, mode=mode, images=data.get("images"), lang=lang)
+    except Exception as exc:  # noqa: BLE001
+        return jsonify(error=t("err_export_word_error", lang, exc=exc)), 500
+    return send_file(
+        buf,
+        as_attachment=True,
+        download_name="Sensitivity_Report.docx",
+        mimetype="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     )

@@ -31,7 +31,9 @@
       <p class="hint" id="sensSummary"></p>
       <div class="export-buttons">
         <button class="btn" id="sensAiReportBtn" data-i18n="s3_ai_report_btn">🤖 Báo cáo AI</button>
+        <button class="btn" id="sensExportWordBtn" data-i18n="s3_export_word">📄 Xuất Word</button>
       </div>
+      <div id="sensExportError" class="error-box hidden"></div>
     </div>
 
     <div class="panel-card">
@@ -120,6 +122,7 @@
 <script src="{{ url_for('static', filename='js/async_fetch.js') }}"></script>
 <script src="{{ url_for('static', filename='js/countdown.js') }}"></script>
 <script src="{{ url_for('static', filename='js/ai_report_modal.js') }}"></script>
+<script src="{{ url_for('static', filename='js/word_export.js') }}"></script>
 <script src="{{ url_for('static', filename='js/sensitivity.js') }}"></script>
 </body>
 </html>

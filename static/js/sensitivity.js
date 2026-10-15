@@ -68,6 +68,21 @@ document.addEventListener("langchange", () => {
   if (window.__sensJobMode === "resample") renderResampleResults(window.__sensResult);
   else renderAll(window.__sensResult);
 });
+document.getElementById("sensExportWordBtn").addEventListener("click", () => {
+  if (!window.__sensResult) return;
+  const isResample = window.__sensJobMode === "resample";
+  downloadWordReport({
+    url: "/api/sensitivity/export/word",
+    body: {
+      result: window.__sensResult,
+      mode: isResample ? "resample" : "shrink",
+      images: captureSensitivityChartImages(window.__sensResult, isResample),
+    },
+    filename: "Sensitivity_Report.docx",
+    button: document.getElementById("sensExportWordBtn"),
+    errorBox: document.getElementById("sensExportError"),
+  });
+});
 document.getElementById("sensAiReportBtn").addEventListener("click", () => {
   if (!window.__sensResult) return;
   const data = window.__sensResult;

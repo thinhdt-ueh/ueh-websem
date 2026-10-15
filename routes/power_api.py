@@ -11,10 +11,11 @@ already used by routes/sensitivity_api.py."""
 
 from __future__ import annotations
 
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify, request, send_file
 
 from cbsem.power_analysis import run_power_analysis as run_power_analysis_cbsem
 from i18n import get_lang, t
+from pls.analysis_reports import build_power_word_report
 from pls.model import Model, ModelError
 from pls.power_analysis import (
     MAX_SAMPLE_SIZE_POINTS,
@@ -126,3 +127,22 @@ def power_analysis():
             for p in points
         ],
     )
+
+
+DOCX_MIMETYPE = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+
+
+@power_api.post("/power_analysis/export/word")
+def power_analysis_export_word():
+    """Builds a Word report from a result the page already holds (plus PNG
+    snapshots of its charts) -- the simulation is not re-run."""
+    data = request.get_json(force=True, silent=True) or {}
+    lang = get_lang(data)
+    result = data.get("result")
+    if not isinstance(result, dict) or not result.get("points"):
+        return jsonify(error=t("err_export_missing_data", lang)), 400
+    try:
+        buf = build_power_word_report(result, images=data.get("images"), lang=lang)
+    except Exception as exc:  # noqa: BLE001
+        return jsonify(error=t("err_export_word_error", lang, exc=exc)), 500
+    return send_file(buf, as_attachment=True, download_name="Power_Analysis_Report.docx", mimetype=DOCX_MIMETYPE)

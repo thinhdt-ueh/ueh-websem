@@ -61,13 +61,26 @@ document.getElementById("closeTabBtn").addEventListener("click", () => window.cl
 document.addEventListener("langchange", () => {
   if (window.__powerResult) renderAll(window.__powerResult);
 });
+function capturePowerChartImages() {
+  const canvas = document.getElementById("powerChart");
+  return canvas && canvas.width && canvas.height
+    ? [{ label: t("ai_image_power_chart"), dataUrl: canvas.toDataURL("image/png") }]
+    : [];
+}
+document.getElementById("powerExportWordBtn").addEventListener("click", () => {
+  if (!window.__powerResult) return;
+  downloadWordReport({
+    url: "/api/power_analysis/export/word",
+    body: { result: window.__powerResult, images: capturePowerChartImages() },
+    filename: "Power_Analysis_Report.docx",
+    button: document.getElementById("powerExportWordBtn"),
+    errorBox: document.getElementById("powerExportError"),
+  });
+});
 document.getElementById("powerAiReportBtn").addEventListener("click", () => {
   if (!window.__powerResult) return;
   const data = window.__powerResult;
-  const canvas = document.getElementById("powerChart");
-  const images = canvas && canvas.width && canvas.height
-    ? [{ label: t("ai_image_power_chart"), dataUrl: canvas.toDataURL("image/png") }]
-    : [];
+  const images = capturePowerChartImages();
   openAiReportModal({
     context: buildPowerReportContext(data),
     sourceLabel: `${data.method === "cbsem" ? "CB-SEM" : "PLS-SEM"} Power Analysis — n_mc = ${data.n_mc}`,
