@@ -4156,13 +4156,17 @@ function openPowerAnalysisModal(method) {
   const modelPayload = editor.serialize();
   const root = document.getElementById("modalRoot");
 
-  const nonReflective = modelPayload.constructs.filter((c) => c.mode !== "A");
-  if (nonReflective.length > 0) {
+  // PLS-SEM simulates formative (Mode B) blocks as composites
+  // (pls/power_analysis.py's _formative_indicators); CB-SEM can't estimate
+  // them at all. Interaction constructs are unsupported by both.
+  const allowedModes = isCbsem ? ["A"] : ["A", "B"];
+  const unsupported = modelPayload.constructs.filter((c) => !allowedModes.includes(c.mode));
+  if (unsupported.length > 0) {
     root.innerHTML = `
       <div class="modal-backdrop">
         <div class="modal-box">
           <h3>${t("power_modal_title")}</h3>
-          <p class="hint">${t("power_btn_disabled_hint")}</p>
+          <p class="hint">${t(isCbsem ? "power_btn_disabled_hint_cbsem" : "power_btn_disabled_hint")}</p>
           <div class="modal-actions">
             <button class="btn" id="powerModalClose">${t("modal_cancel")}</button>
           </div>
@@ -4216,7 +4220,10 @@ function openPowerAnalysisModal(method) {
   const loadingRows = modelPayload.constructs
     .map((c) => {
       const def = avgLoadingByConstruct[c.id];
-      return `<div class="modal-value-row"><span>${escapeHtml(c.name)}</span>` +
+      const label = c.mode === "B"
+        ? `${escapeHtml(c.name)} <span class="hint">${t("power_modal_formative_tag", { min: (1 / Math.sqrt(Math.max(1, (c.indicators || []).length))).toFixed(2) })}</span>`
+        : escapeHtml(c.name);
+      return `<div class="modal-value-row"><span>${label}</span>` +
         `<input type="number" step="0.01" min="0.1" max="0.99" value="${def.toFixed(2)}" data-construct="${c.id}"></div>`;
     })
     .join("");

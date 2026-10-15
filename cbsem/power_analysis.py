@@ -4,8 +4,8 @@ Same idea as pls/power_analysis.py (declare a population model, simulate
 synthetic datasets at each candidate n, fit, count how often each path
 comes out significant), but for CB-SEM. The synthetic-data generator
 (`generate_synthetic_data`) is estimation-method-agnostic — it just
-produces reflective indicator data from population path coefficients and
-loadings — so it's reused unchanged from pls/power_analysis.py; only the
+produces indicator data from population path coefficients and loadings —
+so it's reused unchanged from pls/power_analysis.py; only the
 fitting/significance-testing step differs here.
 
 Unlike PLS-SEM, CB-SEM's Maximum Likelihood estimation already gives an
@@ -18,8 +18,9 @@ roughly 20x cheaper than one PLS-SEM replicate (which pays for
 n_boot_inner extra fits) — so this module affords much higher n_mc/point
 defaults within the same time budget.
 
-Same scope restriction as the PLS-SEM version: reflective (Mode A) only,
-no interaction/moderation construct — see `validate_population_model`.
+Narrower scope than the PLS-SEM version: reflective (Mode A) only, since
+CB-SEM cannot estimate formative blocks, and no interaction/moderation
+construct — see `validate_population_model`.
 """
 
 from __future__ import annotations
@@ -56,7 +57,7 @@ def run_power_analysis(
     seed: int | None = None,
     lang: str = DEFAULT_LANG,
 ) -> list[PowerPoint]:
-    validate_population_model(model, path_values, loading_values, lang)
+    validate_population_model(model, path_values, loading_values, lang, allow_formative=False)
 
     n_mc = max(MIN_MC_REPLICATES, min(MAX_MC_REPLICATES, int(n_mc)))
     total_replicates = len(sample_sizes) * n_mc

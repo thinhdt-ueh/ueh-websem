@@ -86,3 +86,15 @@ def test_clamps_out_of_range_replicate_counts(tam_model_json):
         n_mc=MIN_MC_REPLICATES - 10, seed=1,
     )
     assert all(p.power == 0.0 and p.n_converged == 0 for p in points)
+
+
+def test_cbsem_power_rejects_formative_constructs():
+    model = Model.from_json({
+        "constructs": [
+            {"id": "x", "name": "X", "mode": "B", "indicators": ["X1", "X2"]},
+            {"id": "y", "name": "Y", "mode": "A", "indicators": ["Y1", "Y2"]},
+        ],
+        "paths": [{"source": "x", "target": "y"}],
+    })
+    with pytest.raises(ValueError):
+        run_power_analysis(model, {("x", "y"): 0.3}, {"x": 0.7, "y": 0.7}, [100], n_mc=20)

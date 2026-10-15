@@ -58,16 +58,58 @@ def test_rejects_moderation_models(moderation_model_json):
         run_power_analysis(model, {}, {}, [100], n_mc=20, n_boot_inner=100)
 
 
-def test_rejects_non_reflective_constructs():
-    model = Model.from_json({
-        "constructs": [
-            {"id": "x", "name": "X", "mode": "B", "indicators": ["X1", "X2"]},
-            {"id": "y", "name": "Y", "mode": "A", "indicators": ["Y1", "Y2"]},
-        ],
-        "paths": [{"source": "x", "target": "y"}],
-    })
-    with pytest.raises(ValueError):
-        run_power_analysis(model, {("x", "y"): 0.3}, {"x": 0.7, "y": 0.7}, [100], n_mc=20, n_boot_inner=100)
+FORMATIVE_MODEL_JSON = {
+    "constructs": [
+        {"id": "x", "name": "X", "mode": "B", "indicators": ["X1", "X2", "X3"]},
+        {"id": "m", "name": "M", "mode": "A", "indicators": ["M1", "M2", "M3"]},
+        {"id": "y", "name": "Y", "mode": "B", "indicators": ["Y1", "Y2", "Y3", "Y4"]},
+    ],
+    "paths": [{"source": "x", "target": "m"}, {"source": "m", "target": "y"}],
+}
+
+
+def test_formative_block_is_an_exact_composite_with_requested_loadings():
+    from pls.power_analysis import _formative_indicators
+
+    rng = np.random.default_rng(5)
+    eta = rng.standard_normal(100_000)
+    for loading, k in [(0.7, 3), (0.4, 4), (0.9, 2)]:
+        x = _formative_indicators(eta, loading, k, rng)
+        np.testing.assert_allclose(x.var(axis=0), 1.0, atol=0.02)
+        corr = [np.corrcoef(x[:, j], eta)[0, 1] for j in range(k)]
+        np.testing.assert_allclose(corr, loading, atol=0.01)
+        # the equally weighted composite reproduces the construct score exactly
+        composite = x.sum(axis=1)
+        np.testing.assert_allclose(composite / composite.std(), eta / eta.std(), atol=1e-8)
+    single = _formative_indicators(eta, 0.5, 1, rng)
+    np.testing.assert_array_equal(single[:, 0], eta)
+
+
+def test_generate_synthetic_data_recovers_formative_population():
+    model = Model.from_json(FORMATIVE_MODEL_JSON)
+    path_values = {("x", "m"): 0.4, ("m", "y"): 0.3}
+    loading_values = {"x": 0.7, "m": 0.8, "y": 0.6}
+    df = generate_synthetic_data(model, path_values, loading_values, n=4000, rng=np.random.default_rng(2))
+    result = run_pls_algorithm(model, df)
+    assert result.converged
+    for (src, tgt), beta in path_values.items():
+        assert float(result.path_coefficients.loc[src, tgt]) == pytest.approx(beta, abs=0.08)
+    for ind in ("X1", "X2", "X3"):
+        assert float(result.outer_loadings[ind]) == pytest.approx(0.7, abs=0.08)
+
+
+def test_power_analysis_runs_on_formative_constructs():
+    model = Model.from_json(FORMATIVE_MODEL_JSON)
+    points = run_power_analysis(
+        model, {("x", "m"): 0.4, ("m", "y"): 0.4}, {"x": 0.7, "m": 0.8, "y": 0.7},
+        sample_sizes=[60, 300], n_mc=20, n_boot_inner=100, seed=4,
+    )
+    by_n = {}
+    for p in points:
+        assert p.n_converged > 0
+        by_n.setdefault(p.n, {})[(p.source, p.target)] = p.power
+    assert all(power >= 0.7 for power in by_n[300].values())
+    assert all(by_n[300][k] >= by_n[60][k] for k in by_n[300])
 
 
 def test_rejects_missing_population_values(tam_model_json):

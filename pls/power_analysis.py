@@ -14,11 +14,12 @@ Reuses the exact estimation/bootstrap code every real analysis in this app
 uses (`run_pls_algorithm`, `run_bootstrap`) — this module only adds the
 synthetic-data generator and the outer simulation loop.
 
-Scope: reflective (Mode A) constructs only, no interaction/moderation
-constructs (mode "I") and no formative (mode "B") constructs — see
-`run_power_analysis`'s validation. Both need a materially different
-data-generating process; out of scope for now rather than risk a subtly
-wrong one.
+Scope: reflective (Mode A) and formative (Mode B) constructs; no
+interaction/moderation constructs (mode "I"), which would need a
+materially different data-generating process. Formative blocks are
+generated from a composite population model (see
+`_formative_indicators`), and are PLS-SEM only — CB-SEM cannot estimate
+formative blocks at all (cbsem/estimator.py).
 """
 
 from __future__ import annotations
@@ -86,7 +87,8 @@ def generate_synthetic_data(
     this correct even when predictors are correlated (e.g. serial/parallel
     mediation chains sharing an upstream exogenous construct). Each
     indicator of a Mode A construct is then `loading * score +
-    noise`, so the population loading is recovered in expectation."""
+    noise`, so the population loading is recovered in expectation; a Mode B
+    construct's indicators come from `_formative_indicators`."""
     scores: dict[str, np.ndarray] = {}
     for cid in model.topological_order():
         preds = model.predecessors(cid)
@@ -102,11 +104,44 @@ def generate_synthetic_data(
     data: dict[str, np.ndarray] = {}
     for cid, construct in model.constructs.items():
         lam = loading_values[cid]
+        if construct.mode == "B":
+            block = _formative_indicators(scores[cid], lam, len(construct.indicators), rng)
+            for j, ind in enumerate(construct.indicators):
+                data[ind] = block[:, j]
+            continue
         noise_var = max(1.0 - lam * lam, MIN_INDICATOR_NOISE_VARIANCE)
         noise_sd = np.sqrt(noise_var)
         for ind in construct.indicators:
             data[ind] = lam * scores[cid] + noise_sd * rng.standard_normal(n)
     return pd.DataFrame(data)
+
+
+def _formative_indicators(score: np.ndarray, loading: float, k: int, rng: np.random.Generator) -> np.ndarray:
+    """Indicators of a formative (composite) block whose equally weighted
+    composite reproduces `score` exactly.
+
+    Population: k standardized indicators with common intercorrelation rho,
+    composite eta = w'x with equal weights scaled so Var(eta) = 1. Each
+    indicator's correlation with eta (its "loading", which is what PLS
+    reports as the outer loading of a Mode B indicator and what the power
+    modal asks for) is then sqrt((1 + (k-1) rho) / k), so rho is solved
+    from the requested loading: rho = (k loading^2 - 1) / (k - 1). Any
+    loading in (0, 1) gives a positive-definite rho > -1/(k-1).
+
+    Drawing x | eta ~ N(loading * eta * 1, Sigma - loading^2 * 11') makes
+    w'x == eta hold exactly in every replicate; that conditional covariance
+    simplifies to (1 - rho)(I - 11'/k), i.e. scaled, row-centered white
+    noise -- so no matrix factorization is needed."""
+    n = score.shape[0]
+    if k == 1:
+        return score.reshape(n, 1).copy()
+    lam = float(np.clip(loading, 0.01, 0.999))
+    rho = (k * lam * lam - 1.0) / (k - 1)
+    rho = float(np.clip(rho, -1.0 / (k - 1) + 1e-3, 0.999))
+    lam = np.sqrt((1.0 + (k - 1) * rho) / k)
+    noise = rng.standard_normal((n, k))
+    noise -= noise.mean(axis=1, keepdims=True)
+    return lam * score[:, None] + np.sqrt(1.0 - rho) * noise
 
 
 @dataclass
@@ -125,15 +160,18 @@ def validate_population_model(
     path_values: dict[tuple[str, str], float],
     loading_values: dict[str, float],
     lang: str,
+    allow_formative: bool = True,
 ) -> None:
     """Shared by both engines' power analysis (see cbsem/power_analysis.py) —
-    the population-model requirements (reflective-only, no interactions,
-    every path/construct covered) don't depend on which estimator will fit
-    the synthetic data afterwards."""
+    the population-model requirements (no interactions, every path/construct
+    covered) don't depend on which estimator will fit the synthetic data
+    afterwards; only formative blocks do, since CB-SEM can't estimate them
+    (`allow_formative=False`)."""
     if model.has_interactions():
         raise ValueError(t("err_power_no_interactions", lang))
+    allowed_modes = ("A", "B") if allow_formative else ("A",)
     for c in model.constructs.values():
-        if c.mode != "A":
+        if c.mode not in allowed_modes:
             raise ValueError(t("err_power_reflective_only", lang, name=c.name))
         if c.id not in loading_values:
             raise ValueError(t("err_power_missing_loading", lang, name=c.name))
