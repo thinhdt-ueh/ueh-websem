@@ -106,7 +106,7 @@ function captureSensitivityChartImages(data, isResample) {
     .map(([id, label]) => {
       const canvas = document.getElementById(id);
       if (!canvas || !canvas.width || !canvas.height) return null;
-      return { label, dataUrl: canvas.toDataURL("image/png") };
+      return { label, dataUrl: chartImageDataUrl(canvas) };
     })
     .filter(Boolean);
 }
@@ -285,8 +285,13 @@ async function main() {
   }
 
   const isResample = job.mode === "resample";
+  const apiPath = isResample ? "/api/sensitivity_resample" : "/api/sensitivity";
+  const detachProgress = trackJobProgress(apiPath, {
+    wrapId: "sensProgress", barId: "sensProgressBar", textId: "sensProgressText",
+    etaEl: document.getElementById("sensLoadingEta"), stopEta: () => stopEta && stopEta(),
+  });
   try {
-    const res = await fetch(isResample ? "/api/sensitivity_resample" : "/api/sensitivity", {
+    const res = await fetch(apiPath, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(job),
@@ -301,6 +306,7 @@ async function main() {
     showError(err.message);
   } finally {
     if (stopEta) stopEta();
+    detachProgress();
   }
 }
 
@@ -693,6 +699,7 @@ function drawLineChart(canvasId, tooltipId, legendId, series, opts) {
   legendEl.innerHTML = series
     .map((s, i) => `<button type="button" class="leg-item" data-series-index="${i}" aria-pressed="${!s.hidden}">${legendSwatchSvg(s)}${escapeHtml(s.label)}</button>`)
     .join("");
+  canvas.__legendSeries = series; // for chartImageDataUrl() (word_export.js)
   legendEl.querySelectorAll(".leg-item").forEach((btn) => {
     btn.onclick = () => {
       const s = series[Number(btn.dataset.seriesIndex)];
@@ -847,6 +854,7 @@ function drawBoxPlot(canvasId, tooltipId, legendId, series, opts) {
   const canvas = document.getElementById(canvasId);
   const tooltip = document.getElementById(tooltipId);
   document.getElementById(legendId).innerHTML = "";
+  canvas.__legendSeries = null; // categories are labelled on the axis
   const wrap = canvas.parentElement;
   const cssWidth = wrap.clientWidth;
   const cssHeight = Math.max(280, Math.min(420, cssWidth * 0.42));

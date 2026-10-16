@@ -29,7 +29,9 @@ from pls.algorithm import run_pls_algorithm
 from pls.bootstrap import MAX_BOOTSTRAP_SAMPLES, MIN_BOOTSTRAP_SAMPLES, run_bootstrap, run_bootstrap_with_moderation
 from pls.model import Model, ModelError
 from pls.moderation import run_pls_with_moderation
+from pls.parallel import run_tasks
 from pls.power_analysis import MAX_MC_REPLICATES, MIN_MC_REPLICATES
+from routes.jobs import report_progress
 
 from .api import _read_dataframe, _upload_dir
 
@@ -87,6 +89,20 @@ def _run_once(model: Model, method: str, sub_df: pd.DataFrame, lang: str, n_boot
             p_values[f"{row['source']}->{row['target']}"] = _round(row["p_value"], 6)
     r_squared = {cid: _round(v) for cid, v in result.r_squared.to_dict().items()}
     return bool(result.converged), paths, p_values, r_squared
+
+
+def _step_task(model: Model, method: str, sub_df: pd.DataFrame, lang: str, n_boot: int | None, seed: int):
+    """One sensitivity step/iteration, run in a worker process (pls/parallel.py).
+    Returns ("ok", converged, paths, p_values, r_squared), ("failed",) when
+    the model can't be estimated on this subsample (reported as a
+    non-converged point, as before), or ("error", message) for anything
+    unexpected (the whole request then fails, as before)."""
+    try:
+        return ("ok", *_run_once(model, method, sub_df, lang, n_boot, seed=seed))
+    except (ValueError, CBSEMError):
+        return ("failed",)
+    except Exception as exc:  # noqa: BLE001 -- surfaced by the route as err_pls_run_error
+        return ("error", str(exc))
 
 
 @sensitivity_api.post("/sensitivity")
@@ -147,32 +163,40 @@ def sensitivity():
                 "err_sensitivity_bootstrap_budget_exceeded", lang, total=total_fits, max=MAX_BOOTSTRAP_TOTAL_FITS,
             )), 400
 
+    # Subsamples are drawn here, sequentially from one seeded rng, exactly as
+    # before (sensitivity_export_row() replays this sequence); only the
+    # model fits are farmed out to worker processes.
     rng = np.random.default_rng(42)
-    points = []
+    steps = []
     i = 1
     while i <= MAX_STEPS:
         n_current = n_total - step * i
         if n_current < min_n:
             break
         idx = rng.choice(n_total, size=n_current, replace=False)
-        sub_df = df.iloc[idx]
-        try:
-            converged, paths, p_values, r_squared = _run_once(
-                model, method, sub_df, lang, n_boot, seed=1000 + i,
-            )
-        except (ValueError, CBSEMError):
+        steps.append((i, n_current, df.iloc[idx]))
+        i += 1
+
+    outcomes = run_tasks(
+        _step_task,
+        [(model, method, sub_df, lang, n_boot, 1000 + i_step) for i_step, _, sub_df in steps],
+        [n_current * (1 + (n_boot or 0)) for _, n_current, _ in steps],
+        report_progress,
+    )
+    points = []
+    for (i_step, n_current, _), outcome in zip(steps, outcomes):
+        if outcome[0] == "error":
+            return jsonify(error=t("err_pls_run_error", lang, exc=outcome[1])), 500
+        if outcome[0] == "failed":
             points.append({
-                "step_index": i, "n": n_current, "converged": False, "paths": {}, "p_values": {}, "r_squared": {},
+                "step_index": i_step, "n": n_current, "converged": False, "paths": {}, "p_values": {}, "r_squared": {},
             })
-            i += 1
             continue
-        except Exception as exc:  # noqa: BLE001
-            return jsonify(error=t("err_pls_run_error", lang, exc=exc)), 500
+        _, converged, paths, p_values, r_squared = outcome
         points.append({
-            "step_index": i, "n": n_current, "converged": converged,
+            "step_index": i_step, "n": n_current, "converged": converged,
             "paths": paths, "p_values": p_values, "r_squared": r_squared,
         })
-        i += 1
 
     return jsonify(
         method=method,
@@ -264,18 +288,22 @@ def sensitivity_resample():
                 "err_sensitivity_bootstrap_budget_exceeded", lang, total=total_fits, max=MAX_BOOTSTRAP_TOTAL_FITS,
             )), 400
 
-    rng = np.random.default_rng(42)
+    rng = np.random.default_rng(42)  # drawn sequentially, as before (see sensitivity_export_row)
+    subsamples = [df.iloc[rng.choice(n_total, size=new_n, replace=False)] for _ in range(n_iterations)]
+    outcomes = run_tasks(
+        _step_task,
+        [(model, method, sub_df, lang, n_boot, 3000 + i) for i, sub_df in enumerate(subsamples, start=1)],
+        [1] * n_iterations,
+        report_progress,
+    )
     points = []
-    for i in range(1, n_iterations + 1):
-        idx = rng.choice(n_total, size=new_n, replace=False)
-        sub_df = df.iloc[idx]
-        try:
-            converged, paths, p_values, r_squared = _run_once(model, method, sub_df, lang, n_boot, seed=3000 + i)
-        except (ValueError, CBSEMError):
+    for i, outcome in enumerate(outcomes, start=1):
+        if outcome[0] == "error":
+            return jsonify(error=t("err_pls_run_error", lang, exc=outcome[1])), 500
+        if outcome[0] == "failed":
             points.append({"iteration": i, "converged": False, "paths": {}, "p_values": {}, "r_squared": {}})
             continue
-        except Exception as exc:  # noqa: BLE001
-            return jsonify(error=t("err_pls_run_error", lang, exc=exc)), 500
+        _, converged, paths, p_values, r_squared = outcome
         points.append({
             "iteration": i, "converged": converged, "paths": paths, "p_values": p_values, "r_squared": r_squared,
         })

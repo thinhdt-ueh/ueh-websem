@@ -200,50 +200,28 @@ def run_replicates(
     cost grows with n, keeping the page's remaining-time extrapolation
     honest); sample sizes below min_n are skipped instantly. If `progress`
     raises (the job was cancelled), queued replicates are cancelled too."""
-    from concurrent.futures import as_completed
-    from concurrent.futures.process import BrokenProcessPool
-
-    from .parallel import executor_session, reset_executor
-
-    report = progress or (lambda done, total: None)
-    total_work = n_mc * sum(sample_sizes)
-    done_work = 0
-    report(0, total_work)
+    from .parallel import run_tasks
 
     seeds = iter(np.random.SeedSequence(seed).spawn(len(sample_sizes) * n_mc))
-    by_n: dict[int, list] = {n: [] for n in sample_sizes}
-    tasks = []
+    tasks, weights = [], []
+    skipped_work = 0
     for n in sample_sizes:
         for _ in range(n_mc):
             seed_seq = next(seeds)  # drawn for skipped sizes too, keeping seeds stable
             if n >= min_n:
-                tasks.append((n, seed_seq))
+                tasks.append((*fixed_args, n, seed_seq))
+                weights.append(n)
         if n < min_n:
-            done_work += n_mc * n
-    report(done_work, total_work)
+            skipped_work += n_mc * n
 
-    with executor_session() as executor:
-        if executor is None:
-            for n, seed_seq in tasks:
-                by_n[n].append(replicate_fn(*fixed_args, n, seed_seq))
-                done_work += n
-                report(done_work, total_work)
-            return by_n
-        futures = {}
-        try:
-            for n, seed_seq in tasks:
-                futures[executor.submit(replicate_fn, *fixed_args, n, seed_seq)] = n
-            for future in as_completed(futures):
-                n = futures[future]
-                by_n[n].append(future.result())
-                done_work += n
-                report(done_work, total_work)
-        except BrokenProcessPool:
-            reset_executor()
-            raise
-        finally:
-            for future in futures:
-                future.cancel()
+    def report(done, total):
+        if progress:
+            progress(done + skipped_work, total + skipped_work)
+
+    results = run_tasks(replicate_fn, tasks, weights, report)
+    by_n: dict[int, list] = {n: [] for n in sample_sizes}
+    for args, result in zip(tasks, results):
+        by_n[args[-2]].append(result)
     return by_n
 
 

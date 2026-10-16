@@ -4104,7 +4104,7 @@ function openSensitivityModal(method) {
       const job = {
         file_id: state.fileId, model: modelPayload, method, mode: "resample",
         new_n: newN, n_iterations: nIter, lang: getLang(),
-        estimated_seconds: (nIter * PLS_MS_PER_FIT) / 1000,
+        estimated_seconds: (nIter * PLS_MS_PER_FIT) / 1000 / parallelSpeedup(),
       };
       if (!isCbsem && document.getElementById("sensBootEnabled").checked) {
         const nBoot = parseInt(document.getElementById("sensNBoot").value, 10);
@@ -4115,7 +4115,7 @@ function openSensitivityModal(method) {
         }
         job.bootstrap = { enabled: true, n_boot: nBoot };
         // Mirrors routes/sensitivity_api.py's own total_fits math for this route.
-        job.estimated_seconds = (nIter * nBoot * PLS_MS_PER_FIT) / 1000;
+        job.estimated_seconds = (nIter * nBoot * PLS_MS_PER_FIT) / 1000 / parallelSpeedup();
       }
       sessionStorage.setItem("websem_sensitivity_job", JSON.stringify(job));
       root.innerHTML = "";
@@ -4142,7 +4142,7 @@ function openSensitivityModal(method) {
       // countdown on the results tab is grounded in the same formula the
       // server will actually run against -- see PLS_MS_PER_FIT's comment.
       const expectedSteps = Math.max(1, Math.min(150, Math.floor((nRows - minN) / step) + 1));
-      job.estimated_seconds = (expectedSteps * nBoot * PLS_MS_PER_FIT) / 1000;
+      job.estimated_seconds = (expectedSteps * nBoot * PLS_MS_PER_FIT) / 1000 / parallelSpeedup();
     }
     sessionStorage.setItem("websem_sensitivity_job", JSON.stringify(job));
     root.innerHTML = "";
@@ -4269,12 +4269,7 @@ function openPowerAnalysisModal(method) {
   }
 
   const nIndicators = modelPayload.constructs.reduce((sum, c) => sum + (c.indicators || []).length, 0);
-  // Replicates run in parallel on all CPUs but one (pls/parallel.py); ~60%
-  // parallel efficiency was measured on a 12-core machine. This uses the
-  // browser's core count, i.e. right for the desktop app / a local server;
-  // the results page switches to real server-reported progress anyway.
-  const parallelSpeedup = Math.max(1, ((navigator.hardwareConcurrency || 2) - 1) * 0.6);
-  const powerCostScale = Math.max(1, Math.sqrt(nIndicators / 13)) / parallelSpeedup;
+  const powerCostScale = Math.max(1, Math.sqrt(nIndicators / 13)) / parallelSpeedup();
   function updateEstimate() {
     const points = computePoints();
     const nMc = parseInt(document.getElementById("powerNMc").value, 10) || defaultNMc;
@@ -4924,6 +4919,15 @@ document.getElementById("estimationMethod").addEventListener("change", (e) => {
 // cost depends on the user's own dataset/model size, so the countdown
 // degrades gracefully (see countdown.js) rather than promising exact timing.
 const PLS_MS_PER_FIT = 7.7;
+
+// Power analysis and sensitivity runs fit their replicates/steps in parallel
+// on all CPUs but one (pls/parallel.py); ~60% parallel efficiency was
+// measured on a 12-core machine. Uses the browser's core count, i.e. right
+// for the desktop app / a local server -- the results pages switch to real
+// server-reported progress as soon as the run starts anyway.
+function parallelSpeedup() {
+  return Math.max(1, ((navigator.hardwareConcurrency || 2) - 1) * 0.6);
+}
 
 async function runAnalysis() {
   const method = document.getElementById("estimationMethod").value;

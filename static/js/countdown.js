@@ -34,3 +34,42 @@ function startEtaCountdown(el, estimatedSeconds) {
     clearInterval(timer);
   };
 }
+
+/* Real progress for a background job (routes/jobs.py report_progress, relayed
+ * by async_fetch.js as "asyncjobprogress" events): once the first progress
+ * report for `path` arrives, the up-front estimate (stopped via `stopEta`) is
+ * replaced by a progress bar with elapsed time and a remaining-time
+ * extrapolation from the actual run speed. Returns a function that detaches
+ * the listener.
+ *
+ * Usage: const detach = trackJobProgress("/api/x", { wrapId, barId, textId, etaEl, stopEta }); */
+function trackJobProgress(path, { wrapId, barId, textId, etaEl, stopEta }) {
+  let etaStopped = false;
+  function onProgress(ev) {
+    const { path: evPath, elapsed, progress } = ev.detail || {};
+    if (evPath !== path || !progress || !progress.total) return;
+    if (!etaStopped) {
+      etaStopped = true;
+      if (stopEta) stopEta();
+      if (etaEl) etaEl.classList.add("hidden");
+    }
+    const frac = Math.min(1, progress.done / progress.total);
+    document.getElementById(wrapId).classList.remove("hidden");
+    document.getElementById(barId).value = Math.round(frac * 100);
+    const remaining = frac > 0.02 ? (elapsed * (1 - frac)) / frac : null;
+    document.getElementById(textId).textContent = t(
+      remaining === null ? "job_progress_starting" : "job_progress",
+      { pct: Math.round(frac * 100), elapsed: formatDuration(elapsed), remaining: formatDuration(remaining) },
+    );
+  }
+  window.addEventListener("asyncjobprogress", onProgress);
+  return () => window.removeEventListener("asyncjobprogress", onProgress);
+}
+
+function formatDuration(seconds) {
+  const sec = Math.max(0, Math.round(seconds || 0));
+  const h = Math.floor(sec / 3600);
+  const m = Math.floor((sec % 3600) / 60);
+  const s = String(sec % 60).padStart(2, "0");
+  return h ? `${h}:${String(m).padStart(2, "0")}:${s}` : `${m}:${s}`;
+}

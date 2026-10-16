@@ -468,3 +468,22 @@ def test_moderation_model_round_trip(client, moderation_df, moderation_model_jso
     interaction_paths = [p for p in data["structural"]["paths"] if p["is_interaction"]]
     assert len(interaction_paths) == 1
     assert interaction_paths[0]["coefficient"] > 0
+
+
+def test_sensitivity_parallel_matches_inline(client, tam_df, tam_model_json, monkeypatch):
+    """Steps run on the process pool (pls/parallel.py); subsamples are still
+    drawn sequentially in the request, so results must not depend on it."""
+    file_id = _upload(client, tam_df)
+    shrink = {"file_id": file_id, "model": tam_model_json, "lang": "en", "method": "pls", "step": 30,
+              "bootstrap": {"enabled": True, "n_boot": 100}}
+    resample = {"file_id": file_id, "model": tam_model_json, "lang": "en", "method": "pls",
+                "new_n": 120, "n_iterations": 20}
+    runs = {}
+    for workers in ("1", "3"):
+        monkeypatch.setenv("WEBSEM_WORKERS", workers)
+        runs[workers] = (
+            client.post("/api/sensitivity", json=shrink).get_json(),
+            client.post("/api/sensitivity_resample", json=resample).get_json(),
+        )
+    assert runs["3"] == runs["1"]
+    assert runs["1"][0]["points"] and runs["1"][0]["has_p_values"]

@@ -124,3 +124,45 @@ def reset_executor() -> None:
         if _executor is not None:
             _executor.shutdown(wait=False, cancel_futures=True)
             _executor = None
+
+
+def run_tasks(fn, task_args: list[tuple], weights: list[float], progress=None) -> list:
+    """Runs fn(*args) for every tuple in task_args on the shared pool (or
+    inline) and returns the results in input order.
+
+    `progress(done, total)` is called after each completed task, with done/
+    total measured in `weights` (each task's relative cost), so a page can
+    show a percentage and extrapolate the remaining time. If it raises (the
+    job was cancelled -- routes/jobs.py), queued tasks are cancelled and the
+    exception propagates; tasks already running finish in their worker."""
+    from concurrent.futures import as_completed
+    from concurrent.futures.process import BrokenProcessPool
+
+    report = progress or (lambda done, total: None)
+    total = sum(weights)
+    done = 0
+    report(done, total)
+    results: list = [None] * len(task_args)
+    with executor_session() as executor:
+        if executor is None:
+            for i, args in enumerate(task_args):
+                results[i] = fn(*args)
+                done += weights[i]
+                report(done, total)
+            return results
+        futures = {}
+        try:
+            for i, args in enumerate(task_args):
+                futures[executor.submit(fn, *args)] = i
+            for future in as_completed(futures):
+                i = futures[future]
+                results[i] = future.result()
+                done += weights[i]
+                report(done, total)
+        except BrokenProcessPool:
+            reset_executor()
+            raise
+        finally:
+            for future in futures:
+                future.cancel()
+    return results
