@@ -6,6 +6,9 @@ services:
       - "5000:5000"
     environment:
       - FLASK_DEBUG=0
+      # Power-analysis simulations use a process pool of (CPUs - 1) workers per
+      # gunicorn worker (pls/parallel.py). Cap it on a shared/small host, e.g.:
+      # - WEBSEM_WORKERS=4
     volumes:
       - uploads:/app/uploads
     restart: unless-stopped

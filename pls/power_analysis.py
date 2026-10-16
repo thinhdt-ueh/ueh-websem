@@ -157,6 +157,128 @@ class PowerPoint:
     mean_estimate: float | None
 
 
+def _pls_replicate(model, path_values, loading_values, n_boot_inner, lang, n, seed_seq):
+    """One Monte Carlo replicate at sample size n: simulate, fit, bootstrap.
+    Returns None if the fit failed/didn't converge, else a list of
+    (source, target, estimate, significant) -- empty if only the bootstrap
+    failed (the replicate still counts as converged, as before).
+    Module-level so worker processes can unpickle it (pls/parallel.py)."""
+    rng = np.random.default_rng(seed_seq)
+    df = generate_synthetic_data(model, path_values, loading_values, n, rng)
+    try:
+        result = run_pls_algorithm(model, df, lang=lang)
+    except (ValueError, np.linalg.LinAlgError):
+        return None
+    if not result.converged:
+        return None
+    try:
+        boot = run_bootstrap(model, result, n_boot=n_boot_inner, seed=int(rng.integers(0, 2**31 - 1)))
+    except np.linalg.LinAlgError:
+        return []
+    return [
+        (row["source"], row["target"], row["original"],
+         row["p_value"] is not None and row["p_value"] < SIGNIFICANCE_ALPHA)
+        for row in boot.path_stats
+    ]
+
+
+def run_replicates(
+    replicate_fn: Callable,
+    fixed_args: tuple,
+    sample_sizes: list[int],
+    n_mc: int,
+    min_n: int,
+    seed: int | None,
+    progress: Callable[[int, int], None] | None,
+) -> dict[int, list]:
+    """Runs n_mc replicates per sample size on the shared process pool
+    (pls/parallel.py) and returns {n: [replicate results]}.
+
+    Every replicate gets its own child SeedSequence, so results depend only
+    on `seed` -- not on how many workers ran them or in which order they
+    finished. Progress is counted in replicates weighted by their n (a fit's
+    cost grows with n, keeping the page's remaining-time extrapolation
+    honest); sample sizes below min_n are skipped instantly. If `progress`
+    raises (the job was cancelled), queued replicates are cancelled too."""
+    from concurrent.futures import as_completed
+    from concurrent.futures.process import BrokenProcessPool
+
+    from .parallel import executor_session, reset_executor
+
+    report = progress or (lambda done, total: None)
+    total_work = n_mc * sum(sample_sizes)
+    done_work = 0
+    report(0, total_work)
+
+    seeds = iter(np.random.SeedSequence(seed).spawn(len(sample_sizes) * n_mc))
+    by_n: dict[int, list] = {n: [] for n in sample_sizes}
+    tasks = []
+    for n in sample_sizes:
+        for _ in range(n_mc):
+            seed_seq = next(seeds)  # drawn for skipped sizes too, keeping seeds stable
+            if n >= min_n:
+                tasks.append((n, seed_seq))
+        if n < min_n:
+            done_work += n_mc * n
+    report(done_work, total_work)
+
+    with executor_session() as executor:
+        if executor is None:
+            for n, seed_seq in tasks:
+                by_n[n].append(replicate_fn(*fixed_args, n, seed_seq))
+                done_work += n
+                report(done_work, total_work)
+            return by_n
+        futures = {}
+        try:
+            for n, seed_seq in tasks:
+                futures[executor.submit(replicate_fn, *fixed_args, n, seed_seq)] = n
+            for future in as_completed(futures):
+                n = futures[future]
+                by_n[n].append(future.result())
+                done_work += n
+                report(done_work, total_work)
+        except BrokenProcessPool:
+            reset_executor()
+            raise
+        finally:
+            for future in futures:
+                future.cancel()
+    return by_n
+
+
+def summarize_replicates(model: Model, sample_sizes: list[int], n_mc: int, by_n: dict[int, list]) -> list[PowerPoint]:
+    points: list[PowerPoint] = []
+    for n in sample_sizes:
+        results = by_n.get(n) or []
+        if not results:
+            for p in model.paths:
+                points.append(PowerPoint(n=n, source=p.source, target=p.target, power=0.0,
+                                          n_converged=0, n_replicates=0, mean_estimate=None))
+            continue
+        detected = {(p.source, p.target): 0 for p in model.paths}
+        estimates = {(p.source, p.target): [] for p in model.paths}
+        n_converged = 0
+        for rows in results:
+            if rows is None:
+                continue
+            n_converged += 1
+            for source, target, estimate, significant in rows:
+                estimates[(source, target)].append(estimate)
+                if significant:
+                    detected[(source, target)] += 1
+        for p in model.paths:
+            key = (p.source, p.target)
+            vals = estimates[key]
+            points.append(PowerPoint(
+                n=n, source=p.source, target=p.target,
+                power=(detected[key] / n_converged) if n_converged else 0.0,
+                n_converged=n_converged, n_replicates=n_mc,
+                mean_estimate=(sum(vals) / len(vals)) if vals else None,
+            ))
+    return points
+
+
 def validate_population_model(
     model: Model,
     path_values: dict[tuple[str, str], float],
@@ -204,61 +326,9 @@ def run_power_analysis(
     if total_fits > MAX_TOTAL_FITS:
         raise ValueError(t("err_power_budget_exceeded", lang, total=total_fits, max=MAX_TOTAL_FITS))
 
-    rng = np.random.default_rng(seed)
-    # Progress is counted in replicates weighted by their n (a fit's cost
-    # grows with n, so this keeps the page's remaining-time extrapolation
-    # honest); sample sizes below min_n are skipped instantly.
-    total_work = n_mc * sum(sample_sizes)
-    done_work = 0
-    report = progress or (lambda done, total: None)
-    report(0, total_work)
     min_n = len(model.all_indicators()) + 5  # same floor run_pls_algorithm enforces
-    points: list[PowerPoint] = []
-
-    for n in sample_sizes:
-        if n < min_n:
-            done_work += n_mc * n
-            report(done_work, total_work)
-            for p in model.paths:
-                points.append(PowerPoint(n=n, source=p.source, target=p.target, power=0.0,
-                                          n_converged=0, n_replicates=0, mean_estimate=None))
-            continue
-
-        detected = {(p.source, p.target): 0 for p in model.paths}
-        estimates = {(p.source, p.target): [] for p in model.paths}
-        n_converged = 0
-
-        for _ in range(n_mc):
-            report(done_work, total_work)
-            done_work += n
-            df = generate_synthetic_data(model, path_values, loading_values, n, rng)
-            try:
-                result = run_pls_algorithm(model, df, lang=lang)
-            except (ValueError, np.linalg.LinAlgError):
-                continue
-            if not result.converged:
-                continue
-            n_converged += 1
-
-            try:
-                boot = run_bootstrap(model, result, n_boot=n_boot_inner, seed=int(rng.integers(0, 2**31 - 1)))
-            except np.linalg.LinAlgError:
-                continue
-            for row in boot.path_stats:
-                key = (row["source"], row["target"])
-                estimates[key].append(row["original"])
-                if row["p_value"] is not None and row["p_value"] < SIGNIFICANCE_ALPHA:
-                    detected[key] += 1
-
-        report(done_work, total_work)
-        for p in model.paths:
-            key = (p.source, p.target)
-            vals = estimates[key]
-            points.append(PowerPoint(
-                n=n, source=p.source, target=p.target,
-                power=(detected[key] / n_converged) if n_converged else 0.0,
-                n_converged=n_converged, n_replicates=n_mc,
-                mean_estimate=(sum(vals) / len(vals)) if vals else None,
-            ))
-
-    return points
+    by_n = run_replicates(
+        _pls_replicate, (model, path_values, loading_values, n_boot_inner, lang),
+        sample_sizes, n_mc, min_n, seed, progress,
+    )
+    return summarize_replicates(model, sample_sizes, n_mc, by_n)

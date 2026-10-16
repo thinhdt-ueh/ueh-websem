@@ -14,6 +14,7 @@ extraction directory, which is deleted when the process exits.
 from __future__ import annotations
 
 import logging
+import multiprocessing
 import os
 import socket
 import sys
@@ -86,4 +87,8 @@ def main():
 
 
 if __name__ == "__main__":
+    # Required in a frozen (PyInstaller) build: power analysis runs its
+    # Monte Carlo replicates in worker processes (pls/parallel.py), which
+    # re-launch this executable -- without this they would start the app.
+    multiprocessing.freeze_support()
     main()

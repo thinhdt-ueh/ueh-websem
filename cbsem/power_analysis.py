@@ -39,6 +39,8 @@ from pls.power_analysis import (
     SIGNIFICANCE_ALPHA,
     PowerPoint,
     generate_synthetic_data,
+    run_replicates,
+    summarize_replicates,
     validate_population_model,
 )
 
@@ -48,6 +50,23 @@ from pls.power_analysis import (
 # 40,000 replicates extrapolates to ~1760s, leaving real margin under the
 # 2400s gunicorn timeout (Procfile) for slower machines/models.
 MAX_TOTAL_REPLICATES = 40_000
+
+
+def _cbsem_replicate(model, path_values, loading_values, lang, n, seed_seq):
+    """One CB-SEM Monte Carlo replicate; same contract as
+    pls.power_analysis._pls_replicate (module-level for worker processes)."""
+    rng = np.random.default_rng(seed_seq)
+    df = generate_synthetic_data(model, path_values, loading_values, n, rng)
+    try:
+        result = run_cbsem(model, df, lang=lang)
+    except Exception:  # noqa: BLE001 — degenerate synthetic samples are expected at small n
+        return None
+    if not result.converged:
+        return None
+    return [
+        (row["source"], row["target"], float(row["std"]), bool(pd.notna(row["p"]) and row["p"] < SIGNIFICANCE_ALPHA))
+        for _, row in result.structural.iterrows()
+    ]
 
 
 def run_power_analysis(
@@ -67,57 +86,9 @@ def run_power_analysis(
     if total_replicates > MAX_TOTAL_REPLICATES:
         raise ValueError(t("err_power_budget_exceeded", lang, total=total_replicates, max=MAX_TOTAL_REPLICATES))
 
-    rng = np.random.default_rng(seed)
-    # Progress is counted in replicates weighted by their n (a fit's cost
-    # grows with n, so this keeps the page's remaining-time extrapolation
-    # honest); sample sizes below min_n are skipped instantly.
-    total_work = n_mc * sum(sample_sizes)
-    done_work = 0
-    report = progress or (lambda done, total: None)
-    report(0, total_work)
     min_n = len(model.all_indicators()) + 5  # same floor run_cbsem enforces
-    points: list[PowerPoint] = []
-
-    for n in sample_sizes:
-        if n < min_n:
-            done_work += n_mc * n
-            report(done_work, total_work)
-            for p in model.paths:
-                points.append(PowerPoint(n=n, source=p.source, target=p.target, power=0.0,
-                                          n_converged=0, n_replicates=0, mean_estimate=None))
-            continue
-
-        detected = {(p.source, p.target): 0 for p in model.paths}
-        estimates = {(p.source, p.target): [] for p in model.paths}
-        n_converged = 0
-
-        for _ in range(n_mc):
-            report(done_work, total_work)
-            done_work += n
-            df = generate_synthetic_data(model, path_values, loading_values, n, rng)
-            try:
-                result = run_cbsem(model, df, lang=lang)
-            except Exception:  # noqa: BLE001 — degenerate synthetic samples are expected at small n
-                continue
-            if not result.converged:
-                continue
-            n_converged += 1
-
-            for _, row in result.structural.iterrows():
-                key = (row["source"], row["target"])
-                estimates[key].append(float(row["std"]))
-                if pd.notna(row["p"]) and row["p"] < SIGNIFICANCE_ALPHA:
-                    detected[key] += 1
-
-        report(done_work, total_work)
-        for p in model.paths:
-            key = (p.source, p.target)
-            vals = estimates[key]
-            points.append(PowerPoint(
-                n=n, source=p.source, target=p.target,
-                power=(detected[key] / n_converged) if n_converged else 0.0,
-                n_converged=n_converged, n_replicates=n_mc,
-                mean_estimate=(sum(vals) / len(vals)) if vals else None,
-            ))
-
-    return points
+    by_n = run_replicates(
+        _cbsem_replicate, (model, path_values, loading_values, lang),
+        sample_sizes, n_mc, min_n, seed, progress,
+    )
+    return summarize_replicates(model, sample_sizes, n_mc, by_n)

@@ -92,13 +92,17 @@ def _power_job(**extra):
     }
 
 
-def test_power_job_reports_progress_and_can_be_cancelled(client):
-    job_id = client.post("/api/power_analysis", json=_power_job(), headers={"X-Async-Job": "1"}).get_json()["job_id"]
+def test_power_job_reports_progress_and_can_be_cancelled(client, monkeypatch):
+    # In-process replicates: with a warm process pool the whole job could
+    # finish before a poll observes it mid-run.
+    monkeypatch.setenv("WEBSEM_WORKERS", "1")
+    job = _power_job(method="pls", n_mc=20, n_boot_inner=100)
+    job_id = client.post("/api/power_analysis", json=job, headers={"X-Async-Job": "1"}).get_json()["job_id"]
     deadline = time.time() + 60
     progress = None
     while time.time() < deadline:
         body = client.get(f"/api/jobs/{job_id}").get_json()
-        assert body["state"] == "running", "job finished before progress could be observed"
+        assert body["state"] == "running", f"job finished before progress could be observed: {body}"
         if body.get("progress") and body["progress"]["done"] > 0:
             progress = body["progress"]
             break

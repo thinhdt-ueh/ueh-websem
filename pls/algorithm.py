@@ -80,20 +80,32 @@ def _build_topology(model: Model, indicators: list[str]) -> _Topology:
 def _fit(X: np.ndarray, topo: _Topology, max_iterations: int, tolerance: float):
     """Runs the iterative PLS algorithm on standardized indicator matrix X (n x p).
     Returns (w, Y, n_iter, converged) where w is the flat (p,) outer weight vector
-    and Y is the (n x k) matrix of final standardized latent variable scores."""
+    and Y is the (n x k) matrix of final standardized latent variable scores.
+
+    Every block's scores, Mode A weights and weight rescaling are computed
+    together through a block-membership mask (one matrix product each instead
+    of a Python loop over constructs) -- the same math, but this function runs
+    once per bootstrap resample and once per Monte Carlo replicate, so the
+    per-construct loop overhead dominated those runs."""
     n, p = X.shape
     k = len(topo.construct_ids)
 
-    w = np.zeros(p)
-    for bi in topo.block_idx:
-        w[bi] = 1.0
+    # mask[j, ci] == 1 when indicator j belongs to construct ci's block
+    # (Model validation guarantees each indicator is in at most one block).
+    mask = np.zeros((p, k))
+    owner = np.full(p, -1)
+    for ci, bi in enumerate(topo.block_idx):
+        mask[bi, ci] = 1.0
+        owner[bi] = ci
+    in_block = owner >= 0
+    mode_a = np.array([m == "A" for m in topo.modes])
+    mode_a_ind = in_block & mode_a[np.where(in_block, owner, 0)]
+    mode_b_blocks = [ci for ci in range(k) if not mode_a[ci] and len(topo.block_idx[ci])]
+
+    w = mask.sum(axis=1)  # 1.0 for every indicator in a block
 
     def compute_scores(weights: np.ndarray) -> np.ndarray:
-        Y = np.empty((n, k))
-        for ci in range(k):
-            bi = topo.block_idx[ci]
-            Y[:, ci] = X[:, bi] @ weights[bi]
-        return Y
+        return X @ (mask * weights[:, None])
 
     converged = False
     n_iter = 0
@@ -102,38 +114,37 @@ def _fit(X: np.ndarray, topo: _Topology, max_iterations: int, tolerance: float):
         Y = _standardize_cols(compute_scores(w))
 
         # --- inner estimation: path weighting scheme ---
-        Z = np.empty((n, k))
+        # Each construct's inner proxy is a weighted sum of its neighbours'
+        # scores: OLS betas for predecessors, correlations for successors.
+        # Y is standardized, so both come from the k x k correlation matrix,
+        # and all proxies are then one product Y @ E.
+        R = (Y.T @ Y) / n
+        E = np.zeros((k, k))
         for ci in range(k):
             preds = topo.pred_pos[ci]
             succs = topo.succ_pos[ci]
             if not preds and not succs:
-                Z[:, ci] = Y[:, ci]
+                E[ci, ci] = 1.0
                 continue
-            z = np.zeros(n)
             if preds:
-                beta = _ols_beta(Y[:, preds], Y[:, ci])[:-1]
-                z += Y[:, preds] @ beta
-            for sj in succs:
-                corr = float(Y[:, ci] @ Y[:, sj]) / n
-                z += corr * Y[:, sj]
-            Z[:, ci] = z
-        Z = _standardize_cols(Z)
+                E[preds, ci] = _ols_beta(Y[:, preds], Y[:, ci])[:-1]
+            if succs:
+                E[succs, ci] += R[ci, succs]
+        Z = _standardize_cols(Y @ E)
 
         # --- outer estimation: Mode A (reflective) or Mode B (formative) ---
-        new_w = np.empty(p)
-        for ci in range(k):
+        new_w = np.zeros(p)
+        # Mode A: covariance of each indicator with its own block's inner
+        # proxy (Z is standardized => var == 1).
+        cov = (X.T @ Z) / n
+        new_w[mode_a_ind] = cov[mode_a_ind, owner[mode_a_ind]]
+        for ci in mode_b_blocks:
             bi = topo.block_idx[ci]
-            Xi = X[:, bi]
-            zc = Z[:, ci]
-            if topo.modes[ci] == "A":
-                wi = (Xi * zc[:, None]).mean(axis=0)  # zc is standardized => var(zc) == 1
-            else:
-                wi = _ols_beta(Xi, zc)[:-1]
-            score = Xi @ wi
-            sd = score.std(ddof=0)
-            if sd > 0:
-                wi = wi / sd
-            new_w[bi] = wi
+            new_w[bi] = _ols_beta(X[:, bi], Z[:, ci])[:-1]
+        # rescale every block so its score has unit variance
+        sd = compute_scores(new_w).std(axis=0, ddof=0)
+        scale = np.where(sd > 0, sd, 1.0)
+        new_w = np.where(in_block, new_w / scale[np.where(in_block, owner, 0)], new_w)
 
         diff = float(np.abs(new_w - w).sum())
         w = new_w

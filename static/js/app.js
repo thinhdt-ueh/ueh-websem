@@ -4269,7 +4269,12 @@ function openPowerAnalysisModal(method) {
   }
 
   const nIndicators = modelPayload.constructs.reduce((sum, c) => sum + (c.indicators || []).length, 0);
-  const powerCostScale = Math.max(1, Math.sqrt(nIndicators / 13));
+  // Replicates run in parallel on all CPUs but one (pls/parallel.py); ~60%
+  // parallel efficiency was measured on a 12-core machine. This uses the
+  // browser's core count, i.e. right for the desktop app / a local server;
+  // the results page switches to real server-reported progress anyway.
+  const parallelSpeedup = Math.max(1, ((navigator.hardwareConcurrency || 2) - 1) * 0.6);
+  const powerCostScale = Math.max(1, Math.sqrt(nIndicators / 13)) / parallelSpeedup;
   function updateEstimate() {
     const points = computePoints();
     const nMc = parseInt(document.getElementById("powerNMc").value, 10) || defaultNMc;

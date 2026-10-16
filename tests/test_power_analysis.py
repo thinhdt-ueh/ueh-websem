@@ -132,3 +132,21 @@ def test_clamps_out_of_range_replicate_counts(tam_model_json):
         seed=1,
     )
     assert all(p.power == 0.0 and p.n_converged == 0 for p in points)
+
+
+def test_parallel_and_inline_runs_give_identical_results(tam_model_json, monkeypatch):
+    """Every replicate has its own seed, so the process pool (pls/parallel.py)
+    must reproduce the in-process run exactly, whatever the completion order."""
+    model = Model.from_json(tam_model_json)
+    path_values, loading_values = _tam_population(model, path_beta=0.3, loading=0.8)
+
+    def run():
+        return [(p.n, p.source, p.target, p.power, p.n_converged, p.mean_estimate) for p in run_power_analysis(
+            model, path_values, loading_values, sample_sizes=[60, 120], n_mc=20, n_boot_inner=100, seed=11,
+        )]
+
+    monkeypatch.setenv("WEBSEM_WORKERS", "1")
+    inline = run()
+    monkeypatch.setenv("WEBSEM_WORKERS", "3")
+    pooled = run()
+    assert pooled == inline
