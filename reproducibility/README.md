@@ -47,4 +47,4 @@ For digit-exact reproduction, use the package scripts. On one machine with 12 CP
 
 ## Data licence
 
-`conclusion-stability-plssem/data/oliveira2020_data.csv` is redistributed from Oliveira, T. (2020), *Data for: Why do people share their travel experiences on social media?*, Mendeley Data, V1, https://doi.org/10.17632/2g67vckxgz.1. It is licensed CC BY-NC 3.0 (attribution, non-commercial), not under the licence of AI-SEM's code. See `conclusion-stability-plssem/data/DATA_LICENSE.md`.
+`conclusion-stability-plssem/data/oliveira2020_data.csv` is redistributed from Oliveira, T. (2020), *Data for: Why do people share their travel experiences on social media?*, Mendeley Data, V1, https://doi.org/10.17632/2g67vckxgz.1. It is licensed CC BY-NC 3.0 (attribution, non-commercial), not under the MIT licence of AI-SEM's code. See `conclusion-stability-plssem/data/DATA_LICENSE.md`.

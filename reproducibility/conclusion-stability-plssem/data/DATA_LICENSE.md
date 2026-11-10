@@ -8,4 +8,4 @@ The data are licensed under **Creative Commons Attribution-NonCommercial 3.0 (CC
 
 Oliveira, T., Araujo, B., & Tam, C. (2020). Why do people share their travel experiences on social media? *Tourism Management, 78*, 104041. https://doi.org/10.1016/j.tourman.2019.104041
 
-This file is included only so that the analyses can be reproduced. The licence of the AI-SEM code does not cover it.
+This file is included only so that the analyses can be reproduced. The MIT licence of the AI-SEM code does not cover it.

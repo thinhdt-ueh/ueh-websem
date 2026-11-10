@@ -252,6 +252,12 @@ tests/                  pytest suite
   every request. Standard statistical terms (AVE, VIF, HTMT, CFI, RMSEA, R²)
   are kept in English in both languages.
 
+## License
+
+AI-SEM is released under the [MIT License](LICENSE). The Oliveira et al.
+(2020) data in `reproducibility/conclusion-stability-plssem/data/` are not
+covered by it: they are licensed CC BY-NC 3.0 (see `DATA_LICENSE.md` there).
+
 ## Disclaimer
 
 AI-SEM is a teaching and research aid. Synthetic data produced by the AI Lab
