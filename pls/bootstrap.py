@@ -28,9 +28,10 @@ from scipy import stats
 from .algorithm import PLSResult, _build_topology, _fit, _ols_beta, _standardize_cols
 from .effects import enumerate_indirect_routes, find_moderated_mediation_opportunities
 from .model import Model
+from .limits import max_bootstrap_samples
 from .moderation import _generate_indicator_based_interactions
 
-MAX_BOOTSTRAP_SAMPLES = 5000
+MAX_BOOTSTRAP_SAMPLES = 5000  # hosted cap; pls/limits.py allows more in local mode
 MIN_BOOTSTRAP_SAMPLES = 100
 
 
@@ -88,7 +89,7 @@ def run_bootstrap(
     seed: int | None = None,
     max_iterations: int = 300,
 ) -> BootstrapResult:
-    n_boot = max(MIN_BOOTSTRAP_SAMPLES, min(MAX_BOOTSTRAP_SAMPLES, int(n_boot)))
+    n_boot = max(MIN_BOOTSTRAP_SAMPLES, min(max_bootstrap_samples(), int(n_boot)))
     rng = np.random.default_rng(seed)
 
     indicators = model.all_indicators()
@@ -249,7 +250,7 @@ def run_bootstrap_with_moderation(
     "orthogonalization" constructs need no such special-casing — they get
     the same per-block sign correction as any other construct.
     """
-    n_boot = max(MIN_BOOTSTRAP_SAMPLES, min(MAX_BOOTSTRAP_SAMPLES, int(n_boot)))
+    n_boot = max(MIN_BOOTSTRAP_SAMPLES, min(max_bootstrap_samples(), int(n_boot)))
     rng = np.random.default_rng(seed)
 
     augmented_df, generated = _generate_indicator_based_interactions(model, original.data)

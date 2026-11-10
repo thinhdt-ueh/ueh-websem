@@ -1,0 +1,98 @@
+=== FULL SAMPLE (10,000 bootstraps) ===
+H1   Identification → PE            β=.324 SE=.055 z=5.87 p=0.0000 CI=[.209, .427] f2=.103
+H2   Internalization → PE           β=.460 SE=.057 z=8.08 p=0.0000 CI=[.345, .570] f2=.210
+H3   Compliance → PE                β=-.101 SE=.050 z=-2.04 p=0.0410 CI=[-.172, .027] f2=.016
+H4   PE → AS                        β=.476 SE=.063 z=7.50 p=0.0000 CI=[.357, .603] f2=.290
+H5   Altruistic motivations → AS    β=.211 SE=.062 z=3.39 p=0.0007 CI=[.084, .327] f2=.097
+H6   Personal fulfillment → AS      β=.182 SE=.046 z=3.94 p=0.0001 CI=[.092, .274] f2=.059
+H7   Environmental reasons → AS     β=.043 SE=.035 z=1.21 p=0.2257 CI=[-.028, .109] f2=.004
+H8   Personal reasons → AS          β=-.070 SE=.053 z=-1.31 p=0.1910 CI=[-.173, .035] f2=.006
+H9   Relationship reasons → AS      β=-.020 SE=.052 z=-0.38 p=0.7029 CI=[-.123, .080] f2=.000
+H10  Security and privacy → AS      β=-.110 SE=.047 z=-2.34 p=0.0194 CI=[-.202, -.018] f2=.019
+R2 {'pjoy': 0.47, 'as': 0.639}
+AS weights [0.763 0.169 0.157 0.175] p [0.     0.0044 0.0045 0.0135]
+rhoA {'ident': 0.914, 'inter': 0.826, 'comp': 1.38, 'pjoy': 0.956, 'am': 0.906, 'pf': 0.929, 'er': 1.57, 'pr': 0.82, 'rr': 0.844, 'spr': 0.926}
+Pairwise differences (full sample):
+  pjoy-am      est=.264 SE=.115 CI=[.048, .505] p=0.021
+  inter-ident  est=.135 SE=.105 CI=[-.066, .344] p=0.199
+  spr-pr       est=-.040 SE=.084 CI=[-.203, .122] p=0.630
+  pjoy-pf      est=.293 SE=.097 CI=[.107, .484] p=0.002
+  am-pf        est=.029 SE=.077 CI=[-.123, .178] p=0.707
+Skewness: Ident1 0.54, Ident2 0.84, Ident3 0.93, Inter1 0.91, Inter2 0.17, Inter3 0.68, Comp1 0.82, Comp2 1.65, Comp3 1.00, Pjoy1 0.04, Pjoy2 -0.15, Pjoy3 0.06, AM1 0.15, AM2 0.17, AM3 0.46, PF1 0.98, PF2 0.93, PF3 1.42, AS1 0.01, AS2 1.27, AS3 2.45, AS4 1.08, ER2 1.38, ER3 1.29, PR1 1.38, PR3 1.62, PR4 0.56, RR2 0.59, RR3 1.02, SR1 0.60, SR2 0.58, SR3 0.43
+
+=== SUBSAMPLING n=250: R=1000, B=1000, mean converged bootstraps 1000 ===
+Table 6 (Path | full β | median | IQR | range | p<.05 | decision agreement | sign agreement | MCSE)
+H1   .324 .325 [.296, .351] [.188 to .444] 100% 100% 100%  mcse=0.000
+H2   .460 .458 [.430, .485] [.345 to .580] 100% 100% 100%  mcse=0.000
+H3   -.101 -.096 [-.116, -.073] [-.190 to .036] 25% 25% 99%  mcse=0.014
+H4   .476 .477 [.447, .511] [.327 to .634] 100% 100% 100%  mcse=0.000
+H5   .211 .210 [.178, .240] [.059 to .364] 88% 88% 100%  mcse=0.010
+H6   .182 .181 [.158, .206] [.056 to .304] 98% 98% 100%  mcse=0.004
+H7   .043 .041 [.023, .059] [-.036 to .113] 4% 96% 94%  mcse=0.006
+H8   -.070 -.070 [-.095, -.042] [-.185 to .043] 8% 92% 97%  mcse=0.009
+H9   -.020 -.020 [-.044, .006] [-.135 to .113] 0% 100% 69%  mcse=0.002
+H10  -.110 -.109 [-.134, -.087] [-.214 to .035] 42% 42% 100%  mcse=0.016
+R2 PE median .471 IQR [.452, .492]; AS median .645 IQR [.630, .660]
+Table 7 (predicted vs observed):
+H1   z=5.87 z250=4.75 pred_overlap=100% pred_indep=100% observed=100% indep_sim=100%
+H2   z=8.08 z250=6.54 pred_overlap=100% pred_indep=100% observed=100% indep_sim=100%
+H3   z=-2.04 z250=1.66 pred_overlap=30% pred_indep=38% observed=25% indep_sim=36%
+H4   z=7.50 z250=6.08 pred_overlap=100% pred_indep=100% observed=100% indep_sim=100%
+H5   z=3.39 z250=2.75 pred_overlap=91% pred_indep=78% observed=88% indep_sim=99%
+H6   z=3.94 z250=3.19 pred_overlap=98% pred_indep=89% observed=98% indep_sim=92%
+H7   z=1.21 z250=0.98 pred_overlap=5% pred_indep=17% observed=4% indep_sim=6%
+H8   z=-1.31 z250=1.06 pred_overlap=6% pred_indep=19% observed=8% indep_sim=20%
+H9   z=-0.38 z250=0.31 pred_overlap=0% pred_indep=6% observed=0% indep_sim=5%
+H10  z=-2.34 z250=1.89 pred_overlap=45% pred_indep=47% observed=42% indep_sim=48%
+independent samples: R=1000; mean estimates [ 0.313  0.462 -0.085  0.478  0.212  0.188  0.033 -0.072 -0.013 -0.11 ]
+Type S (share of significant subsamples with wrong sign): H1=0% H2=0% H3=0% H4=0% H5=0% H6=0% H7=0% H8=0% H9=20% H10=0%
+Type M (median |est| among significant / |full β|): H1=1.00 H2=1.00 H3=1.28 H4=1.00 H5=1.02 H6=1.00 H7=2.14 H8=2.03 H9=5.99 H10=1.27
+Median subsample 95% CI: H1=[.182,.446] H2=[.322,.594] H3=[-.193,.065] H4=[.328,.637] H5=[.051,.353] H6=[.067,.295] H7=[-.052,.122] H8=[-.197,.060] H9=[-.148,.106] H10=[-.225,.005]
+Mean subsample bootstrap SE: H1=.068 H2=.070 H3=.065 H4=.079 H5=.077 H6=.058 H7=.044 H8=.065 H9=.064 H10=.059  (scaled full-sample SE: [0.068 0.07  0.061 0.078 0.077 0.057 0.043 0.066 0.064 0.058])
+Pairwise differences within subsamples:
+  PE − altruism                      median=.267 IQR=[.210, .324] range=[.007, .544] share>0=100%
+  PE − personal fulfillment          median=.296 IQR=[.245, .344] range=[.065, .558] share>0=100%
+  Internalization − identification   median=.134 IQR=[.082, .184] range=[-.083, .368] share>0=96%
+  Privacy − personal reasons         median=-.037 IQR=[-.084, .002] range=[-.209, .169] share>0=26%
+  Altruism − personal fulfillment    median=.026 IQR=[-.010, .065] range=[-.135, .230] share>0=68%
+Spearman AS predictors: median 0.96 IQR [0.93, 1.00]; PE predictors: median 1.00 IQR [1.00, 1.00]
+AS outer weights (full .763 .169 .157 .175): median [0.761 0.168 0.154 0.175] IQR [0.732 0.138 0.125 0.139][0.792 0.2   0.181 0.21 ] min [0.616 0.029 0.002 0.008] sign<0 [0. 0. 0. 0.] nonsig [0.    0.317 0.317 0.499]
+rhoA > 1 share: {'comp': 0.681, 'er': 0.917, 'pr': 0.002, 'rr': 0.0}
+Altruism diagnostics: subsamples with H5 non-sig: 115; mean β(H5) sig 0.219 vs nonsig 0.139; mean SE(H5) sig 0.077 vs nonsig 0.082; overall mean SE 0.077 vs scaled 0.077
+  AS weight AS1 mean: sig 0.756 vs nonsig 0.811; small weights mean (sig) [0.171 0.155 0.181] vs (nonsig) [0.147 0.141 0.128]; any small weight <0: sig 0% vs nonsig 0%
+  rhoA comp>1: sig 68% vs nonsig 65%; er>1: sig 92% vs nonsig 90%
+  distribution of β(H5): sd 0.045, skew -0.04; z=β/SE across subsamples: median 2.70, share z>1.96 89%
+  share of subsamples where altruism beta < .15: 9%
+Re-scoring: decision agreement thresholds 80/90/99; sign/rank 90/95/99
+  decision ≥80%: H1=pass H2=pass H3=fail H4=pass H5=pass H6=pass H7=pass H8=pass H9=pass H10=fail
+  decision ≥90%: H1=pass H2=pass H3=fail H4=pass H5=fail H6=pass H7=pass H8=pass H9=pass H10=fail
+  decision ≥99%: H1=pass H2=pass H3=fail H4=pass H5=fail H6=fail H7=fail H8=fail H9=pass H10=fail
+  sign ≥90%: H1=pass H2=pass H3=pass H4=pass H5=pass H6=pass H7=pass H8=pass H9=fail H10=pass
+  rank ≥90%: PE − altruism=pass PE − personal fulfillment=pass Internalization − identification=pass Privacy − personal reasons=fail Altruism − personal fulfillment=fail
+  sign ≥95%: H1=pass H2=pass H3=pass H4=pass H5=pass H6=pass H7=fail H8=pass H9=fail H10=pass
+  rank ≥95%: PE − altruism=pass PE − personal fulfillment=pass Internalization − identification=pass Privacy − personal reasons=fail Altruism − personal fulfillment=fail
+  sign ≥99%: H1=pass H2=pass H3=pass H4=pass H5=pass H6=pass H7=fail H8=fail H9=fail H10=pass
+  rank ≥99%: PE − altruism=pass PE − personal fulfillment=pass Internalization − identification=fail Privacy − personal reasons=fail Altruism − personal fulfillment=fail
+
+=== STABILITY ACROSS SIZES ===
+n=150 R=999 B=500: sig 96% 100% 11% 100% 54% 70% 3% 9% 2% 24% | decision 96% 100% 11% 100% 54% 70% 97% 91% 98% 24% | sign 100% 100% 89% 100% 99% 100% 79% 81% 65% 97% | PE>AM 97% IN>ID 87% SPR<PR 64% | R2 PE .477 AS .655 | AS small w<0 [0.02 0.02 0.02]
+n=200 R=1000 B=500: sig 100% 100% 16% 100% 71% 87% 4% 8% 1% 32% | decision 100% 100% 16% 100% 71% 87% 96% 92% 99% 32% | sign 100% 100% 97% 100% 100% 100% 89% 91% 65% 99% | PE>AM 100% IN>ID 92% SPR<PR 66% | R2 PE .472 AS .650 | AS small w<0 [0.   0.   0.01]
+n=250 R=1000 B=1000: sig 100% 100% 25% 100% 88% 98% 4% 8% 0% 42% | decision 100% 100% 25% 100% 88% 98% 96% 92% 100% 42% | sign 100% 100% 99% 100% 100% 100% 94% 97% 69% 100% | PE>AM 100% IN>ID 96% SPR<PR 74% | R2 PE .471 AS .645 | AS small w<0 [0. 0. 0.]
+n=300 R=1000 B=500: sig 100% 100% 31% 100% 99% 100% 4% 6% 0% 58% | decision 100% 100% 31% 100% 99% 100% 96% 94% 100% 58% | sign 100% 100% 100% 100% 100% 100% 98% 99% 77% 100% | PE>AM 100% IN>ID 99% SPR<PR 83% | R2 PE .469 AS .642 | AS small w<0 [0. 0. 0.]
+n=350 R=1000 B=500: sig 100% 100% 42% 100% 100% 100% 0% 1% 0% 83% | decision 100% 100% 42% 100% 100% 100% 100% 99% 100% 83% | sign 100% 100% 100% 100% 100% 100% 100% 100% 92% 100% | PE>AM 100% IN>ID 100% SPR<PR 94% | R2 PE .469 AS .640 | AS small w<0 [0. 0. 0.]
+
+=== POWER SIMULATION (grid points done: 43/43, reps 500, boots 500) ===
+Table 5: path | f2 | first n ≥.80 | stable boundary | power 250 | projected 250 | power 390 | power 210
+H1   f2=.103 first=110 stable=110 p250=1.00 proj250=1.00 p390=1.00 p210=0.99 p230=0.99 p270=1.00
+H2   f2=.210 first=50 stable=50 p250=1.00 proj250=1.00 p390=1.00 p210=1.00 p230=1.00 p270=1.00
+H3   f2=.016 first=570 stable=570 p250=0.33 proj250=0.38 p390=0.65 p210=0.28 p230=0.33 p270=0.45
+H4   f2=.290 first=50 stable=50 p250=1.00 proj250=1.00 p390=1.00 p210=1.00 p230=1.00 p270=1.00
+H5   f2=.097 first=130 stable=130 p250=0.99 proj250=0.78 p390=1.00 p210=0.98 p230=0.99 p270=1.00
+H6   f2=.059 first=170 stable=170 p250=0.91 proj250=0.89 p390=0.99 p210=0.85 p230=0.89 p270=0.96
+H7   f2=.004 first=None stable=None p250=0.06 proj250=0.17 p390=0.13 p210=0.07 p230=0.07 p270=0.06
+H8   f2=.006 first=None stable=None p250=0.19 proj250=0.19 p390=0.27 p210=0.16 p230=0.17 p270=0.22
+H9   f2=.000 first=None stable=None p250=0.06 proj250=0.06 p390=0.07 p210=0.06 p230=0.05 p270=0.07
+H10  f2=.019 first=530 stable=530 p250=0.49 proj250=0.47 p390=0.65 p210=0.45 p230=0.47 p270=0.50
+converged reps per grid point: min 497 max 500
+mean estimate at n=890 vs full: [ 0.317  0.46  -0.095  0.477  0.211  0.184  0.041 -0.066 -0.019 -0.112] vs [ 0.324  0.46  -0.101  0.476  0.211  0.182  0.043 -0.07  -0.02  -0.11 ]
+max relative deviation of mean estimate at n=890: 0.059

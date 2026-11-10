@@ -69,6 +69,22 @@ def _cbsem_replicate(model, path_values, loading_values, lang, n, seed_seq):
     ]
 
 
+def _cbsem_population_replicate(model, population, lang, n, seed_seq):
+    """CB-SEM replicate on data drawn from a data-calibrated population (pls/population.py)."""
+    rng = np.random.default_rng(seed_seq)
+    df = population.draw(rng, n)
+    try:
+        result = run_cbsem(model, df, lang=lang)
+    except Exception:  # noqa: BLE001 — degenerate synthetic samples are expected at small n
+        return None
+    if not result.converged:
+        return None
+    return [
+        (row["source"], row["target"], float(row["std"]), bool(pd.notna(row["p"]) and row["p"] < SIGNIFICANCE_ALPHA))
+        for _, row in result.structural.iterrows()
+    ]
+
+
 def run_power_analysis(
     model: Model,
     path_values: dict[tuple[str, str], float],
@@ -78,17 +94,25 @@ def run_power_analysis(
     seed: int | None = None,
     lang: str = DEFAULT_LANG,
     progress: Callable[[int, int], None] | None = None,
+    population=None,
 ) -> list[PowerPoint]:
-    validate_population_model(model, path_values, loading_values, lang, allow_formative=False)
+    from pls.limits import local_mode, max_replicates
 
-    n_mc = max(MIN_MC_REPLICATES, min(MAX_MC_REPLICATES, int(n_mc)))
+    if population is None:
+        validate_population_model(model, path_values, loading_values, lang, allow_formative=False)
+    else:
+        validate_population_model(model, {(p.source, p.target): 0.0 for p in model.paths},
+                                  {cid: 0.7 for cid in model.constructs}, lang, allow_formative=False)
+
+    n_mc = max(MIN_MC_REPLICATES, min(max(MAX_MC_REPLICATES, max_replicates()), int(n_mc)))
     total_replicates = len(sample_sizes) * n_mc
-    if total_replicates > MAX_TOTAL_REPLICATES:
+    if not local_mode() and total_replicates > MAX_TOTAL_REPLICATES:
         raise ValueError(t("err_power_budget_exceeded", lang, total=total_replicates, max=MAX_TOTAL_REPLICATES))
 
     min_n = len(model.all_indicators()) + 5  # same floor run_cbsem enforces
-    by_n = run_replicates(
-        _cbsem_replicate, (model, path_values, loading_values, lang),
-        sample_sizes, n_mc, min_n, seed, progress,
-    )
+    if population is None:
+        fn, args = _cbsem_replicate, (model, path_values, loading_values, lang)
+    else:
+        fn, args = _cbsem_population_replicate, (model, population, lang)
+    by_n = run_replicates(fn, args, sample_sizes, n_mc, min_n, seed, progress)
     return summarize_replicates(model, sample_sizes, n_mc, by_n)

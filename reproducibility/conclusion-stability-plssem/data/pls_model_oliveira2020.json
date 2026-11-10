@@ -1,0 +1,107 @@
+{
+  "format": "pls-sem-web-model",
+  "version": 1,
+  "exported_at": "2026-10-15T08:00:00.000Z",
+  "constructs": [
+    {
+      "id": "ident",
+      "indicators": ["Ident1", "Ident2", "Ident3"],
+      "mode": "A",
+      "name": "Identification",
+      "x": 120,
+      "y": 120
+    },
+    {
+      "id": "inter",
+      "indicators": ["Inter1", "Inter2", "Inter3"],
+      "mode": "A",
+      "name": "Internalization",
+      "x": 120,
+      "y": 300
+    },
+    {
+      "id": "comp",
+      "indicators": ["Comp1", "Comp2", "Comp3"],
+      "mode": "A",
+      "name": "Compliance",
+      "x": 120,
+      "y": 480
+    },
+    {
+      "id": "pjoy",
+      "indicators": ["Pjoy1", "Pjoy2", "Pjoy3"],
+      "mode": "A",
+      "name": "Perceived Enjoyment",
+      "x": 420,
+      "y": 300
+    },
+    {
+      "id": "am",
+      "indicators": ["AM1", "AM2", "AM3"],
+      "mode": "A",
+      "name": "Altruistic Motivations",
+      "x": 580,
+      "y": 80
+    },
+    {
+      "id": "pf",
+      "indicators": ["PF1", "PF2", "PF3"],
+      "mode": "A",
+      "name": "Personal Fulfilment and Self-actualization",
+      "x": 860,
+      "y": 80
+    },
+    {
+      "id": "as",
+      "indicators": ["AS1", "AS2", "AS3", "AS4"],
+      "mode": "B",
+      "name": "Actual Travel Experience Sharing",
+      "x": 720,
+      "y": 300
+    },
+    {
+      "id": "er",
+      "indicators": ["ER2", "ER3"],
+      "mode": "A",
+      "name": "Environmental Reasons",
+      "x": 420,
+      "y": 540
+    },
+    {
+      "id": "pr",
+      "indicators": ["PR1", "PR3", "PR4"],
+      "mode": "A",
+      "name": "Personal Reasons",
+      "x": 620,
+      "y": 540
+    },
+    {
+      "id": "rr",
+      "indicators": ["RR2", "RR3"],
+      "mode": "A",
+      "name": "Relationship Reasons",
+      "x": 820,
+      "y": 540
+    },
+    {
+      "id": "spr",
+      "indicators": ["SR1", "SR2", "SR3"],
+      "mode": "A",
+      "name": "Security and Privacy Reasons",
+      "x": 1020,
+      "y": 540
+    }
+  ],
+  "paths": [
+    { "source": "ident", "target": "pjoy" },
+    { "source": "inter", "target": "pjoy" },
+    { "source": "comp", "target": "pjoy" },
+    { "source": "pjoy", "target": "as" },
+    { "source": "am", "target": "as" },
+    { "source": "pf", "target": "as" },
+    { "source": "er", "target": "as" },
+    { "source": "pr", "target": "as" },
+    { "source": "rr", "target": "as" },
+    { "source": "spr", "target": "as" }
+  ]
+}

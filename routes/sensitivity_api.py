@@ -29,6 +29,7 @@ from pls.algorithm import run_pls_algorithm
 from pls.bootstrap import MAX_BOOTSTRAP_SAMPLES, MIN_BOOTSTRAP_SAMPLES, run_bootstrap, run_bootstrap_with_moderation
 from pls.model import Model, ModelError
 from pls.moderation import run_pls_with_moderation
+from pls.limits import max_replicates, sensitivity_fit_cap
 from pls.parallel import run_tasks
 from pls.power_analysis import MAX_MC_REPLICATES, MIN_MC_REPLICATES
 from routes.jobs import report_progress
@@ -43,7 +44,7 @@ MAX_STEPS = 150
 # fit gives them for free, no extra cost) -- bounds how large
 # steps * n_boot can get so opting into significance testing here can't turn
 # a normally-fast diagnostic into an open-ended-length request.
-MAX_BOOTSTRAP_TOTAL_FITS = 15_000
+MAX_BOOTSTRAP_TOTAL_FITS = 15_000  # hosted default; pls/limits.py lifts it in local mode
 
 
 def _round(v, ndigits: int = 6):
@@ -158,9 +159,10 @@ def sensitivity():
     if n_boot:
         expected_steps = min(MAX_STEPS, (n_total - min_n) // step + 1)
         total_fits = expected_steps * n_boot
-        if total_fits > MAX_BOOTSTRAP_TOTAL_FITS:
+        cap = sensitivity_fit_cap()
+        if cap is not None and total_fits > cap:
             return jsonify(error=t(
-                "err_sensitivity_bootstrap_budget_exceeded", lang, total=total_fits, max=MAX_BOOTSTRAP_TOTAL_FITS,
+                "err_sensitivity_bootstrap_budget_exceeded", lang, total=total_fits, max=cap,
             )), 400
 
     # Subsamples are drawn here, sequentially from one seeded rng, exactly as
@@ -279,13 +281,14 @@ def sensitivity_resample():
         n_iterations = int(payload.get("n_iterations", MIN_MC_REPLICATES))
     except (TypeError, ValueError):
         n_iterations = MIN_MC_REPLICATES
-    n_iterations = max(MIN_MC_REPLICATES, min(MAX_MC_REPLICATES, n_iterations))
+    n_iterations = max(MIN_MC_REPLICATES, min(max(MAX_MC_REPLICATES, max_replicates()), n_iterations))
 
     if n_boot:
         total_fits = n_iterations * n_boot
-        if total_fits > MAX_BOOTSTRAP_TOTAL_FITS:
+        cap = sensitivity_fit_cap()
+        if cap is not None and total_fits > cap:
             return jsonify(error=t(
-                "err_sensitivity_bootstrap_budget_exceeded", lang, total=total_fits, max=MAX_BOOTSTRAP_TOTAL_FITS,
+                "err_sensitivity_bootstrap_budget_exceeded", lang, total=total_fits, max=cap,
             )), 400
 
     rng = np.random.default_rng(42)  # drawn sequentially, as before (see sensitivity_export_row)

@@ -151,6 +151,46 @@ free plan the service sleeps after 15 minutes of inactivity and the
 `uploads/` disk is ephemeral. Long-running analyses (power analysis, ML
 comparison) need the generous `--timeout 2400` already configured.
 
+### Run-size limits and batch mode
+
+A hosted deployment (Docker or gunicorn) caps the long simulations, so one
+request cannot occupy a shared server for hours. Under these caps, power
+analysis runs at most 250,000 PLS fits, sensitivity bootstraps at most
+15,000 fits, replications are limited to 500, and bootstraps to 5,000 per
+analysis.
+
+A local installation lifts the caps. This covers `python app.py`, the
+desktop app and the batch command line. The variable `AISEM_LOCAL=1`
+controls it (see `pls/limits.py`). Long runs use every CPU core but one;
+set `WEBSEM_WORKERS` to change the number of worker processes.
+
+Batch mode runs the simulations from the command line and writes CSV
+files:
+
+```bash
+python -m pls.batch reference   --model model.json --data data.csv --boot 10000 --out results/
+python -m pls.batch power       --model model.json --data data.csv --population calibrated \
+                                --sizes 50:890:20 --reps 500 --boot 300 --out results/
+python -m pls.batch subsample   --model model.json --data data.csv --sizes 150,200,250 --reps 1000 --boot 1000 --out results/
+python -m pls.batch independent --model model.json --data data.csv --population calibrated --sizes 250 --reps 1000 --boot 1000 --out results/
+```
+
+Power analysis can draw its data from three populations:
+
+- **Declared parameters:** the path coefficients and loadings you enter.
+- **Calibrated to the data:** a composite-model population with observed
+  within-block correlations, plus a Gaussian copula fitted to each item's
+  distribution.
+- **Saturated:** the observed correlation matrix.
+
+See `pls/population.py` and `python -m pls.batch --help`.
+
+### Reproducibility
+
+`reproducibility/` holds the reproduction package of the
+conclusion-stability paper (v1.1.0): scripts, model, data, all outputs and
+figures. See `reproducibility/README.md`.
+
 ## Tests
 
 ```bash

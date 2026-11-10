@@ -203,6 +203,12 @@ function renderAll(data) {
       minN: minNFor80.join(", "),
     }
   );
+  if (data.population && data.population !== "model") {
+    document.getElementById("powerSummary").textContent += " " + t("power_summary_population", {
+      population: t(`power_population_${data.population}`),
+      err: Number(data.calibration_error).toFixed(3),
+    });
+  }
 
   const series = pathKeys.map((k, i) => ({
     id: k,

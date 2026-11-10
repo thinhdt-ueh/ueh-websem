@@ -11,13 +11,13 @@ from i18n import get_lang, t
 from pls.algorithm import run_pls_algorithm
 from pls.blindfolding import run_blindfolding
 from pls.bootstrap import (
-    MAX_BOOTSTRAP_SAMPLES,
     MIN_BOOTSTRAP_SAMPLES,
     run_bootstrap,
     run_bootstrap_with_moderation,
 )
 from pls.effects import moderated_mediation_indices, specific_indirect_effects, total_effects
 from pls.metrics import CMB_VIF_THRESHOLD, compute_all_metrics
+from pls.limits import max_bootstrap_samples
 from pls.model import Model, ModelError
 from pls.moderation import run_pls_with_moderation
 from pls.report import build_excel_report, build_word_report
@@ -208,7 +208,7 @@ def analyze():
             "requested": boot.n_requested,
             "valid": boot.n_valid,
             "clamped_min": MIN_BOOTSTRAP_SAMPLES,
-            "clamped_max": MAX_BOOTSTRAP_SAMPLES,
+            "clamped_max": max_bootstrap_samples(),
         }
         bootstrap_path_lookup = {(row["source"], row["target"]): row for row in boot.path_stats}
         bootstrap_specific_indirect_lookup = {tuple(row["path"]): row for row in boot.specific_indirect_stats}

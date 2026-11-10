@@ -63,7 +63,7 @@ MAX_SAMPLE_SIZE_POINTS = 50
 # proxy) — a platform-level timeout in front of a hosted deployment (e.g.
 # Render) may still cut the connection well before this regardless of
 # gunicorn's own timeout.
-MAX_TOTAL_FITS = 250_000
+MAX_TOTAL_FITS = 250_000  # hosted default; see pls/limits.py (no cap in local mode)
 SIGNIFICANCE_ALPHA = 0.05
 # Guards sqrt() against a user-specified population that implies a
 # construct's disturbance variance is zero or negative (e.g. path
@@ -165,6 +165,28 @@ def _pls_replicate(model, path_values, loading_values, n_boot_inner, lang, n, se
     Module-level so worker processes can unpickle it (pls/parallel.py)."""
     rng = np.random.default_rng(seed_seq)
     df = generate_synthetic_data(model, path_values, loading_values, n, rng)
+    try:
+        result = run_pls_algorithm(model, df, lang=lang)
+    except (ValueError, np.linalg.LinAlgError):
+        return None
+    if not result.converged:
+        return None
+    try:
+        boot = run_bootstrap(model, result, n_boot=n_boot_inner, seed=int(rng.integers(0, 2**31 - 1)))
+    except np.linalg.LinAlgError:
+        return []
+    return [
+        (row["source"], row["target"], row["original"],
+         row["p_value"] is not None and row["p_value"] < SIGNIFICANCE_ALPHA)
+        for row in boot.path_stats
+    ]
+
+
+def _pls_population_replicate(model, population, n_boot_inner, lang, n, seed_seq):
+    """Same as _pls_replicate, but the dataset is drawn from a data-calibrated
+    population (pls/population.py) instead of declared parameters."""
+    rng = np.random.default_rng(seed_seq)
+    df = population.draw(rng, n)
     try:
         result = run_pls_algorithm(model, df, lang=lang)
     except (ValueError, np.linalg.LinAlgError):
@@ -295,18 +317,28 @@ def run_power_analysis(
     seed: int | None = None,
     lang: str = DEFAULT_LANG,
     progress: Callable[[int, int], None] | None = None,
+    population=None,
 ) -> list[PowerPoint]:
-    validate_population_model(model, path_values, loading_values, lang)
+    """`population` (pls/population.py), when given, replaces the declared
+    path_values/loading_values as the data-generating process."""
+    from .limits import max_replicates, power_fit_cap
 
-    n_mc = max(MIN_MC_REPLICATES, min(MAX_MC_REPLICATES, int(n_mc)))
+    if population is None:
+        validate_population_model(model, path_values, loading_values, lang)
+    elif model.has_interactions():
+        raise ValueError(t("err_power_no_interactions", lang))
+
+    n_mc = max(MIN_MC_REPLICATES, min(max(MAX_MC_REPLICATES, max_replicates()), int(n_mc)))
     n_boot_inner = max(MIN_BOOT_INNER, min(MAX_BOOT_INNER, int(n_boot_inner)))
     total_fits = len(sample_sizes) * n_mc * (1 + n_boot_inner)
-    if total_fits > MAX_TOTAL_FITS:
-        raise ValueError(t("err_power_budget_exceeded", lang, total=total_fits, max=MAX_TOTAL_FITS))
+    cap = power_fit_cap()
+    if cap is not None and total_fits > cap:
+        raise ValueError(t("err_power_budget_exceeded", lang, total=total_fits, max=cap))
 
     min_n = len(model.all_indicators()) + 5  # same floor run_pls_algorithm enforces
-    by_n = run_replicates(
-        _pls_replicate, (model, path_values, loading_values, n_boot_inner, lang),
-        sample_sizes, n_mc, min_n, seed, progress,
-    )
+    if population is None:
+        fn, args = _pls_replicate, (model, path_values, loading_values, n_boot_inner, lang)
+    else:
+        fn, args = _pls_population_replicate, (model, population, n_boot_inner, lang)
+    by_n = run_replicates(fn, args, sample_sizes, n_mc, min_n, seed, progress)
     return summarize_replicates(model, sample_sizes, n_mc, by_n)

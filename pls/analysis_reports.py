@@ -110,6 +110,7 @@ def _summary(values: list) -> dict | None:
 def build_power_word_report(data: dict, images: list | None = None, lang: str = DEFAULT_LANG) -> io.BytesIO:
     meta = (f"{_method_label(data.get('method'))} · n_mc = {data.get('n_mc')}"
             + (f" · bootstrap = {data['n_boot_inner']}" if data.get("n_boot_inner") else "")
+            + (f" · population = {data['population']}" if data.get("population") not in (None, "model") else "")
             + f" · {t('rpt_export_date', lang)}: {_now()}")
     doc = _new_document(t("rpt_title_power", lang), meta)
 

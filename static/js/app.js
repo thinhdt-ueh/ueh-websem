@@ -4233,10 +4233,19 @@ function openPowerAnalysisModal(method) {
       <div class="modal-box modal-wide">
         <h3>${t("power_modal_title")}</h3>
         <p class="hint">${t("power_modal_hint")}</p>
-        <div class="modal-section-title">${t("power_modal_paths_title")}</div>
-        ${pathRows}
-        <div class="modal-section-title">${t("power_modal_loadings_title")}</div>
-        ${loadingRows}
+        <div class="modal-section-title">${t("power_modal_population_title")}</div>
+        <select id="powerPopulation">
+          <option value="model">${t("power_population_model")}</option>
+          <option value="calibrated"${state.fileId ? "" : " disabled"}>${t("power_population_calibrated")}</option>
+          <option value="saturated"${state.fileId ? "" : " disabled"}>${t("power_population_saturated")}</option>
+        </select>
+        <p class="hint" id="powerPopulationHint" style="margin:4px 0 0">${t("power_population_model_hint")}</p>
+        <div id="powerDeclared">
+          <div class="modal-section-title">${t("power_modal_paths_title")}</div>
+          ${pathRows}
+          <div class="modal-section-title">${t("power_modal_loadings_title")}</div>
+          ${loadingRows}
+        </div>
         <div class="modal-section-title">${t("power_modal_range_title")}</div>
         <div class="modal-range-row">
           <label>${t("power_modal_from")}<input type="number" id="powerNFrom" min="10" step="10" value="${suggestedFrom}"></label>
@@ -4301,6 +4310,14 @@ function openPowerAnalysisModal(method) {
   ["powerNFrom", "powerNTo", "powerNStep", "powerNMc"].concat(isCbsem ? [] : ["powerNBoot"]).forEach((id) => {
     document.getElementById(id).addEventListener("input", updateEstimate);
   });
+  // A data-calibrated population (pls/population.py) replaces the declared
+  // path coefficients and loadings, so those inputs are hidden for it.
+  const populationSelect = document.getElementById("powerPopulation");
+  populationSelect.addEventListener("change", () => {
+    const kind = populationSelect.value;
+    document.getElementById("powerDeclared").classList.toggle("hidden", kind !== "model");
+    document.getElementById("powerPopulationHint").textContent = t(`power_population_${kind}_hint`);
+  });
   updateEstimate();
 
   document.getElementById("powerModalCancel").onclick = () => (root.innerHTML = "");
@@ -4311,18 +4328,21 @@ function openPowerAnalysisModal(method) {
     const nBoot = isCbsem ? null : parseInt(document.getElementById("powerNBoot").value, 10);
     let valid = !!points && Number.isInteger(nMc) && nMc >= 1 && (isCbsem || (Number.isInteger(nBoot) && nBoot >= 1));
 
+    const population = populationSelect.value;
     const pathValues = {};
-    root.querySelectorAll("input[data-path]").forEach((inp) => {
-      const v = parseFloat(inp.value);
-      if (Number.isNaN(v)) valid = false;
-      pathValues[inp.dataset.path] = v;
-    });
     const loadingValues = {};
-    root.querySelectorAll("input[data-construct]").forEach((inp) => {
-      const v = parseFloat(inp.value);
-      if (Number.isNaN(v) || v <= 0 || v >= 1) valid = false;
-      loadingValues[inp.dataset.construct] = v;
-    });
+    if (population === "model") {
+      root.querySelectorAll("input[data-path]").forEach((inp) => {
+        const v = parseFloat(inp.value);
+        if (Number.isNaN(v)) valid = false;
+        pathValues[inp.dataset.path] = v;
+      });
+      root.querySelectorAll("input[data-construct]").forEach((inp) => {
+        const v = parseFloat(inp.value);
+        if (Number.isNaN(v) || v <= 0 || v >= 1) valid = false;
+        loadingValues[inp.dataset.construct] = v;
+      });
+    }
 
     if (!valid) {
       errBox.textContent = t("power_modal_invalid");
@@ -4334,8 +4354,9 @@ function openPowerAnalysisModal(method) {
       model: modelPayload, path_values: pathValues, loading_values: loadingValues,
       n_from: points[0], n_to: points[points.length - 1],
       n_step: parseInt(document.getElementById("powerNStep").value, 10),
-      n_mc: nMc, lang: getLang(),
+      n_mc: nMc, lang: getLang(), population,
     };
+    if (population !== "model") job.file_id = state.fileId;
     // Same formula as updateEstimate() above -- reused here so the countdown
     // on the results tab matches the estimate the modal already showed.
     job.estimated_seconds = (isCbsem

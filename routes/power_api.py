@@ -11,13 +11,18 @@ already used by routes/sensitivity_api.py."""
 
 from __future__ import annotations
 
+import os
+
 from flask import Blueprint, jsonify, request, send_file
 
 from cbsem.power_analysis import run_power_analysis as run_power_analysis_cbsem
 from i18n import get_lang, t
 from pls.analysis_reports import build_power_word_report
+from routes.api import _read_dataframe, _upload_dir
 from routes.jobs import report_progress
+from pls.limits import max_replicates
 from pls.model import Model, ModelError
+from pls.population import POPULATIONS, build_population
 from pls.power_analysis import (
     MAX_SAMPLE_SIZE_POINTS,
     MAX_BOOT_INNER,
@@ -65,12 +70,33 @@ def power_analysis():
 
     default_n_mc = DEFAULT_N_MC_CBSEM if method == "cbsem" else DEFAULT_N_MC_PLS
     n_mc = _parse_int(payload, "n_mc", default_n_mc) or default_n_mc
-    n_mc = max(MIN_MC_REPLICATES, min(MAX_MC_REPLICATES, n_mc))
+    n_mc = max(MIN_MC_REPLICATES, min(max(MAX_MC_REPLICATES, max_replicates()), n_mc))
 
     n_boot_inner = None
     if method == "pls":
         n_boot_inner = _parse_int(payload, "n_boot_inner", DEFAULT_N_BOOT_INNER) or DEFAULT_N_BOOT_INNER
         n_boot_inner = max(MIN_BOOT_INNER, min(MAX_BOOT_INNER, n_boot_inner))
+
+    # Data-generating population: "model" (declared parameters, no data) or
+    # a population calibrated to an uploaded dataset (pls/population.py).
+    population_kind = payload.get("population") or "model"
+    if population_kind not in POPULATIONS:
+        return jsonify(error=t("err_power_bad_population", lang)), 400
+    population = None
+    if population_kind != "model":
+        file_id = payload.get("file_id")
+        if not file_id:
+            return jsonify(error=t("err_power_population_needs_data", lang)), 400
+        matches = [p for p in os.listdir(_upload_dir()) if p.startswith(file_id)]
+        if not matches:
+            return jsonify(error=t("err_analyze_file_not_found", lang)), 404
+        try:
+            df = _read_dataframe(os.path.join(_upload_dir(), matches[0]))
+            population = build_population(model, df, population_kind, lang=lang)
+        except KeyError as exc:
+            return jsonify(error=t("err_power_population_missing_columns", lang, cols=str(exc))), 400
+        except ValueError as exc:
+            return jsonify(error=str(exc)), 400
 
     raw_path_values = payload.get("path_values") or {}
     path_values: dict[tuple[str, str], float] = {}
@@ -95,12 +121,13 @@ def power_analysis():
         if method == "cbsem":
             points = run_power_analysis_cbsem(
                 model, path_values, loading_values, sample_sizes, n_mc=n_mc, seed=42, lang=lang,
-                progress=report_progress,
+                progress=report_progress, population=population,
             )
         else:
             points = run_power_analysis_pls(
                 model, path_values, loading_values, sample_sizes,
                 n_mc=n_mc, n_boot_inner=n_boot_inner, seed=42, lang=lang, progress=report_progress,
+                population=population,
             )
     except ValueError as exc:
         return jsonify(error=str(exc)), 400
@@ -111,6 +138,8 @@ def power_analysis():
     id_to_name = {c.id: c.name for c in model.constructs.values()}
     return jsonify(
         method=method,
+        population=population_kind,
+        calibration_error=round(population.calibration_error, 4) if population else None,
         n_mc=n_mc,
         n_boot_inner=n_boot_inner,
         sample_sizes=sample_sizes,

@@ -55,6 +55,8 @@ def _open_browser_when_ready():
 def main():
     os.environ.setdefault("WEBSEM_UPLOAD_DIR", _persistent_upload_dir())
     os.environ["FLASK_DEBUG"] = "0"
+    # Runs on the user's own machine: no hosted run-size caps (pls/limits.py).
+    os.environ.setdefault("AISEM_LOCAL", "1")
     os.environ["PORT"] = str(PORT)
 
     # Imported after the env vars above are set, since app.py reads

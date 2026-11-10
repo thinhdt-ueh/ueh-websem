@@ -80,5 +80,7 @@ if __name__ == "__main__":
     # (which enables the Werkzeug debugger's arbitrary code execution) must
     # never be reachable when the app is exposed on the internet.
     debug = os.environ.get("FLASK_DEBUG", "1") == "1"
+    # A local server lifts the hosted run-size caps (pls/limits.py).
+    os.environ.setdefault("AISEM_LOCAL", "1")
     port = int(os.environ.get("PORT", 5000))
     app.run(debug=debug, host="127.0.0.1", port=port)
