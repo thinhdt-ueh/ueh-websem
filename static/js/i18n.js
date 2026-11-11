@@ -381,7 +381,7 @@ const I18N = {
     sens_modal_new_n_label: "Cỡ mẫu mới (nhỏ hơn cỡ mẫu hiện tại)",
     sens_modal_n_iter_label: "Số lần lặp (N)",
     sens_modal_invalid_new_n: "Cỡ mẫu mới phải là số nguyên, tối thiểu {min} và nhỏ hơn số quan sát hiện tại ({n}).",
-    sens_modal_invalid_n_iter: "Số lần lặp phải là số nguyên từ 20 đến 500.",
+    sens_modal_invalid_n_iter: "Số lần lặp phải là số nguyên từ 20 đến {max}.",
     sens_modal_resample_hint: "Giữ nguyên cỡ mẫu mới, lấy ngẫu nhiên (không lặp lại) và chạy lại mô hình N lần, để xem R² và các hệ số đường dẫn dao động ra sao qua N lần lấy mẫu đó — khác với chế độ giảm dần chỉ lấy mẫu một lần ở mỗi bước.",
 
     // --- sensitivity.html (opens in a new tab) ---
@@ -1292,7 +1292,7 @@ const I18N = {
     sens_modal_new_n_label: "New sample size (smaller than the current N)",
     sens_modal_n_iter_label: "Number of iterations (N)",
     sens_modal_invalid_new_n: "The new sample size must be an integer, at least {min} and smaller than the current {n} observations.",
-    sens_modal_invalid_n_iter: "The iteration count must be an integer from 20 to 500.",
+    sens_modal_invalid_n_iter: "The iteration count must be an integer from 20 to {max}.",
     sens_modal_resample_hint: "Keeps the new sample size fixed, draws a random subsample (no replacement) and re-runs the model N times, to see how much R² and each path coefficient actually bounce around across those N draws -- unlike the shrinking mode, which only draws once per step.",
 
     // --- sensitivity.html (opens in a new tab) ---

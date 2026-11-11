@@ -321,7 +321,7 @@ def run_power_analysis(
 ) -> list[PowerPoint]:
     """`population` (pls/population.py), when given, replaces the declared
     path_values/loading_values as the data-generating process."""
-    from .limits import max_replicates, power_fit_cap
+    from .limits import max_boot_inner, max_replicates, power_fit_cap
 
     if population is None:
         validate_population_model(model, path_values, loading_values, lang)
@@ -329,7 +329,7 @@ def run_power_analysis(
         raise ValueError(t("err_power_no_interactions", lang))
 
     n_mc = max(MIN_MC_REPLICATES, min(max(MAX_MC_REPLICATES, max_replicates()), int(n_mc)))
-    n_boot_inner = max(MIN_BOOT_INNER, min(MAX_BOOT_INNER, int(n_boot_inner)))
+    n_boot_inner = max(MIN_BOOT_INNER, min(max(MAX_BOOT_INNER, max_boot_inner()), int(n_boot_inner)))
     total_fits = len(sample_sizes) * n_mc * (1 + n_boot_inner)
     cap = power_fit_cap()
     if cap is not None and total_fits > cap:

@@ -26,10 +26,10 @@ from cbsem.moderation import run_cbsem_with_moderation
 from i18n import get_lang, t
 from pls.analysis_reports import build_sensitivity_word_report
 from pls.algorithm import run_pls_algorithm
-from pls.bootstrap import MAX_BOOTSTRAP_SAMPLES, MIN_BOOTSTRAP_SAMPLES, run_bootstrap, run_bootstrap_with_moderation
+from pls.bootstrap import MIN_BOOTSTRAP_SAMPLES, run_bootstrap, run_bootstrap_with_moderation
 from pls.model import Model, ModelError
 from pls.moderation import run_pls_with_moderation
-from pls.limits import max_replicates, sensitivity_fit_cap
+from pls.limits import max_bootstrap_samples, max_replicates, sensitivity_fit_cap
 from pls.parallel import run_tasks
 from pls.power_analysis import MAX_MC_REPLICATES, MIN_MC_REPLICATES
 from routes.jobs import report_progress
@@ -130,7 +130,7 @@ def sensitivity():
             n_boot = int(bootstrap_payload.get("n_boot", MIN_BOOTSTRAP_SAMPLES))
         except (TypeError, ValueError):
             n_boot = MIN_BOOTSTRAP_SAMPLES
-        n_boot = max(MIN_BOOTSTRAP_SAMPLES, min(MAX_BOOTSTRAP_SAMPLES, n_boot))
+        n_boot = max(MIN_BOOTSTRAP_SAMPLES, min(max_bootstrap_samples(), n_boot))
 
     if not file_id:
         return jsonify(error=t("err_analyze_missing_file_id", lang)), 400
@@ -246,7 +246,7 @@ def sensitivity_resample():
             n_boot = int(bootstrap_payload.get("n_boot", MIN_BOOTSTRAP_SAMPLES))
         except (TypeError, ValueError):
             n_boot = MIN_BOOTSTRAP_SAMPLES
-        n_boot = max(MIN_BOOTSTRAP_SAMPLES, min(MAX_BOOTSTRAP_SAMPLES, n_boot))
+        n_boot = max(MIN_BOOTSTRAP_SAMPLES, min(max_bootstrap_samples(), n_boot))
 
     if not file_id:
         return jsonify(error=t("err_analyze_missing_file_id", lang)), 400

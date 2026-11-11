@@ -47,7 +47,8 @@ def create_app() -> Flask:
 
     @app.get("/")
     def index():
-        return render_template("index.html")
+        from pls.limits import ui_limits
+        return render_template("index.html", aisem_limits=ui_limits())
 
     @app.get("/sensitivity")
     def sensitivity_page():

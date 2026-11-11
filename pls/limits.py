@@ -41,3 +41,17 @@ LOCAL_MAX_BOOTSTRAP = 100_000
 
 def max_bootstrap_samples() -> int:
     return LOCAL_MAX_BOOTSTRAP if local_mode() else HOSTED_MAX_BOOTSTRAP
+
+
+HOSTED_MAX_BOOT_INNER = 300
+
+
+def max_boot_inner() -> int:
+    """Most bootstrap resamples inside each power-analysis replicate."""
+    return LOCAL_MAX_BOOTSTRAP if local_mode() else HOSTED_MAX_BOOT_INNER
+
+
+def ui_limits() -> dict:
+    """The limits the browser enforces on its own inputs (index.html sets window.AISEM_LIMITS)."""
+    return {"local": local_mode(), "max_replicates": max_replicates(),
+            "max_bootstrap": max_bootstrap_samples(), "max_boot_inner": max_boot_inner()}

@@ -1,3 +1,18 @@
+// Run-size limits from the server (pls/limits.py via index.html): a local
+// install (python app.py, desktop app) lifts the hosted caps, so the inputs
+// below accept e.g. 10,000 bootstrap resamples or 1,000 subsamples there.
+const LIMITS = Object.assign(
+  { local: false, max_replicates: 500, max_bootstrap: 5000, max_boot_inner: 300 },
+  window.AISEM_LIMITS || {},
+);
+(function addLocalBootstrapOptions() {
+  const sel = document.getElementById("bootstrapReps");
+  if (!sel || !LIMITS.local) return;
+  [10000, 20000].filter((n) => n <= LIMITS.max_bootstrap).forEach((n) => {
+    if (!sel.querySelector(`option[value="${n}"]`)) sel.add(new Option(String(n), String(n)));
+  });
+})();
+
 /* App orchestration: upload -> model builder -> run analysis -> results. */
 
 const state = {
@@ -4034,7 +4049,7 @@ function openSensitivityModal(method) {
       </label>
       <div id="sensBootOptions" class="hidden">
         <label>${t("sens_modal_n_boot_label")}</label>
-        <input type="number" id="sensNBoot" min="100" max="5000" step="50" value="100">
+        <input type="number" id="sensNBoot" min="100" max="${LIMITS.max_bootstrap}" step="50" value="100">
         <p class="hint">${t("sens_modal_bootstrap_hint")}</p>
       </div>`;
   root.innerHTML = `
@@ -4057,7 +4072,7 @@ function openSensitivityModal(method) {
           <label>${t("sens_modal_new_n_label")}</label>
           <input type="number" id="sensNewN" min="${minN}" max="${Math.max(minN, nRows - 1)}" step="1" value="${suggestedNewN}">
           <label>${t("sens_modal_n_iter_label")}</label>
-          <input type="number" id="sensNIter" min="20" max="500" step="10" value="100">
+          <input type="number" id="sensNIter" min="20" max="${LIMITS.max_replicates}" step="10" value="100">
           <p class="hint">${t("sens_modal_resample_hint")}</p>
         </div>
 
@@ -4096,8 +4111,8 @@ function openSensitivityModal(method) {
         errBox.classList.remove("hidden");
         return;
       }
-      if (!Number.isInteger(nIter) || nIter < 20 || nIter > 500) {
-        errBox.textContent = t("sens_modal_invalid_n_iter");
+      if (!Number.isInteger(nIter) || nIter < 20 || nIter > LIMITS.max_replicates) {
+        errBox.textContent = t("sens_modal_invalid_n_iter", { max: LIMITS.max_replicates });
         errBox.classList.remove("hidden");
         return;
       }
@@ -4254,8 +4269,8 @@ function openPowerAnalysisModal(method) {
         </div>
         <details>
           <summary>${t("power_modal_advanced")}</summary>
-          <label>${t("power_modal_n_mc")}<input type="number" id="powerNMc" min="20" max="500" value="${defaultNMc}"></label>
-          ${isCbsem ? "" : `<label>${t("power_modal_n_boot")}<input type="number" id="powerNBoot" min="100" max="300" value="100"></label>`}
+          <label>${t("power_modal_n_mc")}<input type="number" id="powerNMc" min="20" max="${LIMITS.max_replicates}" value="${defaultNMc}"></label>
+          ${isCbsem ? "" : `<label>${t("power_modal_n_boot")}<input type="number" id="powerNBoot" min="100" max="${LIMITS.max_boot_inner}" value="100"></label>`}
           <p class="hint" style="margin:2px 0 0">${t("power_modal_n_mc_hint")}</p>
         </details>
         <p class="hint" id="powerEstimateText"></p>

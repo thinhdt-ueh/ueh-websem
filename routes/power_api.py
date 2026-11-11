@@ -20,7 +20,7 @@ from i18n import get_lang, t
 from pls.analysis_reports import build_power_word_report
 from routes.api import _read_dataframe, _upload_dir
 from routes.jobs import report_progress
-from pls.limits import max_replicates
+from pls.limits import max_boot_inner, max_replicates
 from pls.model import Model, ModelError
 from pls.population import POPULATIONS, build_population
 from pls.power_analysis import (
@@ -75,7 +75,7 @@ def power_analysis():
     n_boot_inner = None
     if method == "pls":
         n_boot_inner = _parse_int(payload, "n_boot_inner", DEFAULT_N_BOOT_INNER) or DEFAULT_N_BOOT_INNER
-        n_boot_inner = max(MIN_BOOT_INNER, min(MAX_BOOT_INNER, n_boot_inner))
+        n_boot_inner = max(MIN_BOOT_INNER, min(max(MAX_BOOT_INNER, max_boot_inner()), n_boot_inner))
 
     # Data-generating population: "model" (declared parameters, no data) or
     # a population calibrated to an uploaded dataset (pls/population.py).

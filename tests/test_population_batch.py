@@ -130,3 +130,15 @@ def test_power_word_report_names_the_population():
     assert "calibrated to the data" in text and "Gaussian copula" in text and "0.0101" in text
     text = "\n".join(p.text for p in Document(build_power_word_report({**data, "population": None}, lang="vi")).paragraphs)
     assert "Theo tham số khai báo" in text and "copula tối đa" not in text
+
+
+def test_local_mode_lifts_the_input_limits(client, monkeypatch):
+    from pls import limits
+
+    monkeypatch.delenv("AISEM_LOCAL", raising=False)
+    assert limits.ui_limits() == {"local": False, "max_replicates": 500, "max_bootstrap": 5000, "max_boot_inner": 300}
+    assert b'"max_boot_inner": 300' in client.get("/").data
+    monkeypatch.setenv("AISEM_LOCAL", "1")
+    ui = limits.ui_limits()
+    assert ui["local"] and ui["max_replicates"] >= 1000 and ui["max_boot_inner"] >= 1000 and ui["max_bootstrap"] >= 10000
+    assert b'"local": true' in client.get("/").data
