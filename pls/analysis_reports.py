@@ -108,9 +108,13 @@ def _summary(values: list) -> dict | None:
 
 # ------------------------------------------------------------------ power
 def build_power_word_report(data: dict, images: list | None = None, lang: str = DEFAULT_LANG) -> io.BytesIO:
+    population = data.get("population") or "model"
+    if population not in ("model", "calibrated", "saturated"):
+        population = "model"
     meta = (f"{_method_label(data.get('method'))} · n_mc = {data.get('n_mc')}"
             + (f" · bootstrap = {data['n_boot_inner']}" if data.get("n_boot_inner") else "")
-            + (f" · population = {data['population']}" if data.get("population") not in (None, "model") else "")
+            + (f" · {t('rpt_power_population_title', lang)}: {t('rpt_power_population_short_' + population, lang)}"
+               if population != "model" else "")
             + f" · {t('rpt_export_date', lang)}: {_now()}")
     doc = _new_document(t("rpt_title_power", lang), meta)
 
@@ -126,6 +130,10 @@ def build_power_word_report(data: dict, images: list | None = None, lang: str = 
                         n_from=min(sample_sizes) if sample_sizes else "—",
                         n_to=max(sample_sizes) if sample_sizes else "—", n_mc=data.get("n_mc")))
     doc.add_paragraph(t("rpt_power_method_text", lang))
+    _add_heading(doc, t("rpt_power_population_title", lang), level=2)
+    doc.add_paragraph(t("rpt_power_population_" + population, lang))
+    if population != "model" and data.get("calibration_error") is not None:
+        doc.add_paragraph(t("rpt_power_calibration_error", lang, err=_fmt(data["calibration_error"], 4)))
 
     _add_heading(doc, t("rpt_power_min_n_title", lang), level=1)
     rows = []

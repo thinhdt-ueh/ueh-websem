@@ -99,6 +99,12 @@ function buildPowerReportContext(data) {
   const lines = [];
   lines.push(`## ${L("Phân tích Power Monte Carlo", "Monte Carlo Power Analysis")} (${data.method === "cbsem" ? "CB-SEM" : "PLS-SEM"})`);
   lines.push(`${L("Số lần lặp Monte Carlo mỗi điểm", "n_mc replicates per point")} = ${data.n_mc}${data.n_boot_inner ? `, ${L("số mẫu lặp lại bootstrap nội bộ", "inner bootstrap resamples")} = ${data.n_boot_inner}` : ""}, ${L("các cỡ mẫu đã kiểm tra", "sample sizes tested")}: ${data.sample_sizes.join(", ")}`);
+  const population = data.population || "model";
+  lines.push(`${L("Quần thể sinh dữ liệu", "Data-generating population")}: ${t(`power_population_${population}`)}`
+    + (population !== "model" && data.calibration_error != null
+      ? ` — ${L("sai số hiệu chỉnh copula tối đa", "maximum copula calibration error")} = ${Number(data.calibration_error).toFixed(4)}`
+      : ""));
+  if (population !== "model") lines.push(t(`power_population_${population}_hint`));
   lines.push(L(
     "Quy ước ngưỡng Power: 0.8 (80%) được xem là đạt yêu cầu.",
     "Power threshold convention: 0.8 (80%) is considered adequate.",

@@ -116,3 +116,17 @@ def test_predicted_share_matches_paper_table7():
     se = 0.101 / 2.04
     assert predicted_share(-0.101, se, 381, 250, overlapping=True) == pytest.approx(0.30, abs=0.01)
     assert predicted_share(-0.101, se, 381, 250, overlapping=False) == pytest.approx(0.38, abs=0.01)
+
+
+def test_power_word_report_names_the_population():
+    from docx import Document
+    from pls.analysis_reports import build_power_word_report
+
+    pts = [{"source": "a", "target": "b", "source_name": "A", "target_name": "B", "n": 200, "power": 0.8,
+            "n_converged": 40, "n_replicates": 40, "mean_estimate": 0.3}]
+    data = {"method": "pls", "n_mc": 40, "points": pts, "sample_sizes": [200],
+            "population": "calibrated", "calibration_error": 0.0101}
+    text = "\n".join(p.text for p in Document(build_power_word_report(data, lang="en")).paragraphs)
+    assert "calibrated to the data" in text and "Gaussian copula" in text and "0.0101" in text
+    text = "\n".join(p.text for p in Document(build_power_word_report({**data, "population": None}, lang="vi")).paragraphs)
+    assert "Theo tham số khai báo" in text and "copula tối đa" not in text

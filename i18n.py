@@ -424,6 +424,29 @@ _CATALOG: dict[str, dict[str, str]] = {
             "Ngưỡng 0,80 là mức power được khuyến nghị phổ biến (Cohen, 1988). \"Chưa đạt\" nghĩa là không cỡ mẫu "
             "nào trong dải đã chọn đạt ngưỡng này — hãy thử dải cỡ mẫu lớn hơn."
         ),
+        "rpt_power_population_title": "Quần thể sinh dữ liệu",
+        "rpt_power_population_model": (
+            "Theo tham số khai báo: dữ liệu được sinh từ các hệ số đường dẫn và loading do người dùng nhập; "
+            "construct ngoại sinh độc lập, biến quan sát liên tục."
+        ),
+        "rpt_power_population_calibrated": (
+            "Hiệu chỉnh theo dữ liệu (composite + copula): quần thể là mô hình composite ước lượng trên bộ dữ liệu "
+            "đang mở, với tương quan trong khối lấy từ dữ liệu và tương quan giữa các khối theo mô hình. Một copula "
+            "Gauss được hiệu chỉnh để mỗi biến quan sát giữ đúng phân phối quan sát (vd. thang 7 điểm). Các hệ số "
+            "khai báo không được dùng."
+        ),
+        "rpt_power_population_saturated": (
+            "Bão hòa: quần thể dùng nguyên ma trận tương quan quan sát của các biến quan sát, với cùng copula Gauss "
+            "tái tạo phân phối từng thang đo. Đây là kiểm tra bổ sung khi các biến dự báo tương quan mạnh hơn mức "
+            "mô hình ngụ ý. Các hệ số khai báo không được dùng."
+        ),
+        "rpt_power_population_short_model": "theo tham số khai báo",
+        "rpt_power_population_short_calibrated": "hiệu chỉnh theo dữ liệu",
+        "rpt_power_population_short_saturated": "bão hòa",
+        "rpt_power_calibration_error": (
+            "Sai số hiệu chỉnh copula tối đa (chênh lệch tuyệt đối lớn nhất giữa tương quan mục tiêu và tương quan "
+            "của dữ liệu sinh ra): {err}."
+        ),
         "rpt_title_sensitivity": "Báo cáo phân tích độ nhạy cỡ mẫu",
         "rpt_title_sensitivity_resample": "Báo cáo phân tích độ nhạy cỡ mẫu (lấy mẫu lại)",
         "rpt_sens_shrink_overview": (
@@ -827,6 +850,29 @@ _CATALOG: dict[str, dict[str, str]] = {
         "rpt_power_threshold_note": (
             "0.80 is the commonly recommended power level (Cohen, 1988). \"Not reached\" means no sample size in the "
             "selected range reached it — try a larger range."
+        ),
+        "rpt_power_population_title": "Data-generating population",
+        "rpt_power_population_model": (
+            "Declared parameters: data are generated from the path coefficients and loadings entered by the user; "
+            "exogenous constructs are independent and indicators are continuous."
+        ),
+        "rpt_power_population_calibrated": (
+            "Calibrated to the data (composite + copula): the population is the composite model fitted to the open "
+            "dataset, with observed within-block correlations and model-implied cross-block correlations. A Gaussian "
+            "copula is calibrated so that each indicator keeps its observed distribution (e.g. a 7-point scale). "
+            "Declared coefficients are not used."
+        ),
+        "rpt_power_population_saturated": (
+            "Saturated: the population is the observed indicator correlation matrix, with the same Gaussian copula "
+            "reproducing each item's distribution. It is a check for predictors that correlate more strongly than "
+            "the model implies. Declared coefficients are not used."
+        ),
+        "rpt_power_population_short_model": "declared parameters",
+        "rpt_power_population_short_calibrated": "calibrated to the data",
+        "rpt_power_population_short_saturated": "saturated",
+        "rpt_power_calibration_error": (
+            "Maximum copula calibration error (largest absolute difference between the target correlations and the "
+            "correlations of the generated data): {err}."
         ),
         "rpt_title_sensitivity": "Sample Size Sensitivity Report",
         "rpt_title_sensitivity_resample": "Sample Size Sensitivity Report (Resampling)",
